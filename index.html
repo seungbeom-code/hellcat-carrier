@@ -21,11 +21,11 @@
 'use strict';
 // ───────── 상수 (단위: m, m/s) ─────────
 const W = 960, H = 540, KT = 1.944;
-const GRAV = 9.8, KL = 0.004375, KD0 = 0.00012, KDG = 0.00015, KDF = 0.00025, AMAX = 4.4, PWR = 590;
+const GRAV = 9.8, KL = 0.004375, KD0 = 0.00012, KDG = 0.00015, KDF = 0.00025, AMAX = 7.2, PWR = 590;
 const SHIP_V = 15.4;                 // 갑판 맞바람 30노트
 const DECK_Y = 20, DECK_L = 260, WH = 3.2;   // 갑판 높이, 길이, 바퀴 밑까지 거리
-const WIRES = [30, 40, 50, 60, 70, 80], BARRIER = 106, HOOK_BACK = 5;
-const TD = 60, SLOPE = 0.065, CUT_X = -4;    // 접지 목표, 활공 기울기, 컷 신호 위치
+const WIRES = [26, 37, 48, 59, 70, 81], BARRIER = 112, HOOK_BACK = 5;
+const TD = 53, SLOPE = 0.065, CUT_X = -4;    // 접지 목표, 활공 기울기, 컷 신호 위치
 const START_XR = 122, UTURN_XR = -650;
 
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
@@ -74,20 +74,28 @@ function airStep(dt) {
   }
   const g = Math.atan2(p.vy, p.vx);
   if (p.s * Math.cos(g) < -0.3 && Math.abs(p.in) < 0.2) { p.s = -p.s; p.a = -p.a; }   // 뒤집힌 채 놓으면 바로 선다
-  const aCmd = p.s * (0.035 + p.in * (p.in > 0 ? 0.19 : 0.2));
+  const inp = p.autoFlare ? Math.max(p.in, 0.32) : clamp(p.in + (G.assist && G.lso ? 0.26 : 0), -1, 1);   // 접근 중에는 손을 떼도 수평이 되게 맞춰 준다
+  const aCmd = p.s * (0.035 + inp * (inp > 0 ? 0.19 : 0.2));
   p.a += (aCmd - p.a) * Math.min(1, dt * 16);
   p.th = g + p.a;
   const f = aero(V, p.a), ux = p.vx / V, uy = p.vy / V;
   p.vx += (f.aT * Math.cos(p.th) - f.aD * ux - f.aL * uy) * dt;
   p.vy += (f.aT * Math.sin(p.th) - f.aD * uy + f.aL * ux - GRAV) * dt;
+  if (G.assist && G.lso && !p.autoFlare) {   // 접근 보조: 안내선과 85노트 쪽으로 부드럽게 끌어 준다
+    const xr = p.x - ship.x, err = p.y - idealY(xr), vyI = -(p.vx - ship.v) * SLOPE;
+    p.vy += clamp(-err * 1.0 - (p.vy - vyI) * 1.6, -5, 5) * dt;
+    p.vx += clamp((85 / KT - V) * 0.8, -2.5, 2.5) * dt;
+  }
+  if (p.autoFlare && p.x - ship.x > 22 && p.y - WH - DECK_Y > 0.4) p.vy -= 5 * dt;   // 컷 뒤에 오래 떠 있지 않게 눌러 준다
   p.x += p.vx * dt; p.y += p.vy * dt;
 }
 
+function tailSit(V) { return 0.2 * clamp(1 - (V * KT - 34) / 30, 0, 1); }   // 느릴 때는 꼬리바퀴로 앉고, 빨라지면 꼬리가 들린다
 function deckStep(dt) {
   const V = p.vr + ship.v;
   if (p.held) {
-    p.vr = 0;
-    if (p.thr > 0.8) { p.flagT += dt; if (p.flagT > 1.2) { p.held = false; sfx('flag'); } } else p.flagT = 0;
+    p.vr = 0; p.th = tailSit(ship.v);
+    if (p.thr > 0.8) { p.flagT += dt; if (p.flagT > 0.8) { p.held = false; sfx('flag'); } } else p.flagT = 0;
   } else {
     const alpha = 0.035 + Math.max(0, p.in) * 0.19;
     const f = aero(V, alpha);
@@ -97,9 +105,9 @@ function deckStep(dt) {
       else if (p.thr < 0.3) acc -= 2.5;
     } else if (p.thr < 0.1) acc -= 4;
     p.vr = Math.max(0, p.vr + acc * dt);
-    p.th = Math.max(0, p.in) * 0.12;
+    p.th = tailSit(V) + Math.max(0, p.in) * 0.12;
     if (f.aL > GRAV * 1.02 && !(p.landing && p.wire >= 0 && p.xr - HOOK_BACK >= WIRES[p.wire])) {   // 떠오름
-      p.mode = 'air'; p.vx = V; p.vy = 1.2; p.a = alpha; p.landing = false; p.wire = -1; p.tookOff = true;
+      p.mode = 'air'; p.vx = V; p.vy = 0.6; p.a = alpha; p.landing = false; p.wire = -1; p.tookOff = true;
       p.y = DECK_Y + WH + 0.05; p.x = ship.x + p.xr; return;
     }
     if (p.landing) {
@@ -109,7 +117,7 @@ function deckStep(dt) {
   }
   p.xr += p.vr * dt;
   p.x = ship.x + p.xr; p.y = DECK_Y + WH; p.vx = p.vr + ship.v; p.vy = 0;
-  if (p.xr > DECK_L + 1) { p.mode = 'air'; p.a = 0.035; p.tookOff = true; p.landing = false; }   // 갑판 끝에서 떨어짐
+  if (p.xr > DECK_L + 1) { p.mode = 'air'; p.a = 0.035; p.vy = -1.5; p.tookOff = true; p.landing = false; }   // 갑판 끝에서 떨어짐
 }
 
 // ───────── 신호장교 ─────────
@@ -118,19 +126,19 @@ function lsoSignal() {
   if (p.mode !== 'air' || p.s < 0 || p.turn > 0) return null;
   const xr = p.x - ship.x, d = TD - xr;
   if (d < 0 || d > 950 || p.y > 190) return null;
-  const err = p.y - idealY(xr), kt = kts(), tol = 3 + d * 0.02;
-  if (d < 170 && (Math.abs(err) > tol * 2.2 || kt > 102 || kt < 68 || !p.gear || !p.hook)) return 'WAVEOFF';
+  const err = p.y - idealY(xr), kt = kts(), tol = 5 + d * 0.03;
+  if (d < 130 && (Math.abs(err) > tol * 2.4 || kt > 112 || kt < 62 || !p.gear)) return 'WAVEOFF';
   if (!p.gear) return 'GEAR';
   if (!p.hook) return 'HOOK';
   if (xr >= CUT_X) return 'CUT';
   if (err > tol) return 'HIGH';
   if (err < -tol) return 'LOW';
-  if (kt > 93) return 'FAST';
-  if (kt < 78) return 'SLOW';
+  if (kt > 97) return 'FAST';
+  if (kt < 74) return 'SLOW';
   return 'ROGER';
 }
 const LSO_TEXT = { ROGER: '좋음', HIGH: '높음 — 출력 줄여', LOW: '낮음 — 출력 올려', FAST: '빠름 — 기수 들어', SLOW: '느림 — 기수 내려',
-  GEAR: '바퀴!', HOOK: '후크!', CUT: '컷! 출력 0', WAVEOFF: '재접근! 출력 최대' };
+  GEAR: '바퀴!', HOOK: '후크!', CUT: '컷! 그대로 내려앉는다', WAVEOFF: '재접근! 출력 최대' };
 
 function trackApproach() {
   const xr = p.x - ship.x, d = TD - xr;
@@ -156,7 +164,7 @@ function checkContact() {
     if (!wasAbove) return crash(xr < 12 ? '배 꼬리에 부딪혔다. 너무 낮았다.' : '선체에 부딪혔다.');
     const rel = p.vx - ship.v;
     if (!p.gear) return crash('바퀴를 내리지 않고 내렸다.');
-    if (p.vy < -7.5) return crash('너무 세게 내려앉았다.');
+    if (p.vy < -11) return crash('너무 세게 내려앉았다.');
     if (rel < 2) return crash('갑판과 반대 방향으로 내렸다.');
     p.td = { kt: kts(), sink: -p.vy, xr, sig: G.lso }; sfx('thump'); p.wireSnd = false;
     p.mode = 'deck'; p.landing = true; p.held = false; p.xr = xr; p.vr = rel; p.vy = 0; p.y = DECK_Y + WH; p.th = 0;
@@ -168,9 +176,9 @@ function finish(kind) {
   let grade, note;
   if (kind === 'barrier') { grade = 'barrier'; note = p.hook ? '와이어를 모두 지나쳐 방벽에 걸렸다.' : '후크를 내리지 않아 방벽에 걸렸다.'; }
   else if (kind === 'nowire') { grade = 'brown'; note = '와이어 없이 멈췄다.'; }
-  else if (n === 1 || td.sig === 'WAVEOFF' || td.kt > 100) { grade = 'red'; note = n === 1 ? '1번 와이어. 배 꼬리에 너무 가까웠다.' : td.sig === 'WAVEOFF' ? '재접근 신호를 무시했다.' : '너무 빨랐다.'; }
-  else if (n <= 4 && ap.maxErr < 6 && ap.maxSpd < 9) { grade = 'green'; note = n + '번 와이어. 완벽하다!'; }
-  else if (n <= 5 && ap.maxErr < 12) { grade = 'yellow'; note = n + '번 와이어. 접근이 조금 흔들렸다.'; }
+  else if (td.sig === 'WAVEOFF' || td.kt > 108) { grade = 'red'; note = td.sig === 'WAVEOFF' ? '재접근 신호를 무시했다.' : '너무 빨랐다.'; }
+  else if (n >= 2 && n <= 5 && ap.maxErr < 10 && ap.maxSpd < 15) { grade = 'green'; note = n + '번 와이어. 완벽하다!'; }
+  else if (ap.maxErr < 18) { grade = 'yellow'; note = n === 1 ? '1번 와이어. 조금 짧았다.' : n + '번 와이어. 접근이 조금 흔들렸다.'; }
   else { grade = 'brown'; note = n + '번 와이어. 안전하게는 내렸다.'; }
   p.mode = 'done'; p.vr = 0; sfx(grade);
   G.stickers.push(grade); if (G.stickers.length > 12) G.stickers.shift();
@@ -189,12 +197,6 @@ function initAudio() {
   const nb = a.createBuffer(1, a.sampleRate * 2, a.sampleRate), d = nb.getChannelData(0);
   for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
   sound.noise = nb;
-  // 엔진: 톱니파 둘 → 저역 필터 → 덜덜거림 → 음량
-  sound.elp = a.createBiquadFilter(); sound.elp.type = 'lowpass'; sound.elp.frequency.value = 300;
-  const am = a.createGain(); am.gain.value = 1; sound.eg = a.createGain(); sound.eg.gain.value = 0;
-  sound.elp.connect(am); am.connect(sound.eg); sound.eg.connect(sound.master);
-  sound.eo = [0, 1, 2].map(i => { const o = a.createOscillator(); o.type = i === 2 ? 'square' : 'sawtooth'; o.frequency.value = 45; o.detune.value = i * 11; o.connect(sound.elp); o.start(); return o; });
-  sound.lfo = a.createOscillator(); const lg = a.createGain(); lg.gain.value = 0.35; sound.lfo.frequency.value = 12; sound.lfo.connect(lg); lg.connect(am.gain); sound.lfo.start();
   // 바람
   const ws = a.createBufferSource(); ws.buffer = nb; ws.loop = true; const wf = a.createBiquadFilter(); wf.type = 'bandpass'; wf.frequency.value = 700; wf.Q.value = 0.6;
   sound.wg = a.createGain(); sound.wg.gain.value = 0; ws.connect(wf); wf.connect(sound.wg); sound.wg.connect(sound.master); ws.start();
@@ -236,12 +238,7 @@ function updateSound(dt) {
   const t = a.currentTime, alive = (p.mode === 'air' || p.mode === 'deck' || p.mode === 'done') && p.fuel > 0;
   const thr = p.mode === 'done' ? 0 : p.thr, V = Math.hypot(p.vx, p.vy);
   sound.master.gain.setTargetAtTime(sound.muted || G.paused ? 0 : 0.55, t, 0.05);
-  const f = 34 + thr * 46 + (p.mode === 'air' ? Math.min(14, V * 0.08) : 0);
-  sound.eo.forEach((o, i) => o.frequency.setTargetAtTime(i === 2 ? f * 2 : f, t, 0.12));
-  sound.lfo.frequency.setTargetAtTime(9 + thr * 16, t, 0.12);
-  sound.elp.frequency.setTargetAtTime(220 + thr * 900, t, 0.12);
-  sound.eg.gain.setTargetAtTime(alive ? 0.13 + 0.2 * thr : 0, t, 0.15);
-  sound.wg.gain.setTargetAtTime(p.mode === 'air' ? Math.min(0.16, V * V * 0.000018) : 0, t, 0.2);
+  sound.wg.gain.setTargetAtTime(p.mode === 'air' ? Math.min(0.06, V * V * 0.000007) : 0, t, 0.2);
   if (G.lso !== sound.lastSig) { if (G.lso === 'CUT') sfx('cut'); if (G.lso === 'WAVEOFF') sfx('waveoff'); sound.lastSig = G.lso; }
   sound.stallT -= dt;
   if (p.mode === 'air' && p.turn <= 0 && kts() < stallKt() * 1.12 && sound.stallT <= 0) { sfx('stall'); sound.stallT = 0.28; }
@@ -256,6 +253,8 @@ function update(dt) {
   else if (p.mode === 'down') { p.y = Math.max(1, p.y - 6 * dt); p.x += p.vx * dt; p.vx *= 1 - Math.min(1, 2 * dt); }
   if (p.mode === 'air' || (p.mode === 'deck' && !p.held)) p.fuel = Math.max(0, p.fuel - (0.03 + 0.25 * p.thr) * dt);
   G.lso = lsoSignal(); trackApproach();
+  if (G.assist && G.lso === 'CUT' && p.mode === 'air') { p.thr = 0; p.autoFlare = true; }   // 자동 컷
+  if (p.mode !== 'air') p.autoFlare = false;
 }
 
 // ───────── 입력 ─────────
@@ -380,6 +379,10 @@ function drawShip() {
       c.restore();
     }
   });
+  if (p.mode === 'deck' && !p.landing && p.thr > 0.5) {
+    c.fillStyle = 'rgba(255,255,255,0.35)';
+    for (let i = 0; i < 6; i++) { const k = (G.t * 2.2 + i / 6) % 1; c.beginPath(); c.arc(sx(p.x - 11 - k * 34), sy(DECK_Y + 1.5 + k * 3 + Math.sin(i * 9) * 1.2), (2 + k * 5) * cam.z * 0.5, 0, 7); c.fill(); }
+  }
   // 앞쪽에 세워 둔 비행기
   if (p.mode === 'air' && Math.abs(p.x - ship.x - 130) > 400) G.park = 'fwd';   // 멀리 나간 사이 앞쪽으로 옮겨 둔다
   (G.park === 'fwd' ? [205, 228] : [38, 62]).forEach(x => world(ship.x + x, DECK_Y + WH, () => drawPlane({ gear: true, thr: 0 })));
@@ -468,7 +471,7 @@ function hint() {
   const xr = p.x - ship.x;
   if (p.mode === 'deck' && !p.landing) {
     if (p.held) return p.thr > 0.8 ? '발진 신호를 기다린다…' : '출력 레버를 끝까지 올린다 (W 키)';
-    return kts() > 78 ? '기수를 든다! (↑ 키)' : '달리는 중… 속도가 붙으면 기수를 든다';
+    return kts() > 74 ? '기수를 든다! (↑ 키)' : '달리는 중… 꼬리가 들리면 기수를 든다';
   }
   if (p.mode === 'deck') return '';
   if (p.turn > 0) return '선회 중';
@@ -571,7 +574,9 @@ function frame(ts) {
     updateCam(dt);
   }
   updateSound(dt);
-  drawWorld(); drawHUD();
+  const shake = p.mode === 'deck' && !p.landing && p.thr > 0.7 ? 1.6 : 0;
+  ctx.save(); if (shake) ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
+  drawWorld(); ctx.restore(); drawHUD();
   requestAnimationFrame(frame);
 }
 reset(); cam.x = p.x; cam.y = 60;

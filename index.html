@@ -1233,12 +1233,44 @@ function carrierBody(c) {
     c.fillStyle = '#46515f'; c.beginPath(); c.ellipse(x, DY - 2.4, 2.3, 1.3, 0, 0, 7); c.fill(); line(x + 0.6, DY - 2.2, x + 5.8, DY + 0.9, '#2c333c', 0.55);
   });
   [10, 44, 84, 180, 216, 252].forEach(x => { poly([[x - 1.9, DY - 1.6], [x + 1.9, DY - 1.6], [x + 1.5, DY - 4], [x - 1.5, DY - 4]], '#566170'); [-0.5, 0.5].forEach(o => line(x + o, DY - 2.4, x + o + 2.2, DY - 0.2, '#2c333c', 0.28)); });
-  // 함교 (연통 없음)
-  poly([[136, DY], [160, DY], [158.8, DY + 12.5], [136, DY + 12.5]], '#939eaa'); rect(136, DY, 24, 2.2, '#76818d'); rect(136, DY + 12.2, 22.8, 0.35, '#b9c3cd');
-  for (let i = 0; i < 5; i++) { rect(138.4 + i * 4.5, DY + 7.4, 2.5, 1.9, '#17222f'); rect(138.4 + i * 4.5, DY + 7.4, 2.5, 0.35, 'rgba(255,255,255,0.25)'); }
-  for (let i = 0; i < 8; i++) disc(138 + i * 2.9, DY + 4, 0.4, '#17222f');
-  rect(138.5, DY + 12.5, 19, 6, '#8996a3'); rect(139.4, DY + 14.2, 17.2, 2.6, '#142030');
-  for (let x = 139.4; x < 156.7; x += 1.7) line(x, DY + 14.2, x, DY + 16.8, 'rgba(150,165,180,0.85)', 0.16);
+  // 함교 (연통 없음): 1층 갑판실 · 2층 해도실/통신실 · 3층 항해 함교(함장) · 4층 비행 지휘소
+  const BX = 136, BW = 24;
+  // 1층: 두꺼운 철판 벽, 수밀문 둘, 둥근 창, 리벳 띠
+  poly([[BX, DY], [BX + BW, DY], [BX + BW - 0.4, DY + 4.4], [BX, DY + 4.4]], '#8c97a3'); rect(BX, DY, BW, 1.1, '#6f7a86');
+  [[139, 0], [152.5, 0]].forEach(([dx]) => { rect(dx, DY + 0.25, 1.8, 3, '#5d6874'); rect(dx + 0.15, DY + 0.4, 1.5, 2.7, '#6b7682'); disc(dx + 1.4, DY + 1.75, 0.13, '#cfd6dc'); });
+  for (let i = 0; i < 4; i++) disc(142.5 + i * 2.6, DY + 3, 0.38, '#17222f');
+  for (let x = BX + 0.6; x < BX + BW - 0.5; x += 1.2) disc(x, DY + 4.15, 0.06, '#5d6874');
+  // 2층: 조금 들어간 벽, 사각 창 줄, 바깥 계단
+  rect(BX + 0.6, DY + 4.4, BW - 1.4, 0.3, '#b9c3cd');
+  poly([[BX + 0.6, DY + 4.7], [BX + BW - 0.8, DY + 4.7], [BX + BW - 1.1, DY + 8.4], [BX + 0.6, DY + 8.4]], '#939eaa');
+  for (let i = 0; i < 6; i++) { rect(138 + i * 3.4, DY + 6, 1.8, 1.3, '#17222f'); rect(138 + i * 3.4, DY + 7.05, 1.8, 0.25, '#7b8692'); }
+  for (let k = 0; k < 6; k++) line(BX + 0.6 - k * 0.45, DY + 4.7 + k * 0.62, BX + 0.6 - (k + 1) * 0.45, DY + 4.7 + (k + 1) * 0.62, '#4b5560', 0.12);   // 바깥 사다리
+  line(BX + 0.6, DY + 4.7, BX - 2.1, DY + 8.4, '#4b5560', 0.1);
+  // 3층: 항해 함교 — 앞으로 기운 큰 유리창, 양쪽 날개, 난간
+  rect(BX - 0.2, DY + 8.4, BW + 0.2, 0.35, '#b9c3cd');
+  poly([[BX + 0.4, DY + 8.75], [BX + BW - 0.6, DY + 8.75], [BX + BW + 0.4, DY + 12.1], [BX + 0.4, DY + 12.1]], '#9aa5b1');
+  rect(BX + 1.6, DY + 9.6, BW - 2.6, 2.1, '#203448');
+  c.fillStyle = 'rgba(160,200,230,0.28)'; c.beginPath(); c.moveTo(BX + 1.6, DY + 11.7); c.lineTo(BX + 6, DY + 11.7); c.lineTo(BX + 3.5, DY + 9.6); c.lineTo(BX + 1.6, DY + 9.6); c.fill();
+  // 함장: 흰 정모·카키 셔츠, 쌍안경을 들고 앞을 본다
+  { const cx = 150.6, cy = DY + 9.6;
+    c.fillStyle = '#b89a62'; c.beginPath(); c.moveTo(cx - 0.55, cy); c.lineTo(cx - 0.6, cy + 1.25); c.quadraticCurveTo(cx, cy + 1.45, cx + 0.6, cy + 1.25); c.lineTo(cx + 0.55, cy); c.closePath(); c.fill();
+    c.fillStyle = '#e2b58a'; c.beginPath(); c.arc(cx + 0.05, cy + 1.72, 0.36, 0, 7); c.fill();
+    c.fillStyle = '#f4f4f0'; c.beginPath(); c.ellipse(cx, cy + 2.05, 0.46, 0.17, 0, 0, 7); c.fill(); rect(cx - 0.33, cy + 2.0, 0.66, 0.24, '#f4f4f0');
+    rect(cx + 0.1, cy + 1.92, 0.55, 0.09, '#1d1d1d'); rect(cx - 0.33, cy + 2.0, 0.66, 0.06, '#1d1d1d');
+    c.fillStyle = '#d4a017'; c.beginPath(); c.arc(cx + 0.02, cy + 2.12, 0.07, 0, 7); c.fill();
+    line(cx + 0.35, cy + 1.0, cx + 0.62, cy + 1.6, '#b89a62', 0.24); rect(cx + 0.4, cy + 1.55, 0.42, 0.26, '#222');
+    c.fillStyle = '#c9ccc4'; c.fillRect(cx + 1.6, cy, 1.1, 0.95); c.fillStyle = '#e2b58a'; c.beginPath(); c.arc(cx + 2.15, cy + 1.25, 0.28, 0, 7); c.fill();   // 옆의 당직 수병
+    c.fillStyle = '#f4f4f0'; c.beginPath(); c.arc(cx + 2.15, cy + 1.45, 0.3, 0, Math.PI); c.fill(); }
+  for (let x = BX + 1.6; x <= BX + BW - 1; x += 2.2) line(x, DY + 9.6, x + 0.25, DY + 11.7, '#6f7a86', 0.18);   // 창틀
+  rect(BX + 1.2, DY + 9.3, BW - 1.8, 0.3, '#7b8692');
+  rect(133.5, DY + 12.1, 5.2, 0.55, '#77828e'); rect(157.4, DY + 12.1, 5.2, 0.55, '#77828e');   // 함교 날개
+  line(133.5, DY + 13.3, 138.7, DY + 13.3, '#4b5560', 0.14); line(157.4, DY + 13.3, 162.6, DY + 13.3, '#4b5560', 0.14);
+  for (const x0 of [133.7, 135.5, 137.3, 157.6, 159.4, 161.2, 162.5]) line(x0, DY + 12.65, x0, DY + 13.3, '#4b5560', 0.1);
+  // 4층: 비행 지휘소 — 사방 유리
+  rect(BX + 2.2, DY + 12.65, BW - 4.5, 5.85, '#8996a3'); rect(BX + 3.1, DY + 14.2, BW - 6.3, 2.6, '#142030');
+  for (let x = BX + 3.1; x < BX + BW - 3.2; x += 1.7) line(x, DY + 14.2, x, DY + 16.8, 'rgba(150,165,180,0.85)', 0.16);
+  rect(BX + 2.2, DY + 12.65, BW - 4.5, 0.6, '#76818d');
+  for (let i = 0; i < 3; i++) { disc(BX + 0.9 + i * 0.01, DY + 13.6 + i * 1.4, 0.32, '#5b6672'); line(BX + 0.9, DY + 13.6 + i * 1.4, BX + 2.2, DY + 13.6 + i * 1.4, '#5b6672', 0.14); }   // 측면 탐조등
   rect(137.4, DY + 18.5, 21.2, 0.8, '#a9b4bf');
   rect(141, DY + 19.3, 13, 4.2, '#8794a1'); rect(142, DY + 20.4, 11, 2.1, '#142030'); rect(140.4, DY + 23.5, 14.2, 0.6, '#a9b4bf');
   rect(133.5, DY + 12.1, 5.2, 0.55, '#77828e'); rect(157.4, DY + 12.1, 5.2, 0.55, '#77828e');
@@ -1256,6 +1288,52 @@ function carrierBody(c) {
   c.fillStyle = '#3c3b6e'; c.beginPath(); c.moveTo(-1.4, DY + 8.6); c.lineTo(-3.2, DY + 8.6 + Math.sin(G.t * 6 - 4.2) * 0.22); c.lineTo(-3.2, DY + 6.1 + Math.sin(G.t * 6 - 4.2) * 0.22); c.lineTo(-1.4, DY + 6.1); c.closePath(); c.fill();
 }
 
+// 갑판 승무원: 장화·바지·색 저지·가죽 헬멧과 고글, 팔꿈치가 굽는 두 팔. 오른손에 빨간 깃발(또는 패들)
+function deckCrew(c, x, y, aR, aL, item) {
+  const PI = Math.PI, sh = y + 2.75, step = 0;
+  c.lineCap = 'round'; c.lineJoin = 'round';
+  const limb = (x0, y0, a, l1, l2, bend, col, w) => {   // 위팔·아래팔 두 마디
+    const ex = x0 + Math.cos(a + bend) * l1, ey = y0 + Math.sin(a + bend) * l1, hx = ex + Math.cos(a - bend * 0.6) * l2, hy = ey + Math.sin(a - bend * 0.6) * l2;
+    c.strokeStyle = col; c.lineWidth = w; c.beginPath(); c.moveTo(x0, y0); c.lineTo(ex, ey); c.lineTo(hx, hy); c.stroke();
+    c.fillStyle = '#e9bf94'; c.beginPath(); c.arc(hx, hy, w * 0.42, 0, 7); c.fill();
+    return [hx, hy];
+  };
+  // 뒤쪽 팔 (어둡게)
+  const [bh, bv] = limb(x - 0.12, sh, aL, 0.75, 0.7, 0.25, '#b8961f', 0.36);
+  if (item === 'paddle') { c.fillStyle = '#d9662a'; c.beginPath(); c.arc(bh + Math.cos(aL) * 0.5, bv + Math.sin(aL) * 0.5, 0.5, 0, 7); c.fill(); }
+  // 다리와 장화
+  c.strokeStyle = '#6f6a52'; c.lineWidth = 0.42;
+  c.beginPath(); c.moveTo(x - 0.1, y + 1.55); c.lineTo(x - 0.28, y + 0.8); c.lineTo(x - 0.3, y + 0.25); c.stroke();
+  c.beginPath(); c.moveTo(x + 0.12, y + 1.55); c.lineTo(x + 0.3, y + 0.82); c.lineTo(x + 0.36, y + 0.25); c.stroke();
+  c.fillStyle = '#2b2620'; c.fillRect(x - 0.52, y, 0.5, 0.3); c.fillRect(x + 0.18, y, 0.52, 0.3);
+  // 허리띠와 몸통(노란 저지, 등번호 띠)
+  c.fillStyle = '#4a3b26'; c.fillRect(x - 0.36, y + 1.5, 0.74, 0.16);
+  c.fillStyle = '#f2c230'; c.beginPath(); c.moveTo(x - 0.38, y + 1.64); c.lineTo(x - 0.44, sh + 0.05); c.quadraticCurveTo(x, sh + 0.32, x + 0.44, sh + 0.05); c.lineTo(x + 0.38, y + 1.64); c.closePath(); c.fill();
+  c.fillStyle = 'rgba(0,0,0,0.13)'; c.fillRect(x - 0.4, y + 1.66, 0.22, sh - y - 1.66);
+  c.fillStyle = '#1d1d1d'; c.fillRect(x - 0.3, y + 2.2, 0.6, 0.12);
+  // 목·얼굴·가죽 헬멧과 고글
+  c.fillStyle = '#e9bf94'; c.fillRect(x - 0.1, sh + 0.12, 0.2, 0.18);
+  c.beginPath(); c.ellipse(x + 0.05, sh + 0.55, 0.27, 0.32, 0, 0, 7); c.fill();
+  c.fillStyle = '#d4ad22'; c.beginPath(); c.ellipse(x - 0.01, sh + 0.66, 0.31, 0.27, 0, PI * 0.92, PI * 2.12); c.fill();
+  c.fillRect(x - 0.3, sh + 0.32, 0.14, 0.34);   // 귀덮개
+  c.fillStyle = '#3a3a3a'; c.fillRect(x - 0.05, sh + 0.66, 0.36, 0.11); c.fillStyle = '#9fc4d8'; c.fillRect(x + 0.14, sh + 0.64, 0.16, 0.13);
+  // 앞쪽 팔과 든 물건
+  const [hx, hy] = limb(x + 0.15, sh, aR, 0.75, 0.7, -0.2, '#f2c230', 0.38);
+  if (item === 'flag') {
+    const ca = Math.cos(aR), sa = Math.sin(aR), tx = hx + ca * 1.7, ty = hy + sa * 1.7;
+    c.strokeStyle = '#5a4630'; c.lineWidth = 0.12; c.beginPath(); c.moveTo(hx - ca * 0.2, hy - sa * 0.2); c.lineTo(tx, ty); c.stroke();
+    // 빨간 깃발: 막대 끝 쪽 1.1m가 깃대, 천은 바람에 펄럭인다
+    const bx = hx + ca * 0.75, by = hy + sa * 0.75, nx = -sa, ny = ca, side = ny >= 0 ? -1 : 1, L = 1.25;
+    const w1 = Math.sin(G.t * 11) * 0.18, w2 = Math.sin(G.t * 11 + 1.6) * 0.22;
+    const P = (u, v, w) => [bx + ca * u + nx * side * v * L + ca * w, by + sa * u + ny * side * v * L + sa * w];
+    const pts = [P(0.95, 0, 0), P(0.95, 0.5, w1), P(0.9, 1, w2), P(0, 1, w2), P(0, 0.5, w1), P(0, 0, 0)];
+    c.fillStyle = '#d4202c'; c.beginPath(); c.moveTo(...pts[0]); c.quadraticCurveTo(...pts[1], ...pts[2]); c.lineTo(...pts[3]); c.quadraticCurveTo(...pts[4], ...pts[5]); c.closePath(); c.fill();
+    c.fillStyle = 'rgba(0,0,0,0.18)'; c.beginPath(); c.moveTo(...P(0.45, 0, 0)); c.quadraticCurveTo(...P(0.45, 0.5, w1), ...P(0.45, 1, w2)); c.lineTo(...P(0, 1, w2)); c.quadraticCurveTo(...P(0, 0.5, w1), ...P(0, 0, 0)); c.closePath(); c.fill();
+  } else if (item === 'paddle') {
+    c.fillStyle = '#ff7a2e'; c.beginPath(); c.arc(hx + Math.cos(aR) * 0.5, hy + Math.sin(aR) * 0.5, 0.5, 0, 7); c.fill();
+  }
+  c.lineCap = 'butt'; c.lineJoin = 'miter';
+}
 // 함교 날개 위의 신호장교: 신호에 따라 패들을 든다 (작게)
 function lsoSmall(c) {
   const x = 160, y = DECK_Y + 12.65, sig = G.lso, t = G.t, PI = Math.PI;
@@ -1264,15 +1342,8 @@ function lsoSmall(c) {
   else if (sig === 'HIGH') { L = PI * 0.75; R = PI * 0.25; }
   else if (sig === 'LOW' || sig === 'UNDER') { L = PI * 1.25; R = -PI * 0.25 + (sig === 'UNDER' ? Math.sin(t * 10) * 0.3 : 0); }
   else if (sig === 'FAST') { L = PI * 1.4; R = -PI * 0.4 + Math.sin(t * 9) * 0.25; }
-  c.save(); c.translate(x, y); c.scale(2.2, 2.2); c.translate(-x, -y);   // 눈에 띄게 2.2배
-  c.fillStyle = '#e8ecf0'; c.fillRect(x - 0.55, y, 1.1, 1.9);
-  c.fillStyle = '#f2c9a0'; c.beginPath(); c.arc(x, y + 2.45, 0.55, 0, 7); c.fill();
-  c.fillStyle = '#d9a441'; c.beginPath(); c.arc(x, y + 2.6, 0.58, PI, 0); c.fill();
-  [[L, -1], [R, 1]].forEach(([a, sd]) => {
-    const ax = x + sd * 0.5, ay = y + 1.6, ex = ax + Math.cos(a) * 1.9, ey = ay + Math.sin(a) * 1.9;
-    c.strokeStyle = '#e8ecf0'; c.lineWidth = 0.4; c.lineCap = 'round'; c.beginPath(); c.moveTo(ax, ay); c.lineTo(ex, ey); c.stroke(); c.lineCap = 'butt';
-    c.fillStyle = '#ff5a3c'; c.beginPath(); c.arc(ex, ey, 0.6, 0, 7); c.fill();
-  });
+  c.save(); c.translate(x, y); c.scale(1.5, 1.5); c.translate(-x, -y);   // 눈에 띄게 1.5배
+  deckCrew(c, x, y, R, L, 'paddle');
   c.restore();
 }
 
@@ -1326,11 +1397,7 @@ function drawShip() {
     if (((p.mode === 'deck' && !p.landing) || p.mode === 'taxi') && p.xr < START_XR + 30) {
       const fx = START_XR + 16, dn = p.mode === 'deck' && !p.held;
       c.save(); c.translate(fx, DECK_Y); c.scale(2.2, 2.2); c.translate(-fx, -DECK_Y);   // 발진 신호수도 2.2배
-      c.fillStyle = '#f4d35e'; c.fillRect(fx, DECK_Y, 0.9, 2.2); c.fillStyle = '#f2c9a0'; c.beginPath(); c.arc(fx + 0.45, DECK_Y + 2.8, 0.6, 0, 7); c.fill();
-      c.save(); c.translate(fx + 0.9, DECK_Y + 1.8); c.rotate(dn ? -0.5 : 1.1 + Math.sin(G.t * 14) * (p.thr > 0.8 ? 0.3 : 0));
-      c.strokeStyle = '#333'; c.lineWidth = 0.18; c.beginPath(); c.moveTo(0, 0); c.lineTo(3, 0); c.stroke();
-      for (let i = 0; i < 4; i++) { c.fillStyle = i % 2 ? '#111' : '#fff'; c.fillRect(1.4 + (i % 2) * 0.8, i < 2 ? 0 : 0.8, 0.8, 0.8); }
-      c.restore();
+      deckCrew(c, fx + 0.45, DECK_Y, dn ? -0.45 : 1.15 + Math.sin(G.t * 14) * (p.thr > 0.8 ? 0.3 : 0), dn ? -0.9 : -1.75, 'flag');
       c.restore();
     }
   });

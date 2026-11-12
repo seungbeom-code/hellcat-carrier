@@ -74,8 +74,8 @@ function airStep(dt) {
   }
   const g = Math.atan2(p.vy, p.vx);
   if (p.s * Math.cos(g) < -0.3 && Math.abs(p.in) < 0.2) { p.s = -p.s; p.a = -p.a; }   // 뒤집힌 채 놓으면 바로 선다
-  const aCmd = p.s * (0.035 + p.in * (p.in > 0 ? 0.19 : 0.16));
-  p.a += (aCmd - p.a) * Math.min(1, dt * 5);
+  const aCmd = p.s * (0.035 + p.in * (p.in > 0 ? 0.19 : 0.2));
+  p.a += (aCmd - p.a) * Math.min(1, dt * 16);
   p.th = g + p.a;
   const f = aero(V, p.a), ux = p.vx / V, uy = p.vy / V;
   p.vx += (f.aT * Math.cos(p.th) - f.aD * ux - f.aL * uy) * dt;
@@ -87,13 +87,13 @@ function deckStep(dt) {
   const V = p.vr + ship.v;
   if (p.held) {
     p.vr = 0;
-    if (p.thr > 0.8) { p.flagT += dt; if (p.flagT > 1.2) p.held = false; } else p.flagT = 0;
+    if (p.thr > 0.8) { p.flagT += dt; if (p.flagT > 1.2) { p.held = false; sfx('flag'); } } else p.flagT = 0;
   } else {
     const alpha = 0.035 + Math.max(0, p.in) * 0.19;
     const f = aero(V, alpha);
     let acc = f.aT - f.aD - 0.4;
     if (p.landing) {
-      if (p.wire >= 0 && p.xr - HOOK_BACK >= WIRES[p.wire]) acc = -34;
+      if (p.wire >= 0 && p.xr - HOOK_BACK >= WIRES[p.wire]) { acc = -34; if (!p.wireSnd) { p.wireSnd = true; sfx('wire'); } }
       else if (p.thr < 0.3) acc -= 2.5;
     } else if (p.thr < 0.1) acc -= 4;
     p.vr = Math.max(0, p.vr + acc * dt);
@@ -122,7 +122,6 @@ function lsoSignal() {
   if (d < 170 && (Math.abs(err) > tol * 2.2 || kt > 102 || kt < 68 || !p.gear || !p.hook)) return 'WAVEOFF';
   if (!p.gear) return 'GEAR';
   if (!p.hook) return 'HOOK';
-  if (!p.flaps) return 'FLAPS';
   if (xr >= CUT_X) return 'CUT';
   if (err > tol) return 'HIGH';
   if (err < -tol) return 'LOW';
@@ -131,7 +130,7 @@ function lsoSignal() {
   return 'ROGER';
 }
 const LSO_TEXT = { ROGER: '좋음', HIGH: '높음 — 출력 줄여', LOW: '낮음 — 출력 올려', FAST: '빠름 — 기수 들어', SLOW: '느림 — 기수 내려',
-  GEAR: '바퀴!', HOOK: '후크!', FLAPS: '플랩!', CUT: '컷! 출력 0', WAVEOFF: '재접근! 출력 최대' };
+  GEAR: '바퀴!', HOOK: '후크!', CUT: '컷! 출력 0', WAVEOFF: '재접근! 출력 최대' };
 
 function trackApproach() {
   const xr = p.x - ship.x, d = TD - xr;
@@ -145,7 +144,7 @@ function trackApproach() {
 }
 
 // ───────── 접지, 충돌, 판정 ─────────
-function crash(why, ditch) { p.mode = 'down'; G.result = { kind: ditch ? 'ditch' : 'crash', why }; }
+function crash(why, ditch) { sfx(ditch ? 'splash' : 'crash'); p.mode = 'down'; G.result = { kind: ditch ? 'ditch' : 'crash', why }; }
 function checkContact() {
   const xr = p.x - ship.x, wheel = p.y - WH;
   if (p.y <= 2.2) {
@@ -159,7 +158,7 @@ function checkContact() {
     if (!p.gear) return crash('바퀴를 내리지 않고 내렸다.');
     if (p.vy < -7.5) return crash('너무 세게 내려앉았다.');
     if (rel < 2) return crash('갑판과 반대 방향으로 내렸다.');
-    p.td = { kt: kts(), sink: -p.vy, xr, sig: G.lso };
+    p.td = { kt: kts(), sink: -p.vy, xr, sig: G.lso }; sfx('thump'); p.wireSnd = false;
     p.mode = 'deck'; p.landing = true; p.held = false; p.xr = xr; p.vr = rel; p.vy = 0; p.y = DECK_Y + WH; p.th = 0;
     p.wire = p.hook ? WIRES.findIndex(w => w >= xr - HOOK_BACK) : -1;
   }
@@ -173,14 +172,84 @@ function finish(kind) {
   else if (n <= 4 && ap.maxErr < 6 && ap.maxSpd < 9) { grade = 'green'; note = n + '번 와이어. 완벽하다!'; }
   else if (n <= 5 && ap.maxErr < 12) { grade = 'yellow'; note = n + '번 와이어. 접근이 조금 흔들렸다.'; }
   else { grade = 'brown'; note = n + '번 와이어. 안전하게는 내렸다.'; }
-  p.mode = 'done'; p.vr = 0;
+  p.mode = 'done'; p.vr = 0; sfx(grade);
   G.stickers.push(grade); if (G.stickers.length > 12) G.stickers.shift();
   G.result = { kind: 'land', grade, note, wire: n, kt: Math.round(td.kt) };
 }
 
+// ───────── 소리 (파일 없이 합성) ─────────
+const sound = { muted: false, ctx: null, stallT: 0, lastSig: null };
+try { sound.muted = localStorage.getItem('hellcat-muted') === '1'; } catch (_) {}
+function setMuted(m) { sound.muted = m; try { localStorage.setItem('hellcat-muted', m ? '1' : '0'); } catch (_) {} }
+function initAudio() {
+  if (sound.ctx) { if (sound.ctx.state === 'suspended') sound.ctx.resume(); return; }
+  const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+  const a = sound.ctx = new AC();
+  sound.master = a.createGain(); sound.master.gain.value = 0; sound.master.connect(a.destination);
+  const nb = a.createBuffer(1, a.sampleRate * 2, a.sampleRate), d = nb.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  sound.noise = nb;
+  // 엔진: 톱니파 둘 → 저역 필터 → 덜덜거림 → 음량
+  sound.elp = a.createBiquadFilter(); sound.elp.type = 'lowpass'; sound.elp.frequency.value = 300;
+  const am = a.createGain(); am.gain.value = 1; sound.eg = a.createGain(); sound.eg.gain.value = 0;
+  sound.elp.connect(am); am.connect(sound.eg); sound.eg.connect(sound.master);
+  sound.eo = [0, 1, 2].map(i => { const o = a.createOscillator(); o.type = i === 2 ? 'square' : 'sawtooth'; o.frequency.value = 45; o.detune.value = i * 11; o.connect(sound.elp); o.start(); return o; });
+  sound.lfo = a.createOscillator(); const lg = a.createGain(); lg.gain.value = 0.35; sound.lfo.frequency.value = 12; sound.lfo.connect(lg); lg.connect(am.gain); sound.lfo.start();
+  // 바람
+  const ws = a.createBufferSource(); ws.buffer = nb; ws.loop = true; const wf = a.createBiquadFilter(); wf.type = 'bandpass'; wf.frequency.value = 700; wf.Q.value = 0.6;
+  sound.wg = a.createGain(); sound.wg.gain.value = 0; ws.connect(wf); wf.connect(sound.wg); sound.wg.connect(sound.master); ws.start();
+}
+function tone(freq, dur, type, vol, to, delay) {
+  const a = sound.ctx; if (!a || sound.muted) return;
+  const t = a.currentTime + (delay || 0), o = a.createOscillator(), g = a.createGain();
+  o.type = type || 'sine'; o.frequency.setValueAtTime(freq, t); if (to) o.frequency.exponentialRampToValueAtTime(to, t + dur);
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  o.connect(g); g.connect(sound.master); o.start(t); o.stop(t + dur + 0.02);
+}
+function burst(freq, dur, vol, type, delay) {
+  const a = sound.ctx; if (!a || sound.muted) return;
+  const t = a.currentTime + (delay || 0), s = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
+  s.buffer = sound.noise; s.loop = true; f.type = type || 'bandpass'; f.frequency.value = freq; f.Q.value = 0.9;
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  s.connect(f); f.connect(g); g.connect(sound.master); s.start(t); s.stop(t + dur + 0.02);
+}
+function sfx(n) {
+  if (!sound.ctx || sound.muted) return;
+  if (n === 'clunk') { tone(110, 0.12, 'square', 0.25, 60); burst(900, 0.08, 0.2); }
+  else if (n === 'thump') { tone(70, 0.22, 'sine', 0.7, 35); burst(1900, 0.35, 0.22); }          // 접지 + 타이어
+  else if (n === 'wire') { tone(520, 0.3, 'square', 0.22, 140); tone(1340, 0.18, 'triangle', 0.18, 700); burst(3000, 0.25, 0.25, 'highpass'); }
+  else if (n === 'barrier') { burst(500, 0.6, 0.6); tone(90, 0.4, 'sawtooth', 0.4, 40); }
+  else if (n === 'crash') { burst(260, 1.1, 0.9, 'lowpass'); tone(80, 0.7, 'sawtooth', 0.5, 30); }
+  else if (n === 'splash') { burst(700, 1.2, 0.6); burst(2400, 0.6, 0.25, 'highpass', 0.05); }
+  else if (n === 'green') { [660, 880, 1320].forEach((f, i) => tone(f, 0.35, 'triangle', 0.3, 0, i * 0.13)); }
+  else if (n === 'yellow') { [660, 880].forEach((f, i) => tone(f, 0.3, 'triangle', 0.28, 0, i * 0.14)); }
+  else if (n === 'brown') { tone(440, 0.35, 'triangle', 0.25); }
+  else if (n === 'red') { tone(240, 0.5, 'sawtooth', 0.25, 160); }
+  else if (n === 'cut') { tone(1500, 0.18, 'sine', 0.3, 1700); }                                   // 컷 호루라기
+  else if (n === 'waveoff') { tone(310, 0.16, 'square', 0.22); tone(310, 0.16, 'square', 0.22, 0, 0.22); }
+  else if (n === 'flag') { burst(1200, 0.25, 0.15); }
+  else if (n === 'stall') { tone(880, 0.09, 'square', 0.14); }
+  else if (n === 'turn') { burst(500, 0.9, 0.18); }
+}
+function updateSound(dt) {
+  const a = sound.ctx; if (!a) return;
+  const t = a.currentTime, alive = (p.mode === 'air' || p.mode === 'deck' || p.mode === 'done') && p.fuel > 0;
+  const thr = p.mode === 'done' ? 0 : p.thr, V = Math.hypot(p.vx, p.vy);
+  sound.master.gain.setTargetAtTime(sound.muted || G.paused ? 0 : 0.55, t, 0.05);
+  const f = 34 + thr * 46 + (p.mode === 'air' ? Math.min(14, V * 0.08) : 0);
+  sound.eo.forEach((o, i) => o.frequency.setTargetAtTime(i === 2 ? f * 2 : f, t, 0.12));
+  sound.lfo.frequency.setTargetAtTime(9 + thr * 16, t, 0.12);
+  sound.elp.frequency.setTargetAtTime(220 + thr * 900, t, 0.12);
+  sound.eg.gain.setTargetAtTime(alive ? 0.13 + 0.2 * thr : 0, t, 0.15);
+  sound.wg.gain.setTargetAtTime(p.mode === 'air' ? Math.min(0.16, V * V * 0.000018) : 0, t, 0.2);
+  if (G.lso !== sound.lastSig) { if (G.lso === 'CUT') sfx('cut'); if (G.lso === 'WAVEOFF') sfx('waveoff'); sound.lastSig = G.lso; }
+  sound.stallT -= dt;
+  if (p.mode === 'air' && p.turn <= 0 && kts() < stallKt() * 1.12 && sound.stallT <= 0) { sfx('stall'); sound.stallT = 0.28; }
+}
+
 // ───────── 한 걸음 ─────────
 function update(dt) {
-  G.t += dt; ship.x += ship.v * dt;
+  G.t += dt; ship.x += ship.v * dt; p.flaps = p.gear;
   if (p.mode === 'deck') deckStep(dt);
   else if (p.mode === 'air') { airStep(dt); checkContact(); }
   else if (p.mode === 'done') { p.x = ship.x + p.xr; }
@@ -193,14 +262,14 @@ function update(dt) {
 const keys = {};
 function toggle(k) {
   if (p.mode !== 'air' && p.mode !== 'deck') return;
-  if (k === 'gear' && p.mode === 'air') p.gear = !p.gear;
-  if (k === 'flaps') p.flaps = !p.flaps;
-  if (k === 'hook') p.hook = !p.hook;
-  if (k === 'uturn' && p.mode === 'air' && p.turn <= 0 && p.y > 12) { p.turn = 2.2; p.v0 = p.vx; p.flipped = false; }
+  if (k === 'gear' && p.mode === 'air') { p.gear = !p.gear; sfx('clunk'); }
+  if (k === 'hook') { p.hook = !p.hook; sfx('clunk'); }
+  if (k === 'uturn' && p.mode === 'air' && p.turn <= 0 && p.y > 12) { p.turn = 2.2; p.v0 = p.vx; p.flipped = false; sfx('turn'); }
 }
 addEventListener('keydown', e => {
-  if (e.repeat) return; keys[e.code] = true;
-  if (e.code === 'KeyG') toggle('gear'); if (e.code === 'KeyF') toggle('flaps'); if (e.code === 'KeyH') toggle('hook');
+  if (e.repeat) return; keys[e.code] = true; initAudio();
+  if (e.code === 'KeyM') setMuted(!sound.muted);
+  if (e.code === 'KeyG') toggle('gear'); if (e.code === 'KeyH') toggle('hook');
   if (e.code === 'KeyX') toggle('uturn'); if (e.code === 'KeyR') reset(); if (e.code === 'Space') p.thr = 0;
   if (e.code === 'KeyA') G.assist = !G.assist;
   if (e.code === 'Enter' && G.result) reset();
@@ -211,16 +280,15 @@ let keyIn = 0;
 function readKeys(dt) {
   const up = keys.ArrowUp, dn = keys.ArrowDown;
   const tgt = up ? 1 : dn ? -1 : 0;
-  keyIn += (tgt - keyIn) * Math.min(1, dt * 8);
+  keyIn += (tgt - keyIn) * Math.min(1, dt * 22);
   if (!touch.pad) p.in = keyIn;
   if (keys.KeyW || keys.ShiftLeft) p.thr = clamp(p.thr + 0.7 * dt, 0, 1);
   if (keys.KeyS || keys.ControlLeft) p.thr = clamp(p.thr - 0.7 * dt, 0, 1);
 }
 // 터치 버튼
 const BTN = [
-  { id: 'gear', x: 120, y: 470, w: 74, h: 50, label: '바퀴' }, { id: 'flaps', x: 200, y: 470, w: 74, h: 50, label: '플랩' },
-  { id: 'hook', x: 280, y: 470, w: 74, h: 50, label: '후크' }, { id: 'uturn', x: 620, y: 470, w: 84, h: 50, label: 'U턴' },
-  { id: 'reset', x: 14, y: 12, w: 64, h: 34, label: '다시' }
+  { id: 'gear', x: 120, y: 470, w: 84, h: 50, label: '바퀴' }, { id: 'hook', x: 212, y: 470, w: 84, h: 50, label: '후크' }, { id: 'uturn', x: 620, y: 470, w: 84, h: 50, label: 'U턴' },
+  { id: 'reset', x: 14, y: 12, w: 64, h: 34, label: '다시' }, { id: 'snd', x: 14, y: 54, w: 64, h: 34, label: '소리' }
 ];
 const THR = { x: 22, y: 150, w: 70, h: 330 }, PAD = { x: 740, y: 190, w: 200, h: 300 };
 const touch = { pad: false, ids: {} };
@@ -231,9 +299,9 @@ function drag(kind, m) {
   if (kind === 'pad') p.in = clamp(-(m.y - (PAD.y + PAD.h / 2)) / (PAD.h / 2 - 20), -1, 1);
 }
 cv.addEventListener('pointerdown', e => {
-  const m = pos(e); e.preventDefault();
+  const m = pos(e); e.preventDefault(); initAudio();
   if (G.result && m.y > 150 && m.y < 400 && m.x > 250 && m.x < 710) return reset();
-  for (const b of BTN) if (inR(m, b)) { b.id === 'reset' ? reset() : toggle(b.id); return; }
+  for (const b of BTN) if (inR(m, b)) { b.id === 'reset' ? reset() : b.id === 'snd' ? setMuted(!sound.muted) : toggle(b.id); return; }
   if (inR(m, THR)) { touch.ids[e.pointerId] = 'thr'; drag('thr', m); }
   else if (inR(m, PAD)) { touch.ids[e.pointerId] = 'pad'; touch.pad = true; drag('pad', m); }
   try { cv.setPointerCapture(e.pointerId); } catch (_) {}
@@ -379,7 +447,7 @@ function drawLSO() {   // 신호장교 확대창
   if (sig === 'SLOW') { const k = Math.sin(t * 9) * 0.3; L = Math.PI + k; R = -k; }
   if (sig === 'CUT') { L = Math.PI * 1.3; R = Math.PI * 0.85; }
   if (sig === 'WAVEOFF') { const k = Math.sin(t * 12) * 0.5; L = Math.PI * 0.6 + k; R = Math.PI * 0.4 - k; }
-  if (sig === 'GEAR' || sig === 'HOOK' || sig === 'FLAPS') { L = Math.PI * 1.2; R = Math.PI * 0.3 + Math.sin(t * 10) * 0.4; }
+  if (sig === 'GEAR' || sig === 'HOOK') { L = Math.PI * 1.2; R = Math.PI * 0.3 + Math.sin(t * 10) * 0.4; }
   c.fillStyle = '#f2f4f6'; c.beginPath(); c.roundRect(cx - 9, cy - 8, 18, 34, 5); c.fill();
   c.fillStyle = '#f2c9a0'; c.beginPath(); c.arc(cx, cy - 20, 10, 0, 7); c.fill();
   c.fillStyle = '#d9a441'; c.beginPath(); c.arc(cx, cy - 23, 10, Math.PI, 0); c.fill();
@@ -405,8 +473,8 @@ function hint() {
   if (p.mode === 'deck') return '';
   if (p.turn > 0) return '선회 중';
   if (G.lso) return '';
-  if (p.s > 0 && xr > 150) return p.y < 60 ? '바퀴(G)와 플랩(F)을 올리고 상승한다' : 'U턴(X)해서 항모 뒤쪽으로 돌아간다';
-  if (p.s < 0 && xr > UTURN_XR) return '노란 원까지 가며 속도를 줄이고, 바퀴·플랩·후크를 내린다';
+  if (p.s > 0 && xr > 150) return p.y < 60 ? '바퀴(G)를 올리고 상승한다' : 'U턴(X)해서 항모 뒤쪽으로 돌아간다';
+  if (p.s < 0 && xr > UTURN_XR) return '노란 원까지 가며 속도를 줄이고, 바퀴와 후크를 내린다';
   if (p.s < 0) return '지금 U턴! (X 키)';
   if (p.s > 0 && xr < UTURN_XR - 400) return '항모 쪽으로 다가간다';
   return '';
@@ -450,11 +518,11 @@ function drawHUD() {
   c.fillStyle = '#fff'; c.font = '700 12px system-ui,sans-serif'; c.fillText('▲ 기수 올림', PAD.x + PAD.w / 2, PAD.y + 18); c.fillText('▼ 기수 내림', PAD.x + PAD.w / 2, PAD.y + PAD.h - 8);
   // 버튼
   for (const b of BTN) {
-    const on = b.id === 'gear' ? p.gear : b.id === 'flaps' ? p.flaps : b.id === 'hook' ? p.hook : null;
+    const on = b.id === 'gear' ? p.gear : b.id === 'hook' ? p.hook : null;
     c.fillStyle = on === true ? 'rgba(52,150,84,0.9)' : on === false ? 'rgba(60,72,88,0.85)' : 'rgba(26,60,110,0.85)';
     c.beginPath(); c.roundRect(b.x, b.y, b.w, b.h, 9); c.fill();
-    c.fillStyle = '#fff'; c.font = '800 15px system-ui,sans-serif'; c.textAlign = 'center';
-    c.fillText(b.label, b.x + b.w / 2, b.y + b.h / 2 + (on === null ? 5 : -1));
+    c.fillStyle = '#fff'; c.font = (b.id === 'snd' ? '800 12px' : '800 15px') + ' system-ui,sans-serif'; c.textAlign = 'center';
+    c.fillText(b.id === 'snd' ? (sound.muted ? '소리 끔' : '소리 켬') : b.label, b.x + b.w / 2, b.y + b.h / 2 + (on === null ? 5 : -1));
     if (on !== null) { c.font = '600 11px system-ui,sans-serif'; c.fillText(on ? '내림' : '올림', b.x + b.w / 2, b.y + b.h - 8); }
   }
   drawLSO();
@@ -502,6 +570,7 @@ function frame(ts) {
     while (acc >= STEP) { update(STEP); acc -= STEP; }
     updateCam(dt);
   }
+  updateSound(dt);
   drawWorld(); drawHUD();
   requestAnimationFrame(frame);
 }

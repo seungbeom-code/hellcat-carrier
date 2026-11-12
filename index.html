@@ -578,7 +578,7 @@ function islandStep() {   // 섬에 일본군이 하나도 없으면 탈환: 항
     if (TARGETS.some(t => t.isl === k && t.alive && JP[t.type]) || SOLD.some(o => o.alive && o.isl === k)) return;
     s.cleared = true; s.clearT = G.t;
     const nm = MISSIONS[G.mi].place + (ISLANDS.length > 1 ? ' 제' + (k + 1) + '섬' : '');
-    (G.tick = G.tick || []).push({ text: '◆ 속보 ◆   ' + nm + ' 탈환!   일본군이 항복하고 백기를 올렸다   ◆ 속보 ◆' });
+    (G.tick = G.tick || []).push({ text: nm + ' 탈환 — 일본군이 항복하고 백기를 올렸다' });
     sfx('green');
   });
 }
@@ -612,7 +612,7 @@ function missionStep(dt) {
   G.dark = M.tint === 'night' ? clamp((m.t - 40) / 160, 0, 0.5) : M.tint === 'dusk' ? 0.1 + clamp(m.t / 600, 0, 0.2) : 0;
   if (G.land) landStep(dt, M);
   soldierStep(dt); islandStep();
-  if (G.tick && G.tick.length) { const T = G.tick[0]; if (T.t0 === undefined) T.t0 = G.t; if (G.t - T.t0 > 14) G.tick.shift(); }   // 속보 한 줄은 14초 동안 흐른다
+  if (G.tick && G.tick.length) { const T = G.tick[0]; if (T.t0 === undefined) T.t0 = G.t; if (G.t - T.t0 > 6) G.tick.shift(); }   // 속보 한 줄은 6초 동안 보인다
   if (G.carrierHp < 70 && Math.random() < dt * 6) FX.push({ k: 'smoke', x: ship.x + 40 + Math.random() * 170, y: DECK_Y + 2, vx: ship.v - 6, vy: 5, life: 1.6, t: 0, s: 2 + Math.random() * 2 });
   if (p.mode === 'air' && p.hp < 45 && Math.random() < dt * 12) FX.push({ k: 'smoke', x: p.x - Math.cos(p.th) * 5, y: p.y - Math.sin(p.th) * 5, vx: p.vx * 0.2, vy: 2, life: 1, t: 0, s: 1.4 });
   if (GOALS[M.goal](m, M)) m.obj = true;
@@ -1518,14 +1518,14 @@ function drawHUD() {
     c.fillStyle = held ? 'rgba(230,90,60,0.95)' : n > 0 ? 'rgba(150,40,30,0.88)' : 'rgba(60,66,76,0.8)'; c.beginPath(); c.roundRect(b.x, b.y, b.w, b.h, 12); c.fill();
     c.fillStyle = '#fff'; c.textAlign = 'center'; c.font = '800 15px system-ui,sans-serif'; c.fillText(b.label, b.x + b.w / 2, b.y + 26); c.font = '600 12px system-ui,sans-serif'; c.fillText(n + '  (' + b.key + ')', b.x + b.w / 2, b.y + 46);
   });
-  if (G.tick && G.tick.length) {
-    const T = G.tick[0]; if (T.t0 === undefined) T.t0 = G.t;
-    c.font = '800 22px "Courier New", monospace'; const tx = W - (G.t - (T.t0 === undefined ? G.t : T.t0)) * 140;
-    {
-      c.fillStyle = 'rgba(8,8,10,0.92)'; c.fillRect(0, 150, W, 40);
-      c.textAlign = 'left'; c.fillStyle = '#ffb000'; c.shadowColor = '#ff8800'; c.shadowBlur = 8; c.fillText(T.text, tx, 178); c.shadowBlur = 0;
-      c.fillStyle = 'rgba(8,8,10,0.55)'; for (let gx = 0; gx < W; gx += 4) c.fillRect(gx, 150, 1.5, 40); for (let gy = 150; gy < 190; gy += 4) c.fillRect(0, gy, W, 1.5);   // 전광판 점무늬
-    }
+  if (G.tick && G.tick.length) {   // 뉴스 자막처럼: 왼쪽에 빨간 '속보' 꼬리표, 흰 글씨, 부드럽게 나타났다 사라진다
+    const T = G.tick[0], el = T.t0 === undefined ? 0 : G.t - T.t0, al = clamp(Math.min(el / 0.4, (6 - el) / 0.5), 0, 1), by = 160 + (1 - clamp(el / 0.4, 0, 1)) * 30;
+    c.globalAlpha = al; c.font = '700 19px system-ui,sans-serif';
+    const tw = c.measureText(T.text).width, bw = tw + 140, bx = (W - bw) / 2;
+    c.fillStyle = 'rgba(12,22,38,0.9)'; c.fillRect(bx, by, bw, 40); c.fillStyle = '#c62828'; c.fillRect(bx, by, 76, 40);
+    c.fillStyle = '#fff'; c.font = '800 17px system-ui,sans-serif'; c.textAlign = 'center'; c.fillText('속보', bx + 38, by + 26);
+    c.textAlign = 'left'; c.font = '700 19px system-ui,sans-serif'; c.fillText(T.text, bx + 96, by + 27);
+    c.fillStyle = 'rgba(255,255,255,0.25)'; c.fillRect(bx, by + 38, bw, 2); c.globalAlpha = 1;
   }
   if (hangarOpen()) drawHangar(c);
   const hm = hint();

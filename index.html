@@ -48,7 +48,7 @@ const lerp = (a, b, t) => a + (b - a) * t;
 // ───────── 상태 ─────────
 const ship = { x: 0, v: SHIP_V };
 const cam = { x: 0, y: 60, z: 3 };
-const G = { t: 0, stickers: [], result: null, assist: true, lso: null, lsoT: 0, flag: 0, loadout: 1, toast: null, scene: 'menu', sel: 0, mi: 0, m: null, lives: 3, carrierHp: 100, land: null, dark: 0, res: null, menuMsg: '', save: loadSave() };
+const G = { t: 0, stickers: [], result: null, assist: true, lso: null, lsoT: 0, flag: 0, loadout: 1, toast: null, scene: 'menu', holdX: 1e9, sel: 0, mi: 0, m: null, lives: 3, carrierHp: 100, land: null, dark: 0, res: null, menuMsg: '', save: loadSave() };
 let p;
 function reset() {
   p = { mode: 'taxi', x: 0, y: DECK_Y + WH, vx: SHIP_V, vy: 0, th: 0, a: 0.035, s: 1, in: 0, thr: 0,
@@ -432,7 +432,7 @@ const SHIPS = { boat: 1, dd: 1, tr: 1, bb: 1, cv: 1 }, DEF_W = { aa: 1, bunker: 
 const TARGETS = [], PROJ = [], TREES = [], ENE = [], EB = [], FLAK = [];
 const ES = { zero: { v: 135, w: 1.7, hp: 4 }, ace: { v: 150, w: 2.0, hp: 8 }, n1k: { v: 155, w: 1.9, hp: 9 }, d4y: { v: 105, w: 0.9, hp: 6 }, b6n: { v: 100, w: 0.8, hp: 7 } };
 const TINTS = { day: ['#4f9ad6', '#bfe4f5'], dawn: ['#3b5f99', '#f0b49a'], dusk: ['#4a4f8c', '#f2a65a'], night: ['#0b1430', '#2a3f66'] };
-const ZR = 'zero';
+const ZR = 'zero', OFF = 3000;   // 작전 배치 좌표에서 3km를 빼서 섬을 항모에 가깝게 둔다
 // 기획서의 미션 10개
 const MISSIONS = [
   { name: '구니버드의 섬', date: '1944년 1월', place: '미드웨이 환초', kind: '훈련', tint: 'day', goal: 'train', brief: '이륙해서 표적 3개를 맞히고, 항모에 4번 착함한다', islands: [[6000, 700, 24]], waves: [],
@@ -487,8 +487,10 @@ function startMission(i) {
   G.m = { t: 0, kills: 0, zeros: 0, ace: false, landings: 0, greens: 0, crashes: 0, wave: 0, hits: [], done: false, obj: false, flag: 0, runwayFirst: false };
   ENE.length = 0; EB.length = 0; FLAK.length = 0; FX.length = 0; PROJ.length = 0;
   ship.x = -500; G.t = 0;
-  ISLANDS = M.islands.map(([a, w, pk]) => ({ a, b: a + w, pk }));
-  makeTargets(M); reset();
+  ISLANDS = M.islands.map(([a, w, pk]) => ({ a: a - OFF, b: a - OFF + w, pk }));
+  makeTargets(M);
+  { let nx = 1e9; ISLANDS.forEach(s => nx = Math.min(nx, s.a)); TARGETS.forEach(t => nx = Math.min(nx, t.x - 50)); G.holdX = nx - 1760; }
+  reset();
   G.toast = { text: (i + 1) + '. ' + M.name + ' — ' + M.brief, grade: 'green', until: G.t + 7 };
 }
 function goMenu() { G.scene = 'menu'; G.sel = G.mi || 0; G.menuMsg = ''; }
@@ -502,8 +504,8 @@ function endMission(win, why) {
 }
 function makeTargets(M) {
   TARGETS.length = 0; TREES.length = 0;
-  const P = (k, f) => ISLANDS[k].a + (ISLANDS[k].b - ISLANDS[k].a) * f;
-  const add = (type, x) => { const t = { type, x, y: SHIPS[type] ? 0 : gh(x), hp: HP[type], hp0: HP[type], alive: true, burn: 0, fire: Math.random() * 2, deadT: 0 }; t.isl = ISLANDS.findIndex(s => x > s.a && x < s.b); TARGETS.push(t); return t; };
+  const P = (k, f) => ISLANDS[k].a + (ISLANDS[k].b - ISLANDS[k].a) * f + OFF;
+  const add = (type, x0) => { const x = x0 - OFF; const t = { type, x, y: SHIPS[type] ? 0 : gh(x), hp: HP[type], hp0: HP[type], alive: true, burn: 0, fire: Math.random() * 2, deadT: 0 }; t.isl = ISLANDS.findIndex(s => x > s.a && x < s.b); TARGETS.push(t); return t; };
   M.build(add, P);
   ISLANDS.forEach(s => { for (let x = s.a + 50; x < s.b - 50; x += 34) { const h = Math.abs(Math.sin(x * 12.9898) * 43758.5453) % 1, r = 3 + h * 2.5, tx = x + h * 10; TREES.push({ x: tx, y: gh(tx), r, hp: 3, hp0: 3, alive: true }); } });
 }
@@ -856,7 +858,8 @@ function drawScene() {
 // ───────── 한 걸음 ─────────
 function update(dt) {
   if (G.scene !== 'play') return;
-  G.t += dt; ship.x += ship.v * dt; if (!G.manual) autoFly(dt); p.flaps = p.gear;
+  G.t += dt; if (ship.x < G.holdX) ship.x += ship.v * dt;   // 섬에 너무 가까워지면 항모는 그 자리에 머문다
+  if (!G.manual) autoFly(dt); p.flaps = p.gear;
   if (p.mode === 'deck') deckStep(dt);
   else if (p.mode === 'air') { airStep(dt); checkContact(); }
   else if (p.mode === 'taxi') taxiStep(dt);

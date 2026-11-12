@@ -21,10 +21,12 @@
 'use strict';
 // ───────── 상수 (단위: m, m/s) ─────────
 const W = 960, H = 540, KT = 1.944;
-const GRAV = 9.8, KL = 0.004375, KD0 = 0.00012, KDG = 0.00015, KDF = 0.00025, AMAX = 7.2, PWR = 590;
+const GRAV = 9.8, KL = 0.004375, KD0 = 0.000172, KDG = 0.00015, KDF = 0.00025, AMAX = 7.2, PWR = 850;
 const SHIP_V = 15.4;                 // 갑판 맞바람 30노트
 const DECK_Y = 20, DECK_L = 260, WH = 3.2;   // 갑판 높이, 길이, 바퀴 밑까지 거리
-const WIRES = [28, 50, 72, 94, 190, 212, 234];
+const ZONE_L = DECK_L * 0.3, ZONE_A = (DECK_L - ZONE_L) / 2, ZONE_B = ZONE_A + ZONE_L;   // 어레스팅 와이어 구역 (갑판의 30%, 가운데)
+const WIRES = [0, 1, 2, 3].map(i => ZONE_A + 10 + i * (ZONE_L - 20) / 3);
+const HOOK_BACK = 7.5, CRUISE_KT = 215, SLOW_KT = 92;   // 후크 끝 위치, 손을 뗐을 때 순항 속도, 항모 근처 접근 속도
 const TAKEOFF_KT = 90, TURN_KT = 80;   // 이륙과 선회에 필요한 최소 속도
 const LAND_KT = 118, LAND_SINK = 8, LAND_PITCH = 0.22;   // 착함 허용 한계: 속도, 가라앉는 속도, 기울기
 const TD = 53, SLOPE = 0.065, CUT_X = -4;    // 접지 목표, 활공 기울기, 컷 신호 위치
@@ -42,7 +44,7 @@ let p;
 function reset() {
   p = { mode: 'deck', x: 0, y: DECK_Y + WH, vx: SHIP_V, vy: 0, th: 0, a: 0.035, s: 1, in: 0, thr: 0,
         gear: true, flaps: true, hook: false, fuel: 100, xr: START_XR, vr: 0, held: true, flagT: 0,
-        landing: false, wire: -1, turn: 0, go: false, off: false, liftT: 0, tookOff: false, prevY: DECK_Y + WH,
+        landing: false, wire: -1, turn: 0, go: false, off: false, liftT: 0, wx: null, eng: false, ld: 1, relT: 0, engT: 0, tookOff: false, prevY: DECK_Y + WH,
         ap: { maxErr: 0, maxSpd: 0, on: false }, td: null };
   p.x = ship.x + p.xr;
   G.result = null; G.lso = null; G.msg = null; G.burn = null; FX.length = 0;
@@ -89,8 +91,8 @@ function airStep(dt) {
   if (p.neutral) {   // 손을 뗀 상태: 흔들림 없이 천천히 내려가고 속도도 안정된다
     const xr = p.x - ship.x, over = xr > 0 && xr < DECK_L && p.y - WH - DECK_Y < 22;   // 갑판 위에 들어서면 조금 더 빨리 내려앉는다
     p.vy += ((over ? -5 : -2.5) - p.vy) * Math.min(1, (over ? 3 : 1.6) * dt);
-    const Vt = (p.gear ? 92 : 140) / KT;
-    p.vx += Math.sign(p.vx) * clamp((Vt - V) * 0.7, -3, 3) * dt;
+    const Vt = (p.gear ? SLOW_KT : CRUISE_KT) / KT;
+    p.vx += Math.sign(p.vx) * clamp((Vt - V) * 0.8, -7, 5) * dt;
   }
   p.x += p.vx * dt; p.y += p.vy * dt;
 }
@@ -100,15 +102,23 @@ function levelPitch() { const a = p.s > 0 ? p.th : Math.PI - p.th; return Math.a
 function tailSit(V) { return 0.2 * clamp(1 - (V * KT - 34) / 30, 0, 1); }   // 느릴 때는 꼬리바퀴로 앉고, 빨라지면 꼬리가 들린다
 function deckStep(dt) {
   if (p.landing) {                        // 착함 뒤: 후크가 와이어를 잡아 급히 멈춘다 (어느 방향이든)
-    const d = Math.sign(p.vr) || 1;
-    const room = (d > 0 ? DECK_L - p.xr : p.xr) - 8;   // 와이어가 남은 갑판 안에서 세워 준다
-    const dec = Math.max(34, p.vr * p.vr / (2 * clamp(room, 6, 40)));
+    const d = p.ld, hookX = p.xr - d * HOOK_BACK;
+    if (!p.eng && p.wx !== null && (hookX - p.wx) * d >= 0) {   // 후크가 와이어를 걸었다
+      p.eng = true; p.engT = G.t; sfx('wire');
+      for (let i = 0; i < 16; i++) FX.push({ k: 'spark', x: ship.x + hookX, y: DECK_Y + 0.4, vx: ship.v - d * (4 + Math.random() * 16), vy: 4 + Math.random() * 11, life: 0.35 + Math.random() * 0.35, t: 0 });
+    }
+    let dec;
+    if (p.wx === null) dec = 6;   // 걸 와이어가 없다: 바퀴 제동뿐이라 갑판 끝에서 떨어지기 쉽다
+    else if (p.eng) {   // 와이어가 걸렸다: 남은 갑판 안에서 세워 준다
+      const room = (d > 0 ? DECK_L - p.xr : p.xr) - 8;
+      dec = Math.max(34, p.vr * p.vr / (2 * clamp(room, 6, 40)));
+    } else dec = Math.min(5, p.vr * p.vr / (2 * ((p.wx - hookX) * d + 4)));   // 와이어에 닿기 전: 바퀴만 굴러간다
     p.vr -= d * dec * dt; if (p.vr * d <= 0) p.vr = 0;
     p.xr += p.vr * dt;
     const tail = tailSit(Math.abs(p.vr + ship.v));
     p.th = p.s > 0 ? tail : Math.PI - tail;
     p.x = ship.x + p.xr; p.y = DECK_Y + WH; p.vx = p.vr + ship.v; p.vy = 0;
-    if (p.xr < -3 || p.xr > DECK_L + 3) { p.mode = 'air'; p.landing = false; p.vy = -3; p.off = true; p.offWhy = '갑판이 모자라 바다로 떨어졌다. 갑판 가운데쯤에 내려야 한다.'; return; }   // 갑판이 모자라 떨어진다
+    if (p.xr < -3 || p.xr > DECK_L + 3) { p.mode = 'air'; p.landing = false; p.vy = -3; p.off = true; p.offWhy = p.wx === null ? '와이어 구역을 지나쳐 갑판 끝에서 떨어졌다. 노란 줄무늬 구역 앞쪽에 내려야 한다.' : '갑판이 모자라 바다로 떨어졌다. 갑판 가운데쯤에 내려야 한다.'; return; }   // 갑판이 모자라 떨어진다
     if (p.vr === 0) finish();
     return;
   }
@@ -178,7 +188,7 @@ function stepFx(dt) {
           if (q.vy < 2) { q.rest = true; q.xr = xr; }
         } else if (q.y <= 0) { q.life = 0; FX.push({ k: 'splash', x: q.x, y: 0, vx: 0, vy: 0, life: 0.6, t: 0 }); }
       } else q.x = ship.x + q.xr;
-    } else { q.x += q.vx * dt; q.y += q.vy * dt; q.vx += (ship.v * 0.3 - q.vx) * dt; }
+    } else { if (q.k === 'spark') q.vy -= 32 * dt; q.x += q.vx * dt; q.y += q.vy * dt; if (q.k !== 'spark') q.vx += (ship.v * 0.3 - q.vx) * dt; }
     if (q.life <= 0) FX.splice(i, 1);
   }
 }
@@ -198,6 +208,7 @@ function drawFx() {
     if (q.k === 'flash') { c.fillStyle = 'rgba(255,244,200,' + (1 - k) + ')'; c.beginPath(); c.arc(X, Y, (10 + k * 34) * cam.z, 0, 7); c.fill(); }
     else if (q.k === 'fire') { c.fillStyle = k < 0.35 ? 'rgba(255,225,90,0.95)' : k < 0.7 ? 'rgba(255,130,40,' + (0.9 - k * 0.3) + ')' : 'rgba(70,70,70,' + (1 - k) * 1.6 + ')'; c.beginPath(); c.arc(X, Y, q.s * (0.7 + k) * cam.z, 0, 7); c.fill(); }
     else if (q.k === 'smoke') { c.fillStyle = 'rgba(60,62,66,' + (0.55 * (1 - k)) + ')'; c.beginPath(); c.arc(X, Y, q.s * (0.8 + k * 1.6) * cam.z, 0, 7); c.fill(); }
+    else if (q.k === 'spark') { c.fillStyle = 'rgba(255,238,160,' + (1 - k) + ')'; c.beginPath(); c.arc(X, Y, 0.45 * cam.z * (1 - 0.5 * k), 0, 7); c.fill(); }
     else if (q.k === 'splash') { c.fillStyle = 'rgba(255,255,255,' + (0.8 * (1 - k)) + ')'; c.beginPath(); c.ellipse(X, Y - 6 * k * cam.z, (2 + 3 * k) * cam.z, (1 + 5 * k) * cam.z, 0, 0, 7); c.fill(); }
   }
 }
@@ -218,17 +229,22 @@ function checkContact() {
     if (p.vy < -LAND_SINK) return crash('너무 세게 내려앉았다. 천천히 내려와야 한다.');
     if (kt > LAND_KT) return crash('너무 빨랐다. 손을 떼고 속도를 줄여야 한다.');
     if (Math.abs(pitch) > LAND_PITCH) return crash('수평이 아니었다. 기수를 너무 ' + (pitch > 0 ? '들었다.' : '숙였다.'));
-    p.td = { kt, sink: -p.vy, pitch }; sfx('thump'); sfx('wire');
+    p.td = { kt, sink: -p.vy, pitch }; sfx('thump');
+    p.ld = p.s > 0 ? 1 : -1; const hx0 = xr - p.ld * HOOK_BACK;   // 후크가 처음 닿을 와이어: 진행 방향 앞쪽 첫 번째
+    p.wx = p.ld > 0 ? (WIRES.find(w => w >= hx0) ?? null) : ([...WIRES].reverse().find(w => w <= hx0) ?? null);
+    p.eng = false; p.relT = 0;
     p.mode = 'deck'; p.landing = true; p.held = false; p.xr = xr; p.vr = p.vx - ship.v; p.vy = 0; p.y = DECK_Y + WH;
   }
 }
 function finish() {
   const td = p.td;
   let grade, note;
-  if (td.sink < 5.6 && td.kt < 105 && Math.abs(td.pitch) < 0.12) { grade = 'green'; note = '부드럽고 반듯하게 내렸다. 완벽하다!'; }
+  const wn = p.wx === null ? 0 : (p.ld > 0 ? WIRES.indexOf(p.wx) + 1 : WIRES.length - WIRES.indexOf(p.wx));
+  if (wn === 0) { grade = 'brown'; note = '와이어 없이 바퀴 제동만으로 멈췄다.'; }
+  else if (td.sink < 5.6 && td.kt < 105 && Math.abs(td.pitch) < 0.12) { grade = 'green'; note = wn + '번 와이어. 부드럽고 반듯하게 내렸다. 완벽하다!'; }
   else if (td.sink < 7) { grade = 'yellow'; note = td.kt >= 105 ? '조금 빨랐다.' : Math.abs(td.pitch) >= 0.12 ? '조금 기울었다.' : '조금 세게 내렸다.'; }
-  else { grade = 'brown'; note = '쿵! 그래도 안전하게는 내렸다.'; }
-  p.mode = 'done'; p.vr = 0; sfx(grade);
+  else { grade = 'brown'; note = wn + '번 와이어. 쿵! 그래도 안전하게는 내렸다.'; }
+  p.mode = 'done'; p.vr = 0; sfx(grade); p.relT = G.t + 0.8;
   G.stickers.push(grade); if (G.stickers.length > 12) G.stickers.shift();
   G.result = { kind: 'land', grade, note, kt: Math.round(td.kt) };
 }
@@ -245,6 +261,13 @@ function initAudio() {
   const nb = a.createBuffer(1, a.sampleRate * 2, a.sampleRate), d = nb.getChannelData(0);
   for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
   sound.noise = nb;
+  // 엔진: 낮고 부드러운 웅웅거림. 사인파 둘(완전5도)과 걸러 낸 잡음만 쓰고, 소리는 아주 작게 둔다.
+  sound.eg = a.createGain(); sound.eg.gain.value = 0; sound.eg.connect(sound.master);
+  const trem = a.createGain(); trem.gain.value = 1; trem.connect(sound.eg);
+  sound.eo = [0, 1].map(i => { const o = a.createOscillator(); o.type = 'sine'; o.frequency.value = i ? 140 : 94; const g = a.createGain(); g.gain.value = i ? 0.35 : 0.6; o.connect(g); g.connect(trem); o.start(); return o; });
+  const es = a.createBufferSource(); es.buffer = nb; es.loop = true; sound.elp = a.createBiquadFilter(); sound.elp.type = 'lowpass'; sound.elp.frequency.value = 280; sound.elp.Q.value = 0.3;
+  const ng = a.createGain(); ng.gain.value = 3.2; es.connect(sound.elp); sound.elp.connect(ng); ng.connect(trem); es.start();
+  sound.lfo = a.createOscillator(); sound.lfo.frequency.value = 9; const lg = a.createGain(); lg.gain.value = 0.14; sound.lfo.connect(lg); lg.connect(trem.gain); sound.lfo.start();
   // 바람
   const ws = a.createBufferSource(); ws.buffer = nb; ws.loop = true; const wf = a.createBiquadFilter(); wf.type = 'bandpass'; wf.frequency.value = 700; wf.Q.value = 0.6;
   sound.wg = a.createGain(); sound.wg.gain.value = 0; ws.connect(wf); wf.connect(sound.wg); sound.wg.connect(sound.master); ws.start();
@@ -286,6 +309,11 @@ function updateSound(dt) {
   const t = a.currentTime, alive = (p.mode === 'air' || p.mode === 'deck' || p.mode === 'done') && p.fuel > 0;
   const thr = p.mode === 'done' ? 0 : p.thr, V = Math.hypot(p.vx, p.vy);
   sound.master.gain.setTargetAtTime(sound.muted || G.paused ? 0 : 0.55, t, 0.05);
+  const ef = 92 + thr * 30 + (p.mode === 'air' ? Math.min(8, V * 0.04) : 0);
+  sound.eo[0].frequency.setTargetAtTime(ef, t, 0.3); sound.eo[1].frequency.setTargetAtTime(ef * 1.5, t, 0.3);
+  sound.lfo.frequency.setTargetAtTime(8 + thr * 7, t, 0.3);
+  sound.elp.frequency.setTargetAtTime(240 + thr * 220, t, 0.3);
+  sound.eg.gain.setTargetAtTime(alive ? 0.045 + 0.07 * thr : 0, t, 0.35);
   sound.wg.gain.setTargetAtTime(p.mode === 'air' ? Math.min(0.06, V * V * 0.000007) : 0, t, 0.2);
   if (G.lso !== sound.lastSig) { if (G.lso === 'CUT') sfx('cut'); if (G.lso === 'WAVEOFF') sfx('waveoff'); sound.lastSig = G.lso; }
   sound.stallT -= dt;
@@ -356,13 +384,13 @@ function autoFly(dt) {
   else if (p.mode === 'air') {
     if (p.turn > 0) tgt = 0.2;                 // 선회 중에는 출력이 줄어든다
     else if (fwd) tgt = 1;                     // 가는 방향 키: 출력 최대
-    else if (ctl.up) tgt = 0.65;               // 올라갈 때는 출력을 보탠다
+    else if (ctl.up) tgt = 0.85;               // 올라갈 때는 출력을 보탠다
     else if (ctl.down) tgt = 0.1;
     else tgt = 0.25;
     p.neutral = p.turn <= 0 && !fwd && !ctl.up && !ctl.down;   // 손을 떼면 초당 2.5m쯤 천천히 내려간다 (airStep에서 처리)
     const far = Math.abs(p.x - ship.x - DECK_L / 2);   // 바퀴는 항모 가까이에서 낮게 날 때만 내린다
-    if (p.gear && (p.y > 92 || far > 760)) { p.gear = false; sfx('clunk'); }
-    if (!p.gear && p.y < 76 && far < 640) { p.gear = true; sfx('clunk'); }
+    if (p.gear && (p.y > 125 || far > 1300)) { p.gear = false; sfx('clunk'); }
+    if (!p.gear && p.y < 105 && far < 1000) { p.gear = true; sfx('clunk'); }
   }
   if (p.mode !== 'air') p.neutral = false;
   p.thr += (tgt - p.thr) * Math.min(1, dt * 4);
@@ -375,7 +403,7 @@ function world(x, y, fn) { ctx.save(); ctx.translate(sx(x), sy(y)); ctx.scale(ca
 
 function drawPlane(o) {   // 원점: 기체 중심, 오른쪽이 기수, 단위 m
   const c = ctx;
-  if (o.hook) { c.strokeStyle = '#333'; c.lineWidth = 0.28; c.beginPath(); c.moveTo(-5.5, -0.8); c.lineTo(-7.6, -3.5); c.lineTo(-7.0, -3.7); c.stroke(); }
+  if (o.hook) { c.strokeStyle = '#333'; c.lineWidth = 0.28; c.beginPath(); c.moveTo(-5.5, -0.8); c.lineTo(-7.5, -2.95); c.lineTo(-7.0, -3.05); c.stroke(); }
   if (o.gear) {
     c.strokeStyle = '#9aa3ad'; c.lineWidth = 0.4; c.beginPath(); c.moveTo(1.8, -1.6); c.lineTo(2.3, -2.5); c.stroke();
     c.fillStyle = '#222'; c.beginPath(); c.arc(2.3, -2.45, 0.75, 0, 7); c.fill();
@@ -449,10 +477,25 @@ function drawShip() {
     c.restore();
     // 비행갑판
     c.fillStyle = '#2a3654'; c.fillRect(-3, DECK_Y - 1.6, 266, 1.6);
-    c.fillStyle = '#e8ecf0'; for (let x = 4; x < 256; x += 12) c.fillRect(x, DECK_Y - 0.5, 6, 0.3);
+    c.fillStyle = '#f2b705'; c.fillRect(ZONE_A, DECK_Y - 1.6, ZONE_L, 1.6);   // 어레스팅 구역: 노란 바탕에 검은 줄무늬
+    c.fillStyle = '#1b1b1b';
+    for (let x = ZONE_A; x + 3.2 <= ZONE_B; x += 4) { c.beginPath(); c.moveTo(x, DECK_Y - 1.6); c.lineTo(x + 2, DECK_Y - 1.6); c.lineTo(x + 3.2, DECK_Y); c.lineTo(x + 1.2, DECK_Y); c.closePath(); c.fill(); }
+    [ZONE_A, ZONE_B].forEach((x, i) => { c.fillStyle = '#f2b705'; c.fillRect(x - 0.35, DECK_Y, 0.7, 3.4); c.beginPath(); c.moveTo(x, DECK_Y + 3.4); c.lineTo(x + (i ? -2.6 : 2.6), DECK_Y + 2.6); c.lineTo(x, DECK_Y + 1.8); c.closePath(); c.fill(); });   // 경계 표지
+    c.fillStyle = '#e8ecf0'; for (let x = 4; x < 256; x += 12) { if (x + 6 > ZONE_A && x < ZONE_B) continue; c.fillRect(x, DECK_Y - 0.5, 6, 0.3); }
     // 와이어와 방벽
     c.strokeStyle = '#f4d35e'; c.lineWidth = 0.35;
-    WIRES.forEach(w => { c.beginPath(); c.moveTo(w - 0.8, DECK_Y); c.quadraticCurveTo(w, DECK_Y + 1.3, w + 0.8, DECK_Y); c.stroke(); });
+    const pulled = p.wx !== null && p.eng && p.relT !== undefined && !(p.mode === 'done' && G.t - p.relT >= 0.55);
+    WIRES.forEach(w => { if (pulled && w === p.wx) return; c.beginPath(); c.moveTo(w - 0.8, DECK_Y); c.quadraticCurveTo(w, DECK_Y + 1.3, w + 0.8, DECK_Y); c.stroke(); });
+    if (pulled) {
+      const hx = p.xr - p.ld * HOOK_BACK, tE = G.t - p.engT, rel = p.mode === 'done' ? clamp((G.t - p.relT) / 0.55, 0, 1) : 0;
+      let ex = hx, sag = 0;
+      if (rel > 0) { ex = lerp(hx, p.wx, 1 - Math.pow(1 - rel, 3)); sag = Math.sin(rel * 20) * (1 - rel) * 1.8; }
+      else if (tE < 0.5) sag = Math.sin(tE * 40) * (0.5 - tE) * 2.4;   // 걸리는 순간의 떨림
+      const ay = DECK_Y + 0.55, ey = DECK_Y + 0.35, mx = (p.wx + ex) / 2;
+      c.strokeStyle = '#6b4a00'; c.lineWidth = 1.15; c.beginPath(); c.moveTo(p.wx, ay); c.quadraticCurveTo(mx, (ay + ey) / 2 + sag, ex, ey); c.stroke();
+      c.strokeStyle = '#ffd23f'; c.lineWidth = 0.7; c.beginPath(); c.moveTo(p.wx, ay); c.quadraticCurveTo(mx, (ay + ey) / 2 + sag, ex, ey); c.stroke();
+      c.fillStyle = '#9aa3ad'; c.beginPath(); c.arc(p.wx, DECK_Y + 0.3, 0.8, 0, 7); c.fill();   // 와이어가 뽑혀 나온 자리
+    }
     c.strokeStyle = '#d9dde2'; c.lineWidth = 0.4;
     // 신호장교(작게)
     c.fillStyle = '#e8ecf0'; c.fillRect(9.4, DECK_Y, 0.9, 2.2); c.fillStyle = '#f2c9a0'; c.beginPath(); c.arc(9.85, DECK_Y + 2.8, 0.6, 0, 7); c.fill();
@@ -467,6 +510,11 @@ function drawShip() {
       c.restore();
     }
   });
+  {   // 구역 이름표 (선체 쪽)
+    const lx = sx(ship.x + (ZONE_A + ZONE_B) / 2), ly = sy(DECK_Y - 5.5);
+    c.font = '800 13px system-ui,sans-serif'; c.textAlign = 'center'; c.lineJoin = 'round'; c.lineWidth = 4; c.strokeStyle = 'rgba(20,30,45,0.85)';
+    c.strokeText('어레스팅 구역', lx, ly); c.fillStyle = '#ffd23f'; c.fillText('어레스팅 구역', lx, ly);
+  }
   if (p.mode === 'deck' && !p.landing && p.thr > 0.5) {
     c.fillStyle = 'rgba(255,255,255,0.35)';
     for (let i = 0; i < 6; i++) { const k = (G.t * 2.2 + i / 6) % 1; c.beginPath(); c.arc(sx(p.x - 11 - k * 34), sy(DECK_Y + 1.5 + k * 3 + Math.sin(i * 9) * 1.2), (2 + k * 5) * cam.z * 0.5, 0, 7); c.fill(); }
@@ -502,6 +550,18 @@ function drawWorld() {
   for (let x = x0; x < cam.x + span / 2 + 45; x += 45) {
     const r = ((x / 45) % 5 + 5) % 5, X = sx(x), Y = seaY + 8 + r * 9;
     if (Y < H) { c.beginPath(); c.moveTo(X, Y); c.quadraticCurveTo(X + 9, Y - 4, X + 18, Y); c.stroke(); }
+  }
+  const sp = kts();
+  if (p.mode === 'air' && sp > 110) {   // 빨라질수록 선명해지는 바람줄
+    const ds = p.vx >= 0 ? 1 : -1, al = clamp((sp - 110) / 120, 0, 0.34), L = Math.hypot(p.vx, p.vy) * 0.14 * cam.z, spanY = H / cam.z, i0 = Math.floor((cam.x - span / 2) / 53);
+    c.strokeStyle = 'rgba(255,255,255,' + al + ')'; c.lineWidth = 2; c.lineCap = 'round';
+    for (let i = i0; i < i0 + span / 53 + 3; i++) {
+      const hh = Math.abs((Math.sin(i * 12.9898) * 43758.5453) % 1), wy = cam.y + (hh - 0.5) * spanY * 0.9;
+      if (wy < 8) continue;
+      const X = sx(i * 53 + hh * 40), Y = sy(wy);
+      c.beginPath(); c.moveTo(X, Y); c.lineTo(X + ds * L, Y); c.stroke();
+    }
+    c.lineCap = 'butt';
   }
   drawShip();
   // 플레이어 기체
@@ -569,7 +629,7 @@ function hint() {
   if (G.lso) return '';
   if (G.t - p.liftT < 5) return '▲ 로 상승한다';
   if (Math.abs(xr - 130) > 900) return '반대 방향 키로 선회해 항모로 돌아간다';
-  return '손을 떼면 천천히 내려간다. 갑판 위에 수평으로 내려앉으면 착함';
+  return '손을 떼면 천천히 내려간다. 노란 줄무늬 어레스팅 구역에 수평으로 내려앉는다';
 }
 
 function drawHUD() {
@@ -633,7 +693,7 @@ function updateCam(dt) {
   const zt = p.mode === 'deck' || p.mode === 'done' || (p.mode === 'down' && !G.result.sea) ? 2.9 : near ? 2.1 : 1.45;
   cam.z = lerp(cam.z, zt, Math.min(1, dt * 1.5));
   const dir = p.vx >= 0 ? 1 : -1;
-  const tx = p.x + dir * 0.2 * W / cam.z, ty = Math.max(p.y * 0.92, H * 0.27 / cam.z);
+  const tx = p.x + dir * (0.2 + clamp((kts() - 120) / 900, 0, 0.12)) * W / cam.z, ty = Math.max(p.y * 0.92, H * 0.27 / cam.z);
   cam.x = lerp(cam.x, tx, Math.min(1, dt * 3)); cam.y = lerp(cam.y, ty, Math.min(1, dt * 4));
 }
 

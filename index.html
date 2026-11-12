@@ -981,8 +981,28 @@ function hint() {
   return '손을 떼면 천천히 내려간다. 노란 줄무늬 어레스팅 구역에 수평으로 내려앉는다';
 }
 
+// 화면 맨 위의 전체 지도: 항모, 섬, 표적, 내 비행기
+function drawMiniMap(c) {
+  const x0 = 100, x1 = 860, y0 = 3, h = 22, wmin = Math.min(-400, ship.x - 300, p.x - 200), wmax = Math.max(ISL_B + 400, ship.x + 400, p.x + 200);
+  const mx = x => x0 + (x - wmin) / (wmax - wmin) * (x1 - x0), base = y0 + h - 3;
+  c.fillStyle = 'rgba(8,20,34,0.72)'; c.beginPath(); c.roundRect(x0 - 8, y0 - 1, x1 - x0 + 16, h + 2, 8); c.fill();
+  c.fillStyle = 'rgba(40,120,160,0.6)'; c.fillRect(x0, base, x1 - x0, 2);   // 바다
+  c.fillStyle = '#4f8a45'; c.beginPath(); c.moveTo(mx(ISL_A), base + 1);   // 섬
+  for (let x = ISL_A; x <= ISL_B; x += 60) c.lineTo(mx(x), base - gh(x) * 0.22);
+  c.lineTo(mx(ISL_B), base + 1); c.closePath(); c.fill();
+  TARGETS.forEach(t => { if (t.alive) { c.fillStyle = '#ff5a3c'; c.fillRect(mx(t.x) - 1, t.type === 'boat' ? base - 3 : base - gh(t.x) * 0.22 - 3, 2, 2); } });   // 남은 표적
+  c.fillStyle = '#c3ccd6'; c.fillRect(mx(ship.x), base - 3, Math.max(8, mx(ship.x + 260) - mx(ship.x)), 3); c.fillRect(mx(ship.x + 130), base - 6, 3, 3);   // 항모
+  c.fillStyle = '#fff'; c.font = '700 10px system-ui,sans-serif'; c.textAlign = 'center';
+  c.fillText('항모', mx(ship.x + 130), y0 + 9); c.fillText('섬', mx((ISL_A + ISL_B) / 2), y0 + 9);
+  const px = mx(p.x), py = base - clamp(p.y / 400, 0, 1) * (h - 7) - 2, d = p.s >= 0 ? 1 : -1;   // 내 비행기 (높이도 반영)
+  c.fillStyle = '#ffd23f'; c.beginPath(); c.moveTo(px + 4 * d, py); c.lineTo(px - 3 * d, py - 2.6); c.lineTo(px - 3 * d, py + 2.6); c.closePath(); c.fill();
+  c.textAlign = 'left';
+}
+
 function drawHUD() {
   const c = ctx, kt = p.turn > 0 ? Math.abs(p.v0) * KT : kts(), xr = p.x - ship.x;
+  drawMiniMap(c);
+  c.save(); c.translate(0, 24);   // 위쪽 표시판은 지도 아래로
   // 속도, 고도
   panel(360, 10, 240, 44);
   c.fillStyle = '#fff'; c.textAlign = 'center'; c.font = '800 20px system-ui,sans-serif';
@@ -1009,6 +1029,7 @@ function drawHUD() {
     const col = { green: '#59d37a', yellow: '#ffd23f', brown: '#a9793f', red: '#ff5a3c', barrier: '#8a94a0' };
     G.stickers.forEach((s, i) => { c.fillStyle = col[s]; c.beginPath(); c.arc(634 + i * 22, 28, 8, 0, 7); c.fill(); });
   }
+  c.restore();
   // 방향 버튼
   for (const d of DPAD) {
     c.fillStyle = ctl[d.k] ? 'rgba(255,210,63,0.85)' : 'rgba(8,20,34,0.42)'; c.beginPath(); c.roundRect(d.x, d.y, d.w, d.h, 14); c.fill();
@@ -1027,8 +1048,8 @@ function drawHUD() {
   if (G.toast && G.t < G.toast.until) {   // 착함 결과
     const col = { green: '#59d37a', yellow: '#ffd23f', brown: '#a9793f' }[G.toast.grade] || '#fff';
     c.font = '800 16px system-ui,sans-serif'; const tw = c.measureText(G.toast.text).width;
-    panel(480 - tw / 2 - 34, 62, tw + 68, 32, 0.8); c.fillStyle = col; c.beginPath(); c.arc(480 - tw / 2 - 14, 78, 8, 0, 7); c.fill();
-    c.fillStyle = '#fff'; c.textAlign = 'center'; c.fillText(G.toast.text, 488, 84);
+    panel(480 - tw / 2 - 34, 138, tw + 68, 32, 0.8); c.fillStyle = col; c.beginPath(); c.arc(480 - tw / 2 - 14, 154, 8, 0, 7); c.fill();
+    c.fillStyle = '#fff'; c.textAlign = 'center'; c.fillText(G.toast.text, 488, 160);
   }
   if (p.mode === 'air') FIRE.forEach(b => {   // 발사 버튼
     const n = b.k === 'gun' ? p.ammo.gun : b.k === 'rocket' ? p.ammo.rk : p.ammo.bm, held = b.k === 'gun' && (keys.Space || keys.KeyZ || touch.on.gun > 0);

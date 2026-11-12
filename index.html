@@ -943,7 +943,7 @@ function drawProj(c) {
     });
   }
   c.lineCap = 'round';
-  c.strokeStyle = '#ff6a3c'; c.lineWidth = 2; for (const b of EB) { c.beginPath(); c.moveTo(sx(b.x), sy(b.y)); c.lineTo(sx(b.x - b.vx * 0.012), sy(b.y - b.vy * 0.012)); c.stroke(); }
+  // 적기 탄환도 보이지 않는다 (맞으면 불꽃과 피해만 보인다)
   c.fillStyle = 'rgba(255,214,150,0.95)'; for (const q of FLAK) { const k = 1 - q.t / q.life; c.beginPath(); c.arc(sx(lerp(q.x0, q.x, k)), sy(lerp(q.y0, q.y, k)), 2.2, 0, 7); c.fill(); }   // 하늘로 올라가는 포탄
   c.lineCap = 'butt';
 }

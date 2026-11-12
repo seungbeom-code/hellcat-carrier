@@ -21,12 +21,13 @@
 'use strict';
 // ───────── 상수 (단위: m, m/s) ─────────
 const W = 960, H = 540, KT = 1.944;
-const GRAV = 9.8, KL = 0.004375, KD0 = 0.000172, KDG = 0.00015, KDF = 0.00025, AMAX = 7.2, PWR = 850;
+const GRAV = 9.8, KL = 0.004375, KD0 = 0.000212, AMAX = 7.2, PWR = 1000;   // 바퀴·플랩은 모양일 뿐, 비행에는 영향이 없다 (항상 같은 날개·항력)
+const CL_MAX = 1.7, CL_BASE = 0.5;
 const SHIP_V = 15.4;                 // 갑판 맞바람 30노트
 const DECK_Y = 20, DECK_L = 260, WH = 3.2;   // 갑판 높이, 길이, 바퀴 밑까지 거리
 const ZONE_L = DECK_L * 0.3, ZONE_A = (DECK_L - ZONE_L) / 2, ZONE_B = ZONE_A + ZONE_L;   // 어레스팅 와이어 구역 (갑판의 30%, 가운데)
 const WIRES = [0, 1, 2, 3].map(i => ZONE_A + 10 + i * (ZONE_L - 20) / 3);
-const HOOK_BACK = 7.5, CRUISE_KT = 215, SLOW_KT = 92;   // 후크 끝 위치, 손을 뗐을 때 순항 속도, 항모 근처 접근 속도
+const HOOK_BACK = 7.5, CRUISE_KT = 215, SLOW_KT = 98;   // 후크 끝 위치, 손을 뗐을 때 순항 속도, 항모 근처 접근 속도
 const TAKEOFF_KT = 90, TURN_KT = 80;   // 이륙과 선회에 필요한 최소 속도
 const LAND_KT = 118, LAND_SINK = 8, LAND_PITCH = 0.22;   // 착함 허용 한계: 속도, 가라앉는 속도, 기울기
 const TD = 53, SLOPE = 0.065, CUT_X = -4;    // 접지 목표, 활공 기울기, 컷 신호 위치
@@ -53,14 +54,14 @@ const kts = () => Math.hypot(p.vx, p.vy) * KT;
 
 // ───────── 비행 물리 ─────────
 function aero(V, alpha) {
-  let CL = 5 * alpha + p.s * (0.25 + (p.flaps ? 0.5 : 0));
-  const m = p.flaps ? 1.9 : 1.4; CL = clamp(CL, -m, m);
+  let CL = 5 * alpha + p.s * CL_BASE;
+  CL = clamp(CL, -CL_MAX, CL_MAX);
   const q = KL * V * V;
-  const kd = KD0 + (p.gear ? KDG : 0) + (p.flaps ? KDF : 0);
+  const kd = KD0;
   const thr = p.fuel > 0 ? p.thr : 0;
   return { aL: q * CL, aD: kd * V * V + q * CL * CL * 0.06, aT: thr * Math.min(AMAX, PWR / Math.max(V, 1)) };
 }
-function stallKt() { return Math.sqrt(GRAV / (KL * (p.flaps ? 1.9 : 1.4))) * KT; }
+function stallKt() { return Math.sqrt(GRAV / (KL * CL_MAX)) * KT; }
 
 function airStep(dt) {
   p.prevY = p.y;
@@ -82,7 +83,9 @@ function airStep(dt) {
   }
   const g = Math.atan2(p.vy, p.vx);
   if (p.s * Math.cos(g) < -0.3 && Math.abs(p.in) < 0.2) { p.s = -p.s; p.a = -p.a; }   // 뒤집힌 채 놓으면 바로 선다
-  const aCmd = p.s * (0.035 + p.in * (p.in > 0 ? 0.15 : 0.1));
+  const aTrim = clamp((GRAV * 0.985 / (KL * V * V) - CL_BASE) / 5, -0.25, 0.25);   // 키를 안 눌러도 속도에 맞춰 수평에 가깝게 맞춰 준다
+  const pg = clamp(Math.pow(60 / V, 2), 0.2, 1.6);                                  // 빠를수록 같은 입력에 덜 꺾이게 해서 조작감을 같게 한다
+  const aCmd = p.s * (aTrim + p.in * (p.in > 0 ? 0.15 : 0.1) * pg);
   p.a += (aCmd - p.a) * Math.min(1, dt * 16);
   p.th = g + p.a;
   const f = aero(V, p.a), ux = p.vx / V, uy = p.vy / V;
@@ -91,7 +94,7 @@ function airStep(dt) {
   if (p.neutral) {   // 손을 뗀 상태: 흔들림 없이 천천히 내려가고 속도도 안정된다
     const xr = p.x - ship.x, over = xr > 0 && xr < DECK_L && p.y - WH - DECK_Y < 22;   // 갑판 위에 들어서면 조금 더 빨리 내려앉는다
     p.vy += ((over ? -5 : -2.5) - p.vy) * Math.min(1, (over ? 3 : 1.6) * dt);
-    const Vt = (p.gear ? SLOW_KT : CRUISE_KT) / KT;
+    const Vt = lerp(SLOW_KT, CRUISE_KT, clamp((p.y - 45) / 90, 0, 1)) / KT;   // 손을 떼면 낮을수록 천천히 난다 (바퀴와는 무관)
     p.vx += Math.sign(p.vx) * clamp((Vt - V) * 0.8, -7, 5) * dt;
   }
   p.x += p.vx * dt; p.y += p.vy * dt;

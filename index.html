@@ -416,14 +416,16 @@ let ISLANDS = [];
 function mkIsland(a, w, pk, seed) {   // 섬마다 언덕의 위치·폭·높이를 다르게 만든다
   let r = seed * 7.13 + 1; const R = () => { r = Math.sin(r * 12.9898 + 78.233) * 43758.5453; return r - Math.floor(r); };
   const hills = []; for (let i = 0, n = 2 + Math.floor(w / 650); i < n; i++) hills.push({ c: 0.12 + R() * 0.76, w: 0.04 + R() * 0.12, h: (0.3 + R() * 0.7) * pk });
-  return { a, b: a + w, pk, hills, fx: a + w * (0.4 + R() * 0.2), cleared: false, clearT: 0 };
+  return { a, b: a + w, pk, hills, fx: a + w * 0.5, cleared: false, clearT: 0 };
 }
 function gh(x) {
   for (const s of ISLANDS) if (x > s.a && x < s.b) {
     const u = (x - s.a) / (s.b - s.a), e = Math.min(1, u / 0.07, (1 - u) / 0.07), e2 = e * e * (3 - 2 * e);
     let h = s.pk * 0.25 * Math.pow(Math.sin(Math.PI * u), 0.7);
     for (const q of s.hills) h += q.h * Math.exp(-Math.pow((u - q.c) / q.w, 2));
-    return 2 + h * e2;
+    const base = 2 + h * e2;
+    if (s.flat) { const d = Math.max(0, s.flat.a - x, x - s.flat.b), k = d <= 0 ? 1 : d >= 45 ? 0 : 1 - d / 45, kk = k * k * (3 - 2 * k); return base + (s.flat.h - base) * kk; }
+    return base;
   }
   return 0;
 }
@@ -436,9 +438,10 @@ const DMG = {
   rocket: { aa: 5, bunker: 7, fuel: 6, radar: 5, boat: 6, runway: 4, tank: 6, cave: 5, dd: 6, tr: 6, bb: 3.5, cv: 5 },
   bomb: { aa: 10, bunker: 14, fuel: 10, radar: 10, boat: 12, runway: 10, tank: 10, cave: 8, dd: 14, tr: 14, bb: 12, cv: 16 }
 };
+Object.assign(HP, { barracks: 12, pill: 14 }); BOX.pill = { w: 14, h: 6 }; DMG.gun.pill = 0; DMG.rocket.pill = 5; DMG.bomb.pill = 0; DMG.gun.bunker = 0;
 Object.assign(HP, { barracks: 12 }); Object.assign(BOX, { barracks: { w: 26, h: 9 }, aa: { w: 11, h: 9 } }); DMG.gun.barracks = 0.15; DMG.rocket.barracks = 4; DMG.bomb.barracks = 10;
-const JP = { aa: 1, bunker: 1, cave: 1, radar: 1, barracks: 1, tank: 1 };   // 일본군이 있는 시설
-const SHIPS = { boat: 1, dd: 1, tr: 1, bb: 1, cv: 1 }, DEF_W = { aa: 1, bunker: 1.5, cave: 2, radar: 1 }, AA_N = { aa: 1, dd: 2, bb: 4, cv: 3, tr: 1, cave: 1 }, AA_R = { aa: 1500, cave: 1200, dd: 1100, bb: 1200, cv: 1100, tr: 1000 };
+const JP = { pill: 1, aa: 1, bunker: 1, cave: 1, radar: 1, barracks: 1, tank: 1 };   // 일본군이 있는 시설
+const SHIPS = { boat: 1, dd: 1, tr: 1, bb: 1, cv: 1 }, DEF_W = { pill: 2, aa: 1, bunker: 1.5, cave: 2, radar: 1 }, AA_N = { aa: 1, dd: 2, bb: 4, cv: 3, tr: 1, cave: 1 }, AA_R = { aa: 1500, cave: 1200, dd: 1100, bb: 1200, cv: 1100, tr: 1000 };
 const TARGETS = [], PROJ = [], TREES = [], ENE = [], EB = [], FLAK = [], SOLD = [];
 const ES = { zero: { v: 125, n: 5.0, hp: 4 }, ace: { v: 140, n: 6.0, hp: 8 }, n1k: { v: 145, n: 5.5, hp: 9 }, d4y: { v: 105, n: 2.6, hp: 6 }, b6n: { v: 100, n: 2.2, hp: 7 } };   // 속도(m/s), 견딜 수 있는 선회 g, 체력
 const TINTS = { day: ['#4f9ad6', '#bfe4f5'], dawn: ['#3b5f99', '#f0b49a'], dusk: ['#4a4f8c', '#f2a65a'], night: ['#0b1430', '#2a3f66'] };
@@ -497,7 +500,8 @@ function startMission(i) {
   G.m = { t: 0, kills: 0, zeros: 0, ace: false, landings: 0, greens: 0, crashes: 0, wave: 0, hits: [], done: false, obj: false, flag: 0, runwayFirst: false, revived: 0 };
   ENE.length = 0; EB.length = 0; FLAK.length = 0; FX.length = 0; PROJ.length = 0; SOLD.length = 0; G.tick = [];
   ship.x = -500; G.t = 0;
-  ISLANDS = M.islands.map(([a, w, pk], k) => mkIsland(a - OFF, w, pk, i * 10 + k + 1));
+  const A0 = M.islands.length ? M.islands[0][0] : 0, SC = 1.5; G.isx = x => (M.islands.length && x > A0 ? A0 + (x - A0) * SC : x);   // 섬을 길게
+  ISLANDS = M.islands.map(([a, w, pk], k) => mkIsland(G.isx(a) - OFF, w * SC, pk * 1.15, i * 10 + k + 1));
   makeTargets(M);
   { let nx = 1e9; ISLANDS.forEach(s => nx = Math.min(nx, s.a)); TARGETS.forEach(t => nx = Math.min(nx, t.x - 50)); G.holdX = nx - 1760; }
   reset();
@@ -516,10 +520,25 @@ function endMission(win, why) {
 function makeTargets(M) {
   TARGETS.length = 0; TREES.length = 0;
   const P = (k, f) => ISLANDS[k].a + (ISLANDS[k].b - ISLANDS[k].a) * f + OFF;
-  const add = (type, x0) => { const x = x0 - OFF; const t = { type, x, y: SHIPS[type] ? 0 : gh(x), hp: HP[type], hp0: HP[type], alive: true, burn: 0, fire: Math.random() * 2, deadT: 0, x0: x, dir: TARGETS.length % 2 ? -1 : 1, launch: 10 + Math.random() * 12 }; t.isl = ISLANDS.findIndex(s => x > s.a && x < s.b); TARGETS.push(t); return t; };
-  M.build(add, P);
-  ISLANDS.forEach((q, k) => { add('barracks', P(k, 0.62)); if (q.b - q.a > 1500) add('barracks', P(k, 0.28)); });   // 섬마다 병영
-  ISLANDS.forEach(s => { for (let x = s.a + 50; x < s.b - 50; x += 34) { const h = Math.abs(Math.sin(x * 12.9898) * 43758.5453) % 1, r = 3 + h * 2.5, tx = x + h * 10; TREES.push({ x: tx, y: gh(tx), r, hp: 3, hp0: 3, alive: true, kind: h < 0.55 ? 'palm' : 'broad', H: h < 0.55 ? 10 + r * 1.6 : 7 + r * 1.3, lean: h < 0.55 ? (Math.abs(Math.sin(x * 78.233) * 12345.678) % 1 - 0.5) * 0.45 : 0 }); } });
+  const add = (type, x0, raw) => { const x = (SHIPS[type] && !raw ? G.isx(x0) : x0) - OFF; const t = { type, x, y: SHIPS[type] ? 0 : gh(x), hp: HP[type], hp0: HP[type], alive: true, burn: 0, fire: Math.random() * 2, deadT: 0, x0: x, dir: TARGETS.length % 2 ? -1 : 1, launch: 10 + Math.random() * 12 }; t.isl = ISLANDS.findIndex(s => x > s.a && x < s.b); TARGETS.push(t); return t; };
+  const rwIsl = new Set();
+  M.build((type, x0) => { const k = ISLANDS.findIndex(q => x0 - OFF > q.a && x0 - OFF < q.b); if (k >= 0 && (type === 'bunker' || type === 'barracks' || type === 'runway')) { if (type === 'runway') rwIsl.add(k); return null; } return add(type, x0); }, P);
+  // 섬마다 양 끝에서 가운데로: 콘크리트 벙커(로켓만) → 일반 벙커(로켓·폭탄) → 병영 → 비행장(있을 때) → 깃발(정중앙)
+  ISLANDS.forEach((q, k) => { q.flat = null; if (rwIsl.has(k)) { const w = q.b - q.a, e = 90 / w, cx = q.a + w * Math.max(0.05 + e * 3.1 + 60 / w, 0.5 - 75 / w); q.flat = { a: cx - 38, b: cx + 38, h: 0 }; q.flat.h = (() => { const f = q.flat; q.flat = null; const v = Math.max(gh(cx - 30), gh(cx), gh(cx + 30)) * 0.5 + gh(cx) * 0.5; q.flat = f; return v; })(); } });
+  for (const t of TARGETS) if (!SHIPS[t.type]) t.y = gh(t.x);
+  ISLANDS.forEach((q, k) => {
+    const w = q.b - q.a, m = u => Math.min(u, 0.45), e = 90 / w;
+    add('pill', P(k, m(0.05 + e))); add('pill', P(k, 1 - m(0.05 + e)));
+    add('bunker', P(k, m(0.05 + e * 2))); add('bunker', P(k, 1 - m(0.05 + e * 2)));
+    add('barracks', P(k, m(0.05 + e * 3.1))); add('barracks', P(k, 1 - m(0.05 + e * 3.1)));
+    if (q.flat) add('runway', (q.flat.a + q.flat.b) / 2 + OFF);
+  });
+  // 다른 시설이 벙커·병영·비행장과 겹치면 섬 가운데 쪽으로 비켜 놓는다
+  const LAY = { pill: 1, bunker: 1, barracks: 1, runway: 1 };
+  for (const t of TARGETS) { if (SHIPS[t.type] || LAY[t.type] || t.isl < 0) continue; const q = ISLANDS[t.isl], cx = (q.a + q.b) / 2;
+    for (let n = 0; n < 12; n++) { const o = TARGETS.find(u => u !== t && !SHIPS[u.type] && Math.abs(u.x - t.x) < (BOX[u.type].w + BOX[t.type].w) / 2 + 6); if (!o) break; t.x += t.x < cx ? 18 : -18; t.x0 = t.x; }
+    t.y = gh(t.x); }
+  ISLANDS.forEach(s => { for (let x = s.a + 50; x < s.b - 50; x += 34) { const h = Math.abs(Math.sin(x * 12.9898) * 43758.5453) % 1, r = 3 + h * 2.5, tx = x + h * 10; if (s.flat && tx > s.flat.a - 8 && tx < s.flat.b + 8) continue; TREES.push({ x: tx, y: gh(tx), r, hp: 3, hp0: 3, alive: true, kind: h < 0.55 ? 'palm' : 'broad', H: h < 0.55 ? 10 + r * 1.6 : 7 + r * 1.3, lean: h < 0.55 ? (Math.abs(Math.sin(x * 78.233) * 12345.678) % 1 - 0.5) * 0.45 : 0 }); } });
 }
 const isOpen = t => ((G.t + t.x * 0.37) % 9) < 4;   // 동굴 포대 문이 열린 때
 function defPct() { const M = MISSIONS[G.mi]; let tot = 0, al = 0; for (const t of TARGETS) if (DEF_W[t.type] && t.isl === M.cap) { tot += DEF_W[t.type]; if (t.alive) al += DEF_W[t.type]; } return tot ? al / tot * 100 : 0; }
@@ -719,7 +738,7 @@ function damageAt(x, y, r, kind) {
   for (const t of TARGETS) {
     if (!t.alive) continue; const b = BOX[t.type];
     const dx = Math.max(0, Math.abs(x - t.x) - b.w / 2), dy = y < t.y ? t.y - y : y > t.y + b.h ? y - (t.y + b.h) : 0, d = Math.hypot(dx, dy);
-    if (d <= r) applyDmg(t, DMG[kind][t.type] * (1 - 0.6 * d / r));
+    if (d <= r) { applyDmg(t, DMG[kind][t.type] * (1 - 0.6 * d / r)); if (t.type === 'pill' && kind === 'bomb' && (!G.toast || G.toast.until < G.t)) G.toast = { text: '콘크리트 벙커는 폭탄이 안 듣는다 — 로켓으로!', grade: 'yellow', until: G.t + 2.5 }; }
   }
 }
 function explode(x, y, r, kind, sea) {
@@ -776,7 +795,7 @@ function stepProj(dt) {
     }
     if (q.k === 'b') { const sd = SOLD.find(o => o.alive && o.st !== 'enter' && Math.abs(q.x - o.x) < 4.5 && q.y >= o.y - 0.5 && q.y <= o.y + 8); if (sd) { killSoldier(sd); PROJ.splice(i, 1); continue; } }
     const hit = q.k === 'b' ? null : hitTest(q.x, q.y, 1.5),   // 기관총은 건물·벙커·대공포·함선에 피해를 주지 않는다
-      tree = hit ? null : hitTree(q.x, q.y), g = gh(q.x), ground = g > 0 && q.y <= g, sea = !ground && q.y <= 0;
+      tree = hit || q.k !== 'b' ? null : hitTree(q.x, q.y), g = gh(q.x), ground = g > 0 && q.y <= g, sea = !ground && q.y <= 0;
     if (!(hit || tree || ground || sea)) { if (q.life <= 0) PROJ.splice(i, 1); continue; }
     if (q.k === 'b') {
       if (tree) treeHit(tree, 1);
@@ -876,11 +895,36 @@ function drawTarget(c, t, dead) {
       if (G.t - (t.flashT || -9) < 0.12) { c.fillStyle = 'rgba(255,220,120,0.95)'; c.beginPath(); c.arc(ca * 4.6, 2.6 + sa * 4.6, 1.5, 0, 7); c.fill(); }
       break;
     }
-    case 'bunker': poly([[-6, 0], [-5.4, 3.6], [-3, 5.6], [0, 6.2], [3, 5.6], [5.4, 3.6], [6, 0]], '#6f7b64'); rect(-2.6, 2.4, 5.2, 0.9, '#161914'); break;
+    case 'pill': {   // 콘크리트 토치카: 두꺼운 지붕판, 사격 구멍, 거푸집 자국
+      poly([[-7, 0], [-6.2, 4], [6.2, 4], [7, 0]], '#a3a49c'); rect(-7.6, 4, 15.2, 1.5, '#8f908a'); rect(-7.6, 5.5, 15.2, 0.25, '#b9bab3');
+      for (let x = -5.5; x < 6; x += 2.2) rect(x, 0.3, 0.12, 3.6, 'rgba(60,60,55,0.25)');
+      rect(-3.4, 2.1, 6.8, 0.8, '#121410'); rect(-0.4, 2.3, 3.6, 0.35, '#2a2c28');
+      poly([[-7, 0], [-9.5, 0], [-7, 2.6]], '#8a8a80'); poly([[7, 0], [9.5, 0], [7, 2.6]], '#8a8a80');
+      c.fillStyle = 'rgba(0,0,0,0.18)'; c.beginPath(); c.arc(-4, 3.2, 0.5, 0, 7); c.arc(4.5, 1.2, 0.4, 0, 7); c.fill();
+      break;
+    }
+    case 'bunker': {   // 일반 벙커: 통나무 지붕과 모래주머니
+      poly([[-6.5, 0], [-5.6, 3.4], [5.6, 3.4], [6.5, 0]], '#7a6a4c');
+      for (let r = 0; r < 3; r++) for (let x = -6 + (r % 2) * 1.1; x < 6; x += 2.2) { c.fillStyle = r % 2 ? '#a08c62' : '#b29d70'; c.beginPath(); c.ellipse(x + 0.2 * r, 0.6 + r * 1.05, 1.05, 0.52, 0, 0, 7); c.fill(); }
+      for (let i = 0; i < 6; i++) { c.fillStyle = i % 2 ? '#6a4e30' : '#5a422a'; c.beginPath(); c.arc(-5 + i * 2, 4.1, 0.75, 0, 7); c.fill(); }
+      rect(-5.6, 4.6, 11.2, 1, '#6f7b4a'); rect(-2.4, 2.0, 4.8, 0.85, '#161914');
+      break;
+    }
     case 'fuel': rect(-3, 0, 6, 5, '#d8d8d2'); rect(-3, 2, 6, 0.9, '#b5342c'); c.fillStyle = '#e8e8e2'; c.beginPath(); c.ellipse(0, 5, 3, 0.8, 0, 0, 7); c.fill(); break;
     case 'radar': rect(-0.4, 0, 0.8, 8, '#51585e'); c.strokeStyle = '#51585e'; c.lineWidth = 0.6; c.beginPath(); c.moveTo(-3, 9.4); c.quadraticCurveTo(0, 6.6, 3, 9.4); c.stroke(); break;
     case 'boat': poly([[-13, 3], [11, 3], [14, 4.4], [9, -0.4], [-11, -0.4]], '#5d6b78'); rect(-3, 3, 7, 3.2, '#7b8895'); rect(-0.5, 6, 2, 1.8, '#4a5560'); break;
-    case 'runway': rect(-30, 0, 60, 0.9, '#5c6068'); for (let x = -27; x < 27; x += 8) rect(x, 0.35, 4, 0.2, '#e8e8e2'); [-18, 8].forEach(x => { rect(x, 0.9, 7, 1.1, '#3a4a33'); rect(x + 1.4, 1.1, 0.5, 2.4, '#3a4a33'); rect(x + 4, 0.9, 0.5, 1.8, '#3a4a33'); }); break;
+    case 'runway': {   // 활주로와 대기 중인 제로센 (꼬리를 내리고 앉아 있다), 정비병
+      rect(-30, 0, 60, 0.9, '#5c6068'); for (let x = -27; x < 27; x += 8) rect(x, 0.35, 4, 0.2, '#e8e8e2');
+      [-17, 0, 17].forEach((x, i) => {
+        c.save(); c.translate(x, 2.6); c.rotate(0.13); c.scale(0.62, 0.62);
+        drawZero(c, 'zero'); c.restore();
+        c.fillStyle = '#1d1d1d'; c.beginPath(); c.arc(x + 2.2, 1.45, 0.55, 0, 7); c.fill(); c.strokeStyle = '#555'; c.lineWidth = 0.25; c.beginPath(); c.moveTo(x + 2.2, 1.45); c.lineTo(x + 2.4, 2.4); c.stroke();
+        c.beginPath(); c.arc(x - 4.4, 1.1, 0.25, 0, 7); c.fill();
+        c.fillStyle = 'rgba(220,220,220,0.5)'; c.fillRect(x + 4.5, 1.2, 0.18, 2.2);   // 멈춘 프로펠러
+        if (i === 1) { c.fillStyle = '#4f5a3c'; c.fillRect(x + 5.6, 0.9, 0.5, 1.2); c.fillStyle = '#e2b58a'; c.beginPath(); c.arc(x + 5.85, 2.4, 0.3, 0, 7); c.fill(); }
+      });
+      break;
+    }
     case 'tank': rect(-4.4, 0, 8.8, 0.9, '#2f3328'); rect(-4, 0.9, 8, 1.5, '#5f6a47'); rect(-1.4, 2.4, 3.4, 1.3, '#6a7650'); rect(2, 2.9, 3.4, 0.4, '#3a4030'); break;
     case 'cave': c.fillStyle = '#0c0e0d'; c.beginPath(); c.arc(0, 2.6, 3.6, 0, Math.PI); c.fill(); rect(-3.6, 0, 7.2, 2.6, isOpen(t) ? '#0c0e0d' : '#6f7468'); if (isOpen(t)) { rect(0, 2.2, 5, 0.7, '#2c2f2a'); rect(-1, 1.6, 2.4, 1.6, '#3a3d38'); } break;
     case 'dd': poly([[-22, 2.5], [20, 2.5], [24, 5], [16, -0.5], [-20, -0.5]], '#5d6b78'); rect(-4, 2.5, 9, 4, '#7b8895'); rect(-10, 2.5, 3, 3.6, '#4a5560'); rect(10, 2.5, 4, 1.4, '#3a4550'); break;
@@ -1400,10 +1444,15 @@ function drawShip() {
     c.strokeStyle = '#d9dde2'; c.lineWidth = 0.4;
     lsoSmall(c);   // 함교 날개에 선 신호장교
     // 발진 장교와 깃발
-    if (((p.mode === 'deck' && !p.landing) || p.mode === 'taxi') && p.xr < START_XR + 30) {
-      const fx = START_XR + 16, dn = p.mode === 'deck' && !p.held;
+    {   // 발진 신호수는 늘 갑판에 서서 나에게 신호를 보낸다
+      const fx = START_XR + 16, dn = p.mode === 'deck' && !p.landing && !p.held, t = G.t;
+      let aR, aL;
+      if (p.mode === 'deck' && !p.landing) { aR = dn ? -0.45 : 1.15 + Math.sin(t * 14) * (p.thr > 0.8 ? 0.3 : 0); aL = dn ? -0.9 : -1.75; }   // 엔진 올려 → 발진!
+      else if (p.mode === 'taxi') { const toward = (START_XR - p.xr) >= 0 ? 0 : Math.PI; aR = Math.abs(p.xr - LAUNCH_XR) < 3 ? 1.15 + Math.sin(t * 8) * 0.25 : Math.PI / 2 + (toward ? 1 : -1) * (0.5 + Math.sin(t * 4) * 0.45); aL = -1.6; }   // 이쪽으로 와라 / 발진선에서 대기
+      else if (p.mode === 'air' || p.mode === 'deck') { const a = Math.atan2(p.y - DECK_Y - 4, p.x - (ship.x + fx)); aR = clamp(a, -0.3, Math.PI + 0.3) + Math.sin(t * 6) * 0.35; aL = Math.PI - 0.6 + Math.sin(t * 6 + 1) * 0.3; }   // 비행기를 향해 깃발을 흔든다
+      else { aR = -1.3; aL = -1.8; }
       c.save(); c.translate(fx, DECK_Y); c.scale(2.2, 2.2); c.translate(-fx, -DECK_Y);   // 발진 신호수도 2.2배
-      deckCrew(c, fx + 0.45, DECK_Y, dn ? -0.45 : 1.15 + Math.sin(G.t * 14) * (p.thr > 0.8 ? 0.3 : 0), dn ? -0.9 : -1.75, 'flag');
+      deckCrew(c, fx + 0.45, DECK_Y, aR, aL, 'flag');
       c.restore();
     }
   });

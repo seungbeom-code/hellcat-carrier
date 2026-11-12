@@ -1057,7 +1057,7 @@ function demoBot(dt) {
   const K = (u, l, r, f) => { keys.ArrowUp = u > 0; keys.ArrowDown = u < 0; keys.ArrowLeft = !!l; keys.ArrowRight = !!r; G.demoFire = !!f; };
   if (G.result) { K(0); D.ct += dt; if (D.ct > 2.5) startDemo(); return; }
   if (D.t > 110) { startDemo(); return; }
-  p.hp = 100; p.fuel = p.fuelMax; if (p.ammo.rk < 3) p.ammo.rk = 30; if (p.ammo.gun < 300) p.ammo.gun = 3000;
+  p.hp = 100; p.fuel = p.fuelMax; if (p.ammo.rk < 3) p.ammo.rk = 30; if (p.ammo.bm < 3) p.ammo.bm = 30; if (p.ammo.gun < 300) p.ammo.gun = 3000;
   if (D.t > 16 && !D.z) { D.z = 1; spawnEnemy('zero', p.x + 1400, 260); spawnEnemy('zero', p.x + 1700, 200); }
   if (p.mode === 'taxi' || p.mode === 'deck') { K(p.mode === 'deck' && kts() >= TAKEOFF_KT ? 1 : 0, 0, 1); return; }
   if (p.mode !== 'air') { K(0); return; }
@@ -1072,10 +1072,15 @@ function demoBot(dt) {
   if (tgt && !en && Math.abs(tgt.x - p.x) < 450 && p.y - tgt.y > 35) u = -1;   // 표적으로 얕게 내려간다
   if (p.y - ground < 40 || (p.vy < -12 && p.y - ground < 90)) u = 1;           // 땅이 가까우면 올라간다
   const aim = (x, y) => Math.abs(angd(Math.atan2(y - p.y, x - p.x), p.th)) < 0.12;
+  // 기관총은 적기와 일본군에게만, 시설과 배에는 로켓·폭탄
   let fire = false;
   if (en && aim(en.x, en.y)) fire = true;
-  if (tgt && aim(tgt.x, tgt.y + 2)) { fire = true; if (Math.random() < 0.02) fireRocket(); }
+  if (!fire) for (const o of SOLD) if (o.alive && o.st !== 'enter' && (o.x - p.x) * dir > 30 && (o.x - p.x) * dir < 500 && aim(o.x, o.y + 3)) { fire = true; break; }
   K(u, l, r, fire);
+  if (!fire && tgt) {
+    if (aim(tgt.x, tgt.y + 2) && G.t > (D.rkT || 0)) { fireRocket(); D.rkT = G.t + 0.7; }
+    else if (tgt.type !== 'pill' && p.y > tgt.y + 15) { const h = p.y - 2.5 - tgt.y, gg = GRAV * 2.4, v0 = p.vy - 15, tf = (v0 + Math.sqrt(Math.max(0, v0 * v0 + 2 * gg * h))) / gg, lead = (tgt.x - p.x) - p.vx * tf; if (Math.abs(lead) < 12 && G.t > (D.bmT || 0)) { dropBomb(); D.bmT = G.t + 1.2; } }
+  }
 }
 function drawTitle() {
   const c = ctx, top = c.createLinearGradient(0, 0, 0, 210), bot = c.createLinearGradient(0, H - 110, 0, H);

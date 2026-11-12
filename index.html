@@ -233,6 +233,7 @@ function drawFx() {
 function checkContact() {
   const xr = p.x - ship.x, wheel = p.y - WH;
   if (gh(p.x) > 0 && p.y - 1.5 <= gh(p.x)) return crash('섬의 산에 부딪혔다.');
+  if (gh(p.x) > 0) { const ca = Math.cos(p.th), sa = Math.sin(p.th); for (const k of [-4, 0, 4]) if (hitTree(p.x + ca * k, p.y + sa * k - 1)) return crash('너무 낮게 날다가 나무에 걸려 추락했다.'); }
   if (p.y <= 2.2) {
     if (p.off) return crash(p.offWhy);
     const soft = Math.hypot(p.vx, p.vy) < 56 && p.vy > -6;
@@ -796,7 +797,8 @@ function stepProj(dt) {
     }
     if (q.k === 'b') { const sd = SOLD.find(o => o.alive && o.st !== 'enter' && Math.abs(q.x - o.x) < 4.5 && q.y >= o.y - 0.5 && q.y <= o.y + 8); if (sd) { killSoldier(sd); PROJ.splice(i, 1); continue; } }
     const hit = q.k === 'b' ? null : hitTest(q.x, q.y, 1.5),   // 기관총은 건물·벙커·대공포·함선에 피해를 주지 않는다
-      tree = hit || q.k !== 'b' ? null : hitTree(q.x, q.y), g = gh(q.x), ground = g > 0 && q.y <= g, sea = !ground && q.y <= 0;
+      tree = null,   // 나무는 총알·로켓에 걸리지 않는다 (폭발로만 쓰러진다)
+      g = gh(q.x), ground = g > 0 && q.y <= g, sea = !ground && q.y <= 0;
     if (!(hit || tree || ground || sea)) { if (q.life <= 0) PROJ.splice(i, 1); continue; }
     if (q.k === 'b') {
       if (tree) treeHit(tree, 1);

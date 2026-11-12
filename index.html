@@ -221,8 +221,8 @@ function drawFx() {
     else if (q.k === 'fire') { c.fillStyle = k < 0.35 ? 'rgba(255,225,90,0.95)' : k < 0.7 ? 'rgba(255,130,40,' + (0.9 - k * 0.3) + ')' : 'rgba(70,70,70,' + (1 - k) * 1.6 + ')'; c.beginPath(); c.arc(X, Y, q.s * (0.7 + k) * cam.z, 0, 7); c.fill(); }
     else if (q.k === 'smoke') { c.fillStyle = 'rgba(60,62,66,' + (0.55 * (1 - k)) + ')'; c.beginPath(); c.arc(X, Y, q.s * (0.8 + k * 1.6) * cam.z, 0, 7); c.fill(); }
     else if (q.k === 'spark') { c.fillStyle = 'rgba(255,238,160,' + (1 - k) + ')'; c.beginPath(); c.arc(X, Y, 0.45 * cam.z * (1 - 0.5 * k), 0, 7); c.fill(); }
-    else if (q.k === 'dirt') { c.fillStyle = q.c || '#7a5a36'; c.beginPath(); c.arc(X, Y, (q.s || 0.7) * cam.z, 0, 7); c.fill(); }
-    else if (q.k === 'dust') { c.fillStyle = 'rgba(150,122,82,' + (0.38 * (1 - k)) + ')'; c.beginPath(); c.arc(X, Y, (1.2 + k * 3.4) * cam.z, 0, 7); c.fill(); }
+    else if (q.k === 'dirt') { c.fillStyle = q.c || '#7a5a36'; c.beginPath(); c.arc(X, Y, Math.max(1.4, (q.s || 0.7) * cam.z), 0, 7); c.fill(); }
+    else if (q.k === 'dust') { c.fillStyle = 'rgba(150,122,82,' + (0.38 * (1 - k)) + ')'; c.beginPath(); c.arc(X, Y, Math.max(3, (1.6 + k * 4.5) * cam.z), 0, 7); c.fill(); }
     else if (q.k === 'splash') { c.fillStyle = 'rgba(255,255,255,' + (0.8 * (1 - k)) + ')'; c.beginPath(); c.ellipse(X, Y - 6 * k * cam.z, (2 + 3 * k) * cam.z, (1 + 5 * k) * cam.z, 0, 0, 7); c.fill(); }
   }
 }
@@ -435,9 +435,9 @@ function hitTree(x, y) {
   for (const t of TREES) if (t.alive && Math.abs(x - t.x) < t.r + 0.6 && y > t.y - 0.5 && y < t.y + t.r * 1.9 + 0.6 && Math.hypot(x - t.x, y - (t.y + t.r * 0.6)) < t.r * 1.2 + 0.6) return t;
   return null;
 }
-function chips(x, y, n, cols) { for (let i = 0; i < n; i++) FX.push({ k: 'dirt', x, y, vx: (Math.random() - 0.5) * 16, vy: 4 + Math.random() * 12, life: 0.5 + Math.random() * 0.6, t: 0, s: 0.4 + Math.random() * 0.5, c: cols[i % cols.length] }); }
+function chips(x, y, n, cols, sz) { sz = sz || 1; for (let i = 0; i < n; i++) FX.push({ k: 'dirt', x: x + (Math.random() - 0.5) * 2, y, vx: (Math.random() - 0.5) * 16 * sz, vy: (4 + Math.random() * 12) * (0.7 + 0.3 * sz), life: 0.5 + Math.random() * 0.7, t: 0, s: (0.4 + Math.random() * 0.5) * sz, c: cols[i % cols.length] }); }
 function treeHit(t, d) { t.hp -= d; chips(t.x, t.y + t.r * 0.9, 4, ['#4f8a3c', '#356b2c', '#7a5a36']); if (t.hp <= 0 && t.alive) { t.alive = false; chips(t.x, t.y + 1.5, 12, ['#4f8a3c', '#7a5a36', '#4b3621']); } }
-function dirtBurst(x, y, n) { chips(x, y + 0.3, Math.round(5 * n), ['#6e4e2c', '#8a6b43', '#4d3720']); FX.push({ k: 'dust', x, y: y + 1, vx: -2, vy: 2, life: 0.8, t: 0 }); }
+function dirtBurst(x, y, n) { chips(x, y + 0.3, Math.round(9 * n), ['#6e4e2c', '#8a6b43', '#4d3720', '#a8885a'], 2.3); FX.push({ k: 'dust', x: x - 1, y: y + 1, vx: -3, vy: 3, life: 0.9, t: 0 }); FX.push({ k: 'dust', x: x + 1, y: y + 1.5, vx: 2, vy: 4, life: 1.1, t: 0 }); }
 function hitTest(x, y, pad) {
   for (const t of TARGETS) { if (!t.alive) continue; const b = BOX[t.type]; if (Math.abs(x - t.x) <= b.w / 2 + pad && y >= t.y - pad && y <= t.y + b.h + pad) return t; }
   return null;

@@ -51,11 +51,11 @@ const G = { t: 0, stickers: [], result: null, assist: true, lso: null, lsoT: 0, 
 let p;
 function reset() {
   p = { mode: 'taxi', x: 0, y: DECK_Y + WH, vx: SHIP_V, vy: 0, th: 0, a: 0.035, s: 1, in: 0, thr: 0,
-        gear: true, flaps: true, hook: false, fuel: LOADS[G.loadout].fuel, fuelMax: LOADS[G.loadout].fuel, hp: 100, lock: 0, flip: 0, flipFrom: 1, pushT: 0, el: null, xr: START_XR, vr: 0, held: true, flagT: 0,
+        gear: true, flaps: true, hook: false, gunT: 0, rkT: 0, bmT: 0, ammo: { ...LOAD_AMMO[G.loadout] }, fuel: LOADS[G.loadout].fuel, fuelMax: LOADS[G.loadout].fuel, hp: 100, lock: 0, flip: 0, flipFrom: 1, pushT: 0, el: null, xr: START_XR, vr: 0, held: true, flagT: 0,
         landing: false, wire: -1, turn: 0, go: false, off: false, liftT: 0, wx: null, eng: false, ld: 1, relT: 0, engT: 0, tookOff: false, prevY: DECK_Y + WH,
         ap: { maxErr: 0, maxSpd: 0, on: false }, td: null };
   p.x = ship.x + p.xr;
-  G.result = null; G.lso = null; G.msg = null; G.burn = null; G.toast = null; FX.length = 0;
+  G.result = null; G.lso = null; G.msg = null; G.burn = null; G.toast = null; FX.length = 0; PROJ.length = 0; makeTargets();
 }
 const kts = () => Math.hypot(p.vx, p.vy) * KT;
 
@@ -224,6 +224,7 @@ function drawFx() {
 }
 function checkContact() {
   const xr = p.x - ship.x, wheel = p.y - WH;
+  if (p.x > ISL_A && p.x < ISL_B && p.y - 1.5 <= gh(p.x)) return crash('섬의 산에 부딪혔다.');
   if (p.y <= 2.2) {
     if (p.off) return crash(p.offWhy);
     const soft = Math.hypot(p.vx, p.vy) < 56 && p.vy > -6;
@@ -314,6 +315,10 @@ function sfx(n) {
   else if (n === 'flag') { burst(1200, 0.25, 0.15); }
   else if (n === 'stall') { tone(880, 0.09, 'square', 0.14); }
   else if (n === 'turn') { burst(500, 0.9, 0.18); }
+  else if (n === 'gun') { burst(2600, 0.035, 0.1, 'highpass'); }
+  else if (n === 'rocket') { burst(1100, 0.55, 0.22, 'bandpass'); tone(260, 0.5, 'sawtooth', 0.06, 1100); }
+  else if (n === 'bomb') { tone(1200, 0.8, 'sine', 0.08, 300); }
+  else if (n === 'boom') { burst(260, 1.0, 0.55, 'lowpass'); tone(80, 0.7, 'sawtooth', 0.3, 30); }
   else if (n === 'lift') { tone(120, 1.8, 'triangle', 0.1, 70); burst(260, 1.8, 0.05); }
 }
 function updateSound(dt) {
@@ -362,7 +367,7 @@ function startLift() { if (!overElev()) return; p.mode = 'lift'; p.vr = 0; p.el 
 function liftUp() {
   const e = p.el; if (!e || e.st !== 'svc') return;
   if (e.sv < SV(e).tot) { G.msg = { text: '작업이 끝날 때까지 기다린다', until: G.t + 1.2 }; return; }
-  p.fuelMax = LOADS[G.loadout].fuel; p.fuel = p.fuelMax; p.hp = 100; e.st = 'up'; e.t = 0; sfx('lift');
+  p.fuelMax = LOADS[G.loadout].fuel; p.fuel = p.fuelMax; p.hp = 100; p.ammo = { ...LOAD_AMMO[G.loadout] }; e.st = 'up'; e.t = 0; sfx('lift');
 }
 function liftStep(dt) {
   const e = p.el; if (!e) { p.mode = 'taxi'; return; }
@@ -397,6 +402,123 @@ function drawHangar(c) {
   c.fillStyle = '#fff'; c.font = '800 18px system-ui,sans-serif'; c.textAlign = 'center'; c.fillText(ok ? '올라가기 (Space)' : '작업 중…', g.x + g.w / 2, g.y + 29); c.textAlign = 'left';
 }
 
+// ───────── 섬, 표적, 무기 ─────────
+const LOAD_AMMO = [{ gun: 2400, rk: 0, bm: 0, lb: 0 }, { gun: 2400, rk: 6, bm: 0, lb: 0 }, { gun: 2400, rk: 0, bm: 1, lb: 1000 }, { gun: 2400, rk: 4, bm: 2, lb: 500 }];
+const ISL_A = 6000, ISL_B = 6900;   // 적의 섬 (항모 출발점에서 오른쪽 6km)
+function gh(x) { if (x <= ISL_A || x >= ISL_B) return 0; const u = (x - ISL_A) / (ISL_B - ISL_A); return 2 + 34 * Math.pow(Math.sin(Math.PI * u), 1.5); }
+const HP = { aa: 4, bunker: 10, fuel: 3, radar: 4, boat: 8 };
+const BOX = { aa: { w: 6, h: 5 }, bunker: { w: 12, h: 6 }, fuel: { w: 6, h: 6 }, radar: { w: 6, h: 10 }, boat: { w: 26, h: 7 } };
+const DMG = { gun: { aa: 0.35, bunker: 0.08, fuel: 0.5, radar: 0.35, boat: 0.3 }, rocket: { aa: 5, bunker: 7, fuel: 6, radar: 5, boat: 6 }, bomb: { aa: 10, bunker: 14, fuel: 10, radar: 10, boat: 12 } };
+const TARGETS = [], PROJ = [];
+function makeTargets() {
+  TARGETS.length = 0;
+  const add = (type, x) => TARGETS.push({ type, x, y: type === 'boat' ? 0 : gh(x), hp: HP[type], alive: true, burn: 0 });
+  [6120, 6300, 6620, 6780].forEach(x => add('aa', x)); [6200, 6450, 6700].forEach(x => add('bunker', x));
+  [6360, 6385].forEach(x => add('fuel', x)); add('radar', 6530); [5400, 5650].forEach(x => add('boat', x));
+  G.kills = 0;
+}
+function hitTest(x, y, pad) {
+  for (const t of TARGETS) { if (!t.alive) continue; const b = BOX[t.type]; if (Math.abs(x - t.x) <= b.w / 2 + pad && y >= t.y - pad && y <= t.y + b.h + pad) return t; }
+  return null;
+}
+function applyDmg(t, d) {
+  if (!t.alive) return; t.hp -= d;
+  if (t.hp > 0) return;
+  t.alive = false; t.burn = G.t + 9; G.kills++;
+  explode(t.x, t.y + 2, t.type === 'fuel' ? 30 : 10, t.type === 'fuel' ? 'bomb' : 'none', false);
+  if (G.kills >= TARGETS.length) G.toast = { text: '섬의 표적을 모두 격파했다!', grade: 'green', until: G.t + 6 };
+}
+function damageAt(x, y, r, kind) {
+  if (kind === 'none') return;
+  for (const t of TARGETS) {
+    if (!t.alive) continue; const b = BOX[t.type];
+    const dx = Math.max(0, Math.abs(x - t.x) - b.w / 2), dy = y < t.y ? t.y - y : y > t.y + b.h ? y - (t.y + b.h) : 0, d = Math.hypot(dx, dy);
+    if (d <= r) applyDmg(t, DMG[kind][t.type] * (1 - 0.6 * d / r));
+  }
+}
+function explode(x, y, r, kind, sea) {
+  if (sea) { for (let i = 0; i < 7; i++) FX.push({ k: 'splash', x: x + (Math.random() - 0.5) * r * 0.9, y: 0, vx: 0, vy: 0, life: 0.9, t: 0 }); }
+  else {
+    FX.push({ k: 'flash', x, y, vx: 0, vy: 0, life: 0.25, t: 0 });
+    for (let i = 0; i < Math.max(6, r / 2); i++) FX.push({ k: 'fire', x: x + (Math.random() - 0.5) * r * 0.5, y: y + Math.random() * 2, vx: (Math.random() - 0.5) * r * 0.8, vy: 3 + Math.random() * r * 0.45, life: 0.6 + Math.random() * 1.1, t: 0, s: 2 + Math.random() * r / 6 });
+    for (let i = 0; i < Math.max(3, r / 4); i++) FX.push({ k: 'smoke', x: x + (Math.random() - 0.5) * r * 0.5, y: y + 2, vx: (Math.random() - 0.5) * 8, vy: 4 + Math.random() * 8, life: 1.4 + Math.random(), t: 0, s: 2 + Math.random() * 3 });
+  }
+  damageAt(x, y, r, kind);
+  if (Math.abs(x - p.x) < 1500) sfx('boom');
+}
+function fireStep(dt) {
+  const ok = p.mode === 'air' && p.turn <= 0 && !p.off;
+  if (!ok) { p.gunT = 0; return; }
+  if ((keys.Space || keys.KeyZ || touch.on.gun > 0) && p.ammo.gun > 0) {   // 기관총: 연속 약 30초
+    p.gunT -= dt;
+    while (p.gunT <= 0 && p.ammo.gun > 0) {
+      p.gunT += 1 / 16; p.ammo.gun = Math.max(0, p.ammo.gun - 5);
+      const a = p.th + (Math.random() - 0.5) * 0.02, dx = Math.cos(a), dy = Math.sin(a);
+      PROJ.push({ k: 'b', x: p.x + dx * 9, y: p.y + dy * 9 - 0.4, vx: p.vx + dx * 640, vy: p.vy + dy * 640, life: 0.95 });
+      if (((p.ammo.gun / 5) | 0) % 2 === 0) sfx('gun');
+    }
+  } else p.gunT = 0;
+}
+function fireRocket() {
+  if (p.mode !== 'air' || p.off || p.turn > 0 || p.ammo.rk <= 0 || G.t < p.rkT) return;
+  const dx = Math.cos(p.th), dy = Math.sin(p.th); p.ammo.rk--; p.rkT = G.t + 0.25; sfx('rocket');
+  PROJ.push({ k: 'r', x: p.x + dx * 8, y: p.y + dy * 8 - 1, vx: p.vx + dx * 130, vy: p.vy + dy * 130, life: 4 });
+}
+function dropBomb() {
+  if (p.mode !== 'air' || p.off || p.turn > 0 || p.ammo.bm <= 0 || G.t < p.bmT) return;
+  p.ammo.bm--; p.bmT = G.t + 0.4; sfx('bomb');
+  PROJ.push({ k: 'm', x: p.x, y: p.y - 2.5, vx: p.vx, vy: p.vy, life: 30, lb: p.ammo.lb });
+}
+function stepProj(dt) {
+  for (const t of TARGETS) if (!t.alive && t.burn > G.t && Math.random() < dt * 9) FX.push({ k: Math.random() < 0.3 ? 'fire' : 'smoke', x: t.x + (Math.random() - 0.5) * 4, y: t.y + 2, vx: -3, vy: 5 + Math.random() * 5, life: 1.3 + Math.random(), t: 0, s: 1.6 + Math.random() * 2.4 });
+  for (let i = PROJ.length - 1; i >= 0; i--) {
+    const q = PROJ[i]; q.life -= dt;
+    if (q.k === 'r') { const th = Math.atan2(q.vy, q.vx); if (q.life > 3.4) { q.vx += Math.cos(th) * 260 * dt; q.vy += Math.sin(th) * 260 * dt; } q.vy -= 4 * dt; if (Math.random() < dt * 40) FX.push({ k: 'smoke', x: q.x, y: q.y, vx: 0, vy: 0, life: 0.7, t: 0, s: 1.2 }); }
+    else if (q.k === 'm') q.vy -= GRAV * dt;
+    q.x += q.vx * dt; q.y += q.vy * dt;
+    const hit = hitTest(q.x, q.y, q.k === 'b' ? 2.5 : 1.5), g = gh(q.x), ground = g > 0 && q.y <= g, sea = !ground && q.y <= 0;
+    if (!(hit || ground || sea)) { if (q.life <= 0) PROJ.splice(i, 1); continue; }
+    if (q.k === 'b') { if (hit) applyDmg(hit, DMG.gun[hit.type]); FX.push({ k: sea ? 'splash' : 'spark', x: q.x, y: Math.max(q.y, g), vx: 0, vy: 3, life: 0.4, t: 0 }); }
+    else explode(q.x, Math.max(q.y, g), q.k === 'm' ? (q.lb >= 1000 ? 44 : 30) : 14, q.k === 'm' ? 'bomb' : 'rocket', sea);
+    PROJ.splice(i, 1);
+  }
+}
+function drawIsland(c) {
+  const span = W / cam.z; if (cam.x + span / 2 < ISL_A - 60 || cam.x - span / 2 > ISL_B + 60) return;
+  world(0, 0, () => {
+    c.beginPath(); c.moveTo(ISL_A, -1.5); for (let x = ISL_A; x <= ISL_B; x += 15) c.lineTo(x, gh(x)); c.lineTo(ISL_B, gh(ISL_B)); c.lineTo(ISL_B, -1.5); c.closePath();
+    const g = c.createLinearGradient(0, 38, 0, -2); g.addColorStop(0, '#5f9348'); g.addColorStop(0.55, '#3f7440'); g.addColorStop(1, '#2d5636'); c.fillStyle = g; c.fill();
+    c.fillStyle = '#d3bf85'; c.beginPath(); c.moveTo(ISL_A - 8, -1.5); c.lineTo(ISL_A + 80, 6); c.lineTo(ISL_B - 80, 6); c.lineTo(ISL_B + 8, -1.5); c.closePath(); c.fill();   // 해안 모래
+    for (let x = ISL_A + 70; x < ISL_B - 70; x += 34) { const h = Math.abs(Math.sin(x * 12.9898) * 43758.5453) % 1, r = 3 + h * 2.5, y = gh(x) + r * 0.5; c.fillStyle = '#2a5630'; c.beginPath(); c.arc(x + h * 10, y, r, 0, 7); c.fill(); c.fillStyle = '#3f7a42'; c.beginPath(); c.arc(x + h * 10 - 1, y + 1, r * 0.7, 0, 7); c.fill(); }
+    c.fillStyle = 'rgba(255,255,255,0.8)'; [ISL_A - 4, ISL_B + 4].forEach(x => { c.beginPath(); c.ellipse(x, 0.4, 9, 1.1, 0, 0, 7); c.fill(); });
+  });
+}
+function drawTargets(c) {
+  const span = W / cam.z;
+  for (const t of TARGETS) {
+    if (Math.abs(t.x - cam.x) > span / 2 + 40) continue;
+    world(t.x, t.y + (t.type === 'boat' && t.alive ? Math.sin(G.t * 2 + t.x) * 0.4 : 0), () => {
+      if (!t.alive) { c.fillStyle = '#26221f'; c.beginPath(); c.ellipse(0, 0.6, BOX[t.type].w * 0.6, 1.6, 0, 0, 7); c.fill(); c.fillStyle = '#3a342f'; c.fillRect(-2.2, 0, 1.6, 1.4); c.fillRect(0.8, 0, 2.2, 0.9); return; }
+      if (t.type === 'aa') { c.fillStyle = '#4b5a3a'; c.fillRect(-3, 0, 6, 1.6); c.beginPath(); c.arc(0, 2.4, 1.8, 0, 7); c.fill(); c.strokeStyle = '#242a20'; c.lineWidth = 0.55; [-0.5, 0.5].forEach(o => { c.beginPath(); c.moveTo(o, 2.6); c.lineTo(o + 3.4, 5.4); c.stroke(); }); }
+      else if (t.type === 'bunker') { c.fillStyle = '#6f7b64'; c.beginPath(); c.moveTo(-6, 0); c.quadraticCurveTo(-5.4, 6.4, 0, 6.4); c.quadraticCurveTo(5.4, 6.4, 6, 0); c.closePath(); c.fill(); c.fillStyle = '#161914'; c.fillRect(-2.6, 2.4, 5.2, 0.9); }
+      else if (t.type === 'fuel') { c.fillStyle = '#d8d8d2'; c.fillRect(-3, 0, 6, 5); c.fillStyle = '#b5342c'; c.fillRect(-3, 2, 6, 0.9); c.fillStyle = '#e8e8e2'; c.beginPath(); c.ellipse(0, 5, 3, 0.8, 0, 0, 7); c.fill(); }
+      else if (t.type === 'radar') { c.fillStyle = '#51585e'; c.fillRect(-0.4, 0, 0.8, 8); c.beginPath(); c.moveTo(-3, 9.4); c.quadraticCurveTo(0, 6.6, 3, 9.4); c.lineWidth = 0.6; c.strokeStyle = '#51585e'; c.stroke(); }
+      else if (t.type === 'boat') { c.fillStyle = '#5d6b78'; c.beginPath(); c.moveTo(-13, 3); c.lineTo(11, 3); c.lineTo(14, 4.4); c.lineTo(9, -0.4); c.lineTo(-11, -0.4); c.closePath(); c.fill(); c.fillStyle = '#7b8895'; c.fillRect(-3, 3, 7, 3.2); c.fillStyle = '#4a5560'; c.fillRect(-0.5, 6, 2, 1.8); c.strokeStyle = '#2c333c'; c.lineWidth = 0.4; c.beginPath(); c.moveTo(7, 3.6); c.lineTo(10.4, 4.6); c.stroke(); }
+    });
+  }
+}
+function drawProj(c) {
+  for (const q of PROJ) {
+    if (q.k === 'b') { c.strokeStyle = '#ffdf7a'; c.lineWidth = 2; c.lineCap = 'round'; c.beginPath(); c.moveTo(sx(q.x), sy(q.y)); c.lineTo(sx(q.x - q.vx * 0.012), sy(q.y - q.vy * 0.012)); c.stroke(); c.lineCap = 'butt'; continue; }
+    world(q.x, q.y, () => {
+      c.rotate(Math.atan2(q.vy, q.vx));
+      if (q.k === 'r') { if (q.life > 3.4) { c.fillStyle = '#ff9f3c'; c.beginPath(); c.moveTo(-2.6, 0); c.lineTo(-6, 0.6); c.lineTo(-6, -0.6); c.closePath(); c.fill(); } c.fillStyle = '#cfd5da'; c.fillRect(-2.6, -0.35, 3.6, 0.7); c.fillStyle = '#c0392b'; c.beginPath(); c.moveTo(1, -0.35); c.lineTo(2, 0); c.lineTo(1, 0.35); c.closePath(); c.fill(); }
+      else { const big = q.lb >= 1000; c.fillStyle = '#2b2f33'; c.beginPath(); c.ellipse(0, 0, big ? 2.6 : 1.9, big ? 1.1 : 0.8, 0, 0, 7); c.fill(); c.fillStyle = '#4a5058'; c.fillRect(-3.3, -0.9, 0.9, 1.8); }
+    });
+  }
+}
+const FIRE = [{ k: 'gun', x: 300, y: 456, w: 110, h: 60, label: '기관총', key: 'Space' }, { k: 'rocket', x: 420, y: 456, w: 110, h: 60, label: '로켓', key: 'X' }, { k: 'bomb', x: 540, y: 456, w: 110, h: 60, label: '폭탄', key: 'C' }];
+
 // ───────── 한 걸음 ─────────
 function update(dt) {
   G.t += dt; ship.x += ship.v * dt; if (!G.manual) autoFly(dt); p.flaps = p.gear;
@@ -406,7 +528,7 @@ function update(dt) {
   else if (p.mode === 'lift') liftStep(dt);
   else if (p.mode === 'down') { p.y = Math.max(1, p.y - 6 * dt); p.x += p.vx * dt; p.vx *= 1 - Math.min(1, 2 * dt); }
   if (p.mode === 'air' || (p.mode === 'deck' && !p.held)) p.fuel = Math.max(0, p.fuel - (0.03 + 0.25 * p.thr) * dt);
-  G.lso = lsoSignal(); stepFx(dt);
+  G.lso = lsoSignal(); fireStep(dt); stepProj(dt); stepFx(dt);
 }
 
 // ───────── 입력: 방향키 네 개 ─────────
@@ -428,6 +550,7 @@ addEventListener('keydown', e => {
     if (e.code === 'ArrowUp' || e.code === 'ArrowDown') G.loadout = (G.loadout + 2) % 4;
     if (e.code === 'Space' || e.code === 'Enter') liftUp();
   } else if (e.code === 'Space') startLift();
+  if (e.code === 'KeyX') fireRocket(); if (e.code === 'KeyC') dropBomb();
   if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault();
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
@@ -436,7 +559,7 @@ const DPAD = [
   { k: 'up', x: 846, y: 340, w: 96, h: 88, label: '▲' }, { k: 'down', x: 846, y: 438, w: 96, h: 88, label: '▼' }
 ];
 const BTN = [{ id: 'reset', x: 14, y: 12, w: 64, h: 34, label: '다시' }, { id: 'snd', x: 14, y: 54, w: 64, h: 34, label: '소리' }];
-const touch = { ids: {}, on: { up: 0, down: 0, left: 0, right: 0 } };
+const touch = { ids: {}, on: { up: 0, down: 0, left: 0, right: 0, gun: 0 } };
 let keyIn = 0, prevRev = false;
 function readKeys(dt) {
   ctl.up = !!keys.ArrowUp || touch.on.up > 0; ctl.down = !!keys.ArrowDown || touch.on.down > 0;
@@ -454,6 +577,7 @@ cv.addEventListener('pointerdown', e => {
   const m = pos(e); e.preventDefault(); initAudio();
   if (hangarOpen()) { HG_CARDS.forEach((r, i) => { if (inR(m, r)) G.loadout = i; }); if (inR(m, HG_GO)) liftUp(); return; }
   if (overElev() && inR(m, ELEV_BTN)) { startLift(); return; }
+  if (p.mode === 'air') for (const b of FIRE) if (inR(m, b)) { if (b.k === 'gun') { touch.ids[e.pointerId] = 'gun'; touch.on.gun++; try { cv.setPointerCapture(e.pointerId); } catch (_) {} } else if (b.k === 'rocket') fireRocket(); else dropBomb(); return; }
   for (const d of DPAD) if (inR(m, d)) { touch.ids[e.pointerId] = d.k; touch.on[d.k]++; try { cv.setPointerCapture(e.pointerId); } catch (_) {} return; }
   for (const b of BTN) if (inR(m, b)) { b.id === 'reset' ? reset() : setMuted(!sound.muted); return; }
   if (G.result && m.y > 150 && m.y < 400 && m.x > 250 && m.x < 710) reset();
@@ -724,6 +848,7 @@ function drawWorld() {
     }
     c.lineCap = 'butt';
   }
+  drawIsland(c); drawTargets(c);
   drawShip();
   // 플레이어 기체
   if (p.mode !== 'down' || G.result.kind === 'ditch') {
@@ -738,6 +863,7 @@ function drawWorld() {
       }
     });
   }
+  drawProj(c);
   drawFx();
   if (p.mode === 'down' && G.result.sea) {   // 물기둥
     const X = sx(p.x), k = clamp((G.t - (G.result.t0 || (G.result.t0 = G.t))) * 2, 0, 1);
@@ -783,7 +909,7 @@ function hint() {
   if (p.mode === 'taxi') {
     if (G.t < p.lock) return '';
     if (overElev()) return '스페이스바: 엘리베이터로 내려가기 (수리·재장전)';
-    if (p.s > 0 && p.xr >= LAUNCH_XR - 0.5) return '▶ 를 꾹 누르면 발진';
+    if (p.s > 0 && p.xr >= LAUNCH_XR - 0.5) return '▶ 를 꾹 누르면 발진 · 공중에서 Space 기관총, X 로켓, C 폭탄';
     return '◀ ▶ 로 갑판 위를 움직인다 · 가운데 엘리베이터에서 수리와 재장전 · 오른쪽 끝에서 발진';
   }
   if (p.mode === 'lift') return p.el && p.el.st === 'svc' ? '' : '엘리베이터 이동 중';
@@ -813,8 +939,10 @@ function drawHUD() {
   // 연료
   panel(92, 10, 150, 36); c.fillStyle = '#243447'; c.fillRect(140, 22, 92, 12);
   const ff = p.fuel / p.fuelMax; c.fillStyle = ff < 0.2 ? '#ff5a3c' : '#59d37a'; c.fillRect(140, 22, 92 * ff, 12);
-  panel(92, 50, 236, 40); c.fillStyle = '#fff'; c.textAlign = 'left'; c.font = '700 12px system-ui,sans-serif';
-  c.fillText(LOADS[G.loadout].name + ' 장비 · 내구도 ' + Math.round(p.hp) + '%', 102, 67); c.font = '600 12px system-ui,sans-serif'; c.fillStyle = '#c9d4de'; c.fillText(LOADS[G.loadout].hud, 102, 83);
+  panel(92, 50, 236, 58); c.fillStyle = '#fff'; c.textAlign = 'left'; c.font = '700 12px system-ui,sans-serif';
+  c.fillText(LOADS[G.loadout].name + ' 장비 · 내구도 ' + Math.round(p.hp) + '%', 102, 67); c.font = '600 12px system-ui,sans-serif'; c.fillStyle = '#c9d4de';
+  c.fillText('기관총 ' + p.ammo.gun + ' · 로켓 ' + p.ammo.rk + ' · 폭탄 ' + p.ammo.bm, 102, 83); c.fillStyle = '#ffd23f'; c.fillText('격파 ' + G.kills + ' / ' + TARGETS.length, 102, 99);
+  if (p.mode === 'air') { const dI = (ISL_A + ISL_B) / 2 - p.x; panel(612, 50, 104, 26, 0.6); c.fillStyle = '#fff'; c.font = '700 12px system-ui,sans-serif'; c.fillText((dI < 0 ? '◀ 섬 ' : '섬 ▶ ') + (Math.abs(dI) / 1000).toFixed(1) + 'km', 622, 67); }
   c.fillStyle = '#fff'; c.font = '700 13px system-ui,sans-serif'; c.textAlign = 'left'; c.fillText('연료', 104, 33);
   // 항모 방향
   if (p.mode === 'air') {
@@ -848,6 +976,11 @@ function drawHUD() {
     panel(480 - tw / 2 - 34, 62, tw + 68, 32, 0.8); c.fillStyle = col; c.beginPath(); c.arc(480 - tw / 2 - 14, 78, 8, 0, 7); c.fill();
     c.fillStyle = '#fff'; c.textAlign = 'center'; c.fillText(G.toast.text, 488, 84);
   }
+  if (p.mode === 'air') FIRE.forEach(b => {   // 발사 버튼
+    const n = b.k === 'gun' ? p.ammo.gun : b.k === 'rocket' ? p.ammo.rk : p.ammo.bm, held = b.k === 'gun' && (keys.Space || keys.KeyZ || touch.on.gun > 0);
+    c.fillStyle = held ? 'rgba(230,90,60,0.95)' : n > 0 ? 'rgba(150,40,30,0.88)' : 'rgba(60,66,76,0.8)'; c.beginPath(); c.roundRect(b.x, b.y, b.w, b.h, 12); c.fill();
+    c.fillStyle = '#fff'; c.textAlign = 'center'; c.font = '800 15px system-ui,sans-serif'; c.fillText(b.label, b.x + b.w / 2, b.y + 26); c.font = '600 12px system-ui,sans-serif'; c.fillText(n + '  (' + b.key + ')', b.x + b.w / 2, b.y + 46);
+  });
   drawLSO();
   if (hangarOpen()) drawHangar(c);
   const hm = hint();

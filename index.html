@@ -526,7 +526,7 @@ function makeTargets(M) {
   const add = (type, x0) => { const x = x0 - OFF; const t = { type, x, y: SHIPS[type] ? 0 : gh(x), hp: HP[type], hp0: HP[type], alive: true, burn: 0, fire: Math.random() * 2, deadT: 0, x0: x, dir: TARGETS.length % 2 ? -1 : 1, launch: 10 + Math.random() * 12 }; t.isl = ISLANDS.findIndex(s => x > s.a && x < s.b); TARGETS.push(t); return t; };
   M.build(add, P);
   ISLANDS.forEach((q, k) => { add('barracks', P(k, 0.62)); if (q.b - q.a > 1500) add('barracks', P(k, 0.28)); });   // 섬마다 병영
-  ISLANDS.forEach(s => { for (let x = s.a + 50; x < s.b - 50; x += 34) { const h = Math.abs(Math.sin(x * 12.9898) * 43758.5453) % 1, r = 3 + h * 2.5, tx = x + h * 10; TREES.push({ x: tx, y: gh(tx), r, hp: 3, hp0: 3, alive: true }); } });
+  ISLANDS.forEach(s => { for (let x = s.a + 50; x < s.b - 50; x += 34) { const h = Math.abs(Math.sin(x * 12.9898) * 43758.5453) % 1, r = 3 + h * 2.5, tx = x + h * 10; TREES.push({ x: tx, y: gh(tx), r, hp: 3, hp0: 3, alive: true, kind: h < 0.55 ? 'palm' : 'broad', H: h < 0.55 ? 10 + r * 1.6 : 7 + r * 1.3, lean: h < 0.55 ? (Math.abs(Math.sin(x * 78.233) * 12345.678) % 1 - 0.5) * 0.45 : 0 }); } });
 }
 const isOpen = t => ((G.t + t.x * 0.37) % 9) < 4;   // 동굴 포대 문이 열린 때
 function defPct() { const M = MISSIONS[G.mi]; let tot = 0, al = 0; for (const t of TARGETS) if (DEF_W[t.type] && t.isl === M.cap) { tot += DEF_W[t.type]; if (t.alive) al += DEF_W[t.type]; } return tot ? al / tot * 100 : 0; }
@@ -701,11 +701,15 @@ function hitTest(x, y, pad) {
   return null;
 }
 function hitTree(x, y) {
-  for (const t of TREES) if (t.alive && Math.abs(x - t.x) < t.r + 0.6 && y > t.y - 0.5 && y < t.y + t.r * 1.9 + 0.6 && Math.hypot(x - t.x, y - (t.y + t.r * 0.6)) < t.r * 1.2 + 0.6) return t;
+  for (const t of TREES) {
+    if (!t.alive || Math.abs(x - t.x) > t.r * 2 + t.H * 0.5) continue;
+    const cx = t.x + t.lean * t.H, cy = t.y + t.H * (t.kind === 'palm' ? 1 : 0.75);
+    if (Math.hypot(x - cx, y - cy) < t.r * 1.1 || (Math.abs(x - t.x - t.lean * (y - t.y)) < 1.2 && y > t.y - 0.5 && y < cy)) return t;
+  }
   return null;
 }
 function chips(x, y, n, cols, sz) { sz = sz || 1; for (let i = 0; i < n; i++) FX.push({ k: 'dirt', x: x + (Math.random() - 0.5) * 2, y, vx: (Math.random() - 0.5) * 16 * sz, vy: (4 + Math.random() * 12) * (0.7 + 0.3 * sz), life: 0.5 + Math.random() * 0.7, t: 0, s: (0.4 + Math.random() * 0.5) * sz, c: cols[i % cols.length] }); }
-function treeHit(t, d) { t.hp -= d; chips(t.x, t.y + t.r * 0.9, 4, ['#4f8a3c', '#356b2c', '#7a5a36']); if (t.hp <= 0 && t.alive) { t.alive = false; chips(t.x, t.y + 1.5, 12, ['#4f8a3c', '#7a5a36', '#4b3621']); } }
+function treeHit(t, d) { t.hp -= d; chips(t.x + t.lean * t.H, t.y + t.H * 0.85, 4, ['#4f8a3c', '#356b2c', '#7a5a36']); if (t.hp <= 0 && t.alive) { t.alive = false; chips(t.x, t.y + 1.5, 12, ['#4f8a3c', '#7a5a36', '#4b3621']); } }
 function dirtBurst(x, y, n) { chips(x, y + 0.3, Math.round(9 * n), ['#6e4e2c', '#8a6b43', '#4d3720', '#a8885a'], 2.3); FX.push({ k: 'dust', x: x - 1, y: y + 1, vx: -3, vy: 3, life: 0.9, t: 0 }); FX.push({ k: 'dust', x: x + 1, y: y + 1.5, vx: 2, vy: 4, life: 1.1, t: 0 }); }
 function applyDmg(t, d) {
   if (!t.alive) return;
@@ -814,13 +818,7 @@ function drawIsland(c) {
     });
   }
   world(0, 0, () => {
-    for (const t of TREES) {
-      if (Math.abs(t.x - cam.x) > span / 2 + 20) continue;
-      if (!t.alive) { c.fillStyle = '#4b3621'; c.fillRect(t.x - 0.5, t.y - 0.5, 1, 1.4); c.fillStyle = '#3a4a2c'; c.beginPath(); c.ellipse(t.x + 1.6, t.y + 0.4, t.r * 0.8, 0.7, 0.1, 0, 7); c.fill(); continue; }
-      const y = t.y + t.r * 0.5; c.fillStyle = '#4b3621'; c.fillRect(t.x - 0.4, t.y - 0.5, 0.8, t.r * 0.7);
-      c.fillStyle = t.hp < t.hp0 ? '#3a5a2c' : '#2a5630'; c.beginPath(); c.arc(t.x, y + 0.6, t.r, 0, 7); c.fill();
-      c.fillStyle = '#3f7a42'; c.beginPath(); c.arc(t.x - 1, y + 1.6, t.r * 0.7, 0, 7); c.fill();
-    }
+    for (const t of TREES) { if (Math.abs(t.x - cam.x) > span / 2 + 30) continue; drawTree(c, t); }
   });
   world(0, 0, () => {
     for (const s of ISLANDS) {
@@ -834,6 +832,42 @@ function drawIsland(c) {
       if (!s.cleared) { c.fillStyle = '#c8262c'; c.beginPath(); c.arc(s.fx + 4.3, top - 2.5 + wv(2), 1.5, 0, 7); c.fill(); }   // 아직 일본군 소유: 일장기. 탈환하면 붉은 원이 없는 백기
     }
   });
+}
+// 나무: 야자수(휘어진 마디 줄기, 처진 깃털 잎, 열매)와 활엽수(가지와 여러 덩어리 수관). 바람에 살짝 흔들린다
+function drawTree(c, t) {
+  const sway = Math.sin(G.t * 1.3 + t.x) * 0.05, hurt = t.hp < t.hp0;
+  if (!t.alive) {   // 부러진 그루터기와 쓰러진 줄기
+    c.fillStyle = '#5e4628'; c.beginPath(); c.moveTo(t.x - 0.7, t.y - 0.3); c.lineTo(t.x - 0.6, t.y + 1.8); c.lineTo(t.x - 0.1, t.y + 1.3); c.lineTo(t.x + 0.2, t.y + 2.1); c.lineTo(t.x + 0.7, t.y - 0.3); c.closePath(); c.fill();
+    c.strokeStyle = '#6b5233'; c.lineWidth = 0.7; c.beginPath(); c.moveTo(t.x + 1, t.y + 0.4); c.lineTo(t.x + t.H * 0.6, t.y + 0.2); c.stroke();
+    c.fillStyle = '#4d5a2a'; c.beginPath(); c.ellipse(t.x + t.H * 0.62, t.y + 0.8, t.r * 0.7, 0.9, 0, 0, 7); c.fill();
+    return;
+  }
+  if (t.kind === 'palm') {
+    const tx = t.x + (t.lean + sway) * t.H, ty = t.y + t.H, mx = t.x + t.lean * t.H * 0.35, my = t.y + t.H * 0.55;
+    let px = t.x, py = t.y; c.lineCap = 'round';
+    for (let k = 1; k <= 8; k++) {
+      const u = k / 8, qx = (1 - u) * (1 - u) * t.x + 2 * (1 - u) * u * mx + u * u * tx, qy = (1 - u) * (1 - u) * t.y + 2 * (1 - u) * u * my + u * u * ty;
+      c.strokeStyle = k % 2 ? '#7d6240' : '#6a5134'; c.lineWidth = 1.05 - u * 0.5; c.beginPath(); c.moveTo(px, py); c.lineTo(qx, qy); c.stroke(); px = qx; py = qy;
+    }
+    c.lineCap = 'butt';
+    const L = t.r * 1.9, cols = hurt ? ['#6a6a2c', '#7a7034'] : ['#2f6b2a', '#3f8a35'];
+    for (let k = 0; k < 8; k++) {
+      const a = Math.PI * (0.06 + k * 0.125) + sway * 2, ex = tx + Math.cos(a) * L, ey = ty + Math.sin(a) * L * 0.55 - L * 0.35 * Math.abs(Math.cos(a));
+      const cx1 = tx + Math.cos(a) * L * 0.5, cy1 = ty + Math.sin(a) * L * 0.5 + L * 0.18;
+      c.fillStyle = cols[k % 2]; c.beginPath(); c.moveTo(tx, ty); c.quadraticCurveTo(cx1, cy1 + 0.9, ex, ey); c.quadraticCurveTo(cx1, cy1 - 0.5, tx, ty); c.fill();
+      c.strokeStyle = 'rgba(140,190,100,0.6)'; c.lineWidth = 0.1; c.beginPath(); c.moveTo(tx, ty); c.quadraticCurveTo(cx1, cy1 + 0.2, ex, ey); c.stroke();
+    }
+    c.fillStyle = '#5a3d1f'; [[-0.5, -0.4], [0.4, -0.5], [0, -0.9]].forEach(([dx, dy]) => { c.beginPath(); c.arc(tx + dx, ty + dy, 0.42, 0, 7); c.fill(); });
+  } else {
+    const H = t.H, top = t.y + H * 0.75, sw = sway * H * 0.3;
+    c.fillStyle = '#5e4628'; c.beginPath(); c.moveTo(t.x - 0.7, t.y - 0.3); c.lineTo(t.x - 0.35, t.y + H * 0.6); c.lineTo(t.x + 0.35, t.y + H * 0.6); c.lineTo(t.x + 0.7, t.y - 0.3); c.closePath(); c.fill();
+    c.strokeStyle = '#5e4628'; c.lineWidth = 0.35; c.beginPath(); c.moveTo(t.x, t.y + H * 0.45); c.lineTo(t.x - t.r * 0.6, t.y + H * 0.68); c.moveTo(t.x, t.y + H * 0.5); c.lineTo(t.x + t.r * 0.55, t.y + H * 0.72); c.stroke();
+    const blobs = [[0, 0, 1], [-0.65, -0.15, 0.75], [0.65, -0.1, 0.78], [-0.3, 0.45, 0.7], [0.35, 0.42, 0.68], [0, -0.35, 0.7]];
+    const dk = hurt ? '#4e5a26' : '#21482a', md = hurt ? '#66702e' : '#2f6234', lt = hurt ? '#7e8236' : '#4a8a45';
+    blobs.forEach(([bx, by, br]) => { c.fillStyle = dk; c.beginPath(); c.arc(t.x + sw + bx * t.r, top + by * t.r - 0.3, br * t.r * 0.62, 0, 7); c.fill(); });
+    blobs.forEach(([bx, by, br]) => { c.fillStyle = md; c.beginPath(); c.arc(t.x + sw + bx * t.r - 0.2, top + by * t.r + 0.1, br * t.r * 0.52, 0, 7); c.fill(); });
+    blobs.slice(0, 4).forEach(([bx, by, br]) => { c.fillStyle = lt; c.beginPath(); c.arc(t.x + sw + bx * t.r - 0.6, top + by * t.r + 0.6, br * t.r * 0.28, 0, 7); c.fill(); });
+  }
 }
 function drawTarget(c, t, dead) {
   const poly = (pts, fill) => { c.beginPath(); pts.forEach((q, i) => i ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1])); c.closePath(); c.fillStyle = fill; c.fill(); };

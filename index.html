@@ -235,13 +235,19 @@ function checkContact() {
   }
   if (p.off) return;
   if (xr > -4 && xr < DECK_L + 4 && wheel < DECK_Y) {
+    if (G.t < (p.bounceT || 0)) return;   // 튕겨 오르는 중에는 다시 부딪히지 않는다
     const wasAbove = p.prevY - WH >= DECK_Y - 0.6 && xr >= 0 && xr <= DECK_L;
     if (!wasAbove) return crash('선체에 부딪혔다. 너무 낮았다.');
     if (p.turn > 0) return crash('선회 중에 날개가 갑판에 부딪혔다. 선회하는 동안은 착함할 수 없다.');
     const kt = kts(), pitch = levelPitch();
     if (!p.gear || p.s * p.vx <= 0) return crash('바퀴가 아닌 곳으로 내렸다.');
     if (p.vy < -LAND_SINK) return crash('너무 세게 내려앉았다. 천천히 내려와야 한다.');
-    if (kt > LAND_KT) return crash('너무 빨랐다. 손을 떼고 속도를 줄여야 한다.');
+    if (kt > LAND_KT) {   // 너무 빠르면 부서지지 않고 튕겨 오른다
+      p.vy = Math.min(12, 5 + (kt - LAND_KT) * 0.15); p.vx *= 0.96; p.y = DECK_Y + WH + 0.4; p.prevY = p.y; p.bounceT = G.t + 0.6; p.hp = Math.max(30, p.hp - 10);
+      sfx('thump'); for (let i = 0; i < 10; i++) FX.push({ k: 'spark', x: p.x, y: DECK_Y + 0.3, vx: p.vx * 0.3 + (Math.random() - 0.5) * 20, vy: 3 + Math.random() * 10, life: 0.4, t: 0 });
+      G.toast = { text: '너무 빨라서 튕겨 올랐다. 속도를 줄여 다시 접근한다', grade: 'brown', until: G.t + 3.5 };
+      return;
+    }
     if (Math.abs(pitch) > LAND_PITCH) return crash('수평이 아니었다. 기수를 너무 ' + (pitch > 0 ? '들었다.' : '숙였다.'));
     p.td = { kt, sink: -p.vy, pitch }; sfx('thump');
     p.ld = p.s > 0 ? 1 : -1; const hx0 = xr - p.ld * HOOK_BACK;   // 후크가 처음 닿을 와이어: 진행 방향 앞쪽 첫 번째

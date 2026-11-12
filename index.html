@@ -197,7 +197,7 @@ function stepFx(dt) {
           if (q.vy < 2) { q.rest = true; q.xr = xr; }
         } else if (q.y <= 0) { q.life = 0; FX.push({ k: 'splash', x: q.x, y: 0, vx: 0, vy: 0, life: 0.6, t: 0 }); }
       } else q.x = ship.x + q.xr;
-    } else { if (q.k === 'spark') q.vy -= 32 * dt; else if (q.k === 'dirt') q.vy -= 26 * dt; q.x += q.vx * dt; q.y += q.vy * dt; if (q.k !== 'spark' && q.k !== 'dirt') q.vx += (ship.v * 0.3 - q.vx) * dt; }
+    } else { if (q.k === 'spark') q.vy -= 32 * dt; else if (q.k === 'dirt') q.vy -= 26 * dt; q.x += q.vx * dt; q.y += q.vy * dt; if (q.k !== 'spark' && q.k !== 'dirt' && q.k !== 'muz') q.vx += (ship.v * 0.3 - q.vx) * dt; }
     if (q.life <= 0) FX.splice(i, 1);
   }
 }
@@ -217,6 +217,12 @@ function drawFx() {
     if (q.k === 'flash') { c.fillStyle = 'rgba(255,244,200,' + (1 - k) + ')'; c.beginPath(); c.arc(X, Y, (10 + k * 34) * cam.z, 0, 7); c.fill(); }
     else if (q.k === 'fire') { c.fillStyle = k < 0.35 ? 'rgba(255,225,90,0.95)' : k < 0.7 ? 'rgba(255,130,40,' + (0.9 - k * 0.3) + ')' : 'rgba(70,70,70,' + (1 - k) * 1.6 + ')'; c.beginPath(); c.arc(X, Y, q.s * (0.7 + k) * cam.z, 0, 7); c.fill(); }
     else if (q.k === 'smoke') { c.fillStyle = 'rgba(60,62,66,' + (0.55 * (1 - k)) + ')'; c.beginPath(); c.arc(X, Y, q.s * (0.8 + k * 1.6) * cam.z, 0, 7); c.fill(); }
+    else if (q.k === 'muz') {   // 총구 화염: 앞으로 뻗는 불꽃
+      const L = Math.max(q.s * cam.z, 26) * 1.2, ca = Math.cos(q.a), sa = -Math.sin(q.a), nx = -sa, ny = ca, w = L * 0.28;
+      c.fillStyle = 'rgba(255,170,60,0.85)'; c.beginPath(); c.moveTo(X + nx * w, Y + ny * w); c.lineTo(X + ca * L, Y + sa * L); c.lineTo(X - nx * w, Y - ny * w); c.closePath(); c.fill();
+      c.fillStyle = 'rgba(255,245,190,0.95)'; c.beginPath(); c.moveTo(X + nx * w * 0.5, Y + ny * w * 0.5); c.lineTo(X + ca * L * 0.6, Y + sa * L * 0.6); c.lineTo(X - nx * w * 0.5, Y - ny * w * 0.5); c.closePath(); c.fill();
+      c.beginPath(); c.arc(X, Y, w * 0.8, 0, 7); c.fill();
+    }
     else if (q.k === 'spark') { c.fillStyle = 'rgba(255,238,160,' + (1 - k) + ')'; c.beginPath(); c.arc(X, Y, 0.45 * cam.z * (1 - 0.5 * k), 0, 7); c.fill(); }
     else if (q.k === 'flak') { c.fillStyle = 'rgba(30,30,34,' + (0.85 * (1 - k)) + ')'; c.beginPath(); c.arc(X, Y, (5 + k * 13) * cam.z, 0, 7); c.fill(); c.fillStyle = 'rgba(70,70,76,' + (0.55 * (1 - k)) + ')'; c.beginPath(); c.arc(X + 3 * cam.z, Y - 2 * cam.z, (3 + k * 9) * cam.z, 0, 7); c.fill(); if (k < 0.25) { c.fillStyle = 'rgba(255,170,70,' + (0.95 - k * 3) + ')'; c.beginPath(); c.arc(X, Y, 5 * cam.z, 0, 7); c.fill(); } }
     else if (q.k === 'dirt') { c.fillStyle = q.c || '#7a5a36'; c.beginPath(); c.arc(X, Y, Math.max(1.4, (q.s || 0.7) * cam.z), 0, 7); c.fill(); }
@@ -651,7 +657,7 @@ function enemyStep(dt) {
     if (!bomber && air && Math.hypot(p.x - e.x, p.y - e.y) < 12) { hurt(15, '적기와 부딪혔다.'); killEnemy(e); continue; }   // 공중 충돌
     if (!bomber && air && e.att && e.st === 'app') {   // 사격
       const d = Math.hypot(p.x - e.x, p.y - e.y), tf = d / 560, aimA = Math.atan2(p.y + p.vy * tf - e.y, p.x + p.vx * tf - e.x);
-      if (e.bt > 0) { e.bt -= dt; e.cd -= dt; if (e.cd <= 0) { e.cd = 0.14; const a = e.h + (Math.random() - 0.5) * 0.07; EB.push({ x: e.x + Math.cos(e.h) * 8, y: e.y + Math.sin(e.h) * 8, vx: Math.cos(a) * 480 + Math.cos(e.h) * e.v, vy: Math.sin(a) * 480 + Math.sin(e.h) * e.v, life: 0.8 }); } }
+      if (e.bt > 0) { e.bt -= dt; e.cd -= dt; if (e.cd <= 0) { e.cd = 0.14; const a = e.h + (Math.random() - 0.5) * 0.07; FX.push({ k: 'muz', x: e.x + Math.cos(e.h) * 6, y: e.y + Math.sin(e.h) * 6, vx: Math.cos(e.h) * e.v, vy: Math.sin(e.h) * e.v, a: e.h, s: 4.5 + Math.random() * 2.5, life: 0.06, t: 0 }); EB.push({ x: e.x + Math.cos(e.h) * 8, y: e.y + Math.sin(e.h) * 8, vx: Math.cos(a) * 480 + Math.cos(e.h) * e.v, vy: Math.sin(a) * 480 + Math.sin(e.h) * e.v, life: 0.8 }); } }
       else { e.cd -= dt; if (e.cd <= 0 && d < 420 && Math.abs(angd(aimA, e.h)) < 0.1) { e.bt = 0.7; e.cd = 0; } }
       if ((e.bt <= 0 || d < 160) && (d < 220 || (d < 600 && Math.abs(angd(Math.atan2(p.y - e.y, p.x - e.x), e.h)) > 2.0))) { e.st = 'ext'; e.up = e.y >= p.y; e.xt = 3.5 + Math.random() * 2; e.att = false; e.cd = 2.5; e.bt = 0; }
     }
@@ -738,7 +744,7 @@ function fireStep(dt) {
       p.gunT += 1 / 16; p.ammo.gun = Math.max(0, p.ammo.gun - 5);
       const a = p.th + (Math.random() - 0.5) * 0.02, dx = Math.cos(a), dy = Math.sin(a);
       PROJ.push({ k: 'b', x: p.x + dx * 9, y: p.y + dy * 9 - 0.4, vx: p.vx + dx * 640, vy: p.vy + dy * 640, life: 0.95 });
-      if (((p.ammo.gun / 5) | 0) % 2 === 0) sfx('gun');
+      if (((p.ammo.gun / 5) | 0) % 2 === 0) { sfx('gun'); FX.push({ k: 'muz', x: p.x + dx * 6.5, y: p.y + dy * 6.5 - 0.4, vx: p.vx, vy: p.vy, a, s: 4.5 + Math.random() * 2.5, life: 0.05, t: 0 }); }
     }
   } else p.gunT = 0;
 }

@@ -6,7 +6,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg">
 <meta name="theme-color" content="#0b1622">
-<title>헬캣 착함 대작전 1944</title>
+<title>태평양의 날개 1944</title>
 <style>
   html,body{margin:0;height:100%;background:#0b1622;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none}
   canvas{display:block;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:#8fc4e8}
@@ -1082,7 +1082,7 @@ function drawTitle() {
   top.addColorStop(0, 'rgba(6,14,26,0.8)'); top.addColorStop(1, 'rgba(6,14,26,0)'); c.fillStyle = top; c.fillRect(0, 0, W, 210);
   bot.addColorStop(0, 'rgba(6,14,26,0)'); bot.addColorStop(1, 'rgba(6,14,26,0.85)'); c.fillStyle = bot; c.fillRect(0, H - 110, W, 110);
   c.textAlign = 'center'; c.lineJoin = 'round';
-  c.font = '900 54px system-ui,sans-serif'; c.lineWidth = 7; c.strokeStyle = 'rgba(10,20,34,0.9)'; c.strokeText('헬캣 착함 대작전', 480, 88); c.fillStyle = '#ffd23f'; c.fillText('헬캣 착함 대작전', 480, 88);
+  c.font = '900 54px system-ui,sans-serif'; c.lineWidth = 7; c.strokeStyle = 'rgba(10,20,34,0.9)'; c.strokeText('태평양의 날개', 480, 88); c.fillStyle = '#ffd23f'; c.fillText('태평양의 날개', 480, 88);
   c.font = '800 24px system-ui,sans-serif'; c.lineWidth = 5; c.strokeText('1944 · 태평양', 480, 126); c.fillStyle = '#fff'; c.fillText('1944 · 태평양', 480, 126);
   c.font = '600 15px system-ui,sans-serif'; c.fillStyle = '#dbe4ee'; c.fillText('항공모함에서 날아올라 섬을 하나씩 되찾아라', 480, 154);
   if (Math.sin(performance.now() / 260) > -0.4) { c.font = '800 20px system-ui,sans-serif'; c.lineWidth = 5; c.strokeText('화면을 누르거나 아무 키나 누르면 시작', 480, H - 46); c.fillStyle = '#fff'; c.fillText('화면을 누르거나 아무 키나 누르면 시작', 480, H - 46); }
@@ -1116,7 +1116,7 @@ function drawScene() {
   const c = ctx; c.fillStyle = 'rgba(6,14,26,0.88)'; c.fillRect(0, 0, W, H); c.textAlign = 'left';
   if (G.scene === 'menu') {
     const tot = G.save.stars.reduce((a, b) => a + (b || 0), 0);
-    c.fillStyle = '#fff'; c.font = '800 28px system-ui,sans-serif'; c.fillText('헬캣 착함 대작전 1944', 60, 58);
+    c.fillStyle = '#fff'; c.font = '800 28px system-ui,sans-serif'; c.fillText('태평양의 날개 1944', 60, 58);
     c.fillStyle = '#ffd23f'; c.font = '700 15px system-ui,sans-serif'; c.fillText('계급 ' + rankOf(tot) + ' · 별 ' + tot + '/30', 62, 84);
     MISSIONS.forEach((M, i) => {
       const r = MENU_CARDS[i], lock = !unlocked(i), sel = i === G.sel, st = G.save.stars[i] || 0;

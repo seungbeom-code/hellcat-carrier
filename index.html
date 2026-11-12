@@ -21,12 +21,13 @@
 'use strict';
 // ───────── 상수 (단위: m, m/s) ─────────
 const W = 960, H = 540, KT = 1.944;
-const GRAV = 9.8, KL = 0.004375, KD0 = 0.000212, AMAX = 7.2, PWR = 1000;   // 바퀴·플랩은 모양일 뿐, 비행에는 영향이 없다 (항상 같은 날개·항력)
+const GRAV = 9.8, KL = 0.004375, KD0 = 0.000276, AMAX = 10, PWR = 1300;   // 바퀴·플랩은 모양일 뿐, 비행에는 영향이 없다 (항상 같은 날개·항력)
 const CL_MAX = 1.7, CL_BASE = 0.5;
 const SHIP_V = 15.4;                 // 갑판 맞바람 30노트
 const DECK_Y = 20, DECK_L = 260, WH = 3.2;   // 갑판 높이, 길이, 바퀴 밑까지 거리
 const ZONE_L = DECK_L * 0.3, ZONE_A = 20, ZONE_B = ZONE_A + ZONE_L;   // 어레스팅 와이어 구역 (갑판의 30%, 가운데)
 const WIRES = [0, 1, 2, 3].map(i => ZONE_A + 10 + i * (ZONE_L - 20) / 3);
+const TURN_T = 1.6;   // 선회에 걸리는 시간(초)
 const HOOK_BACK = 7.5, CRUISE_KT = 215, SLOW_KT = 98;   // 후크 끝 위치, 손을 뗐을 때 순항 속도, 항모 근처 접근 속도
 const TAKEOFF_KT = 90, TURN_KT = 80;   // 이륙과 선회에 필요한 최소 속도
 const LAND_KT = 118, LAND_SINK = 8, LAND_PITCH = 0.22;   // 착함 허용 한계: 속도, 가라앉는 속도, 기울기
@@ -79,7 +80,7 @@ function airStep(dt) {
   }
   if (p.turn > 0) {                       // 선회: 출력이 줄어 속도와 고도를 조금 잃는다
     p.turn -= dt;
-    const f = clamp(1 - p.turn / 2.2, 0, 1);
+    const f = clamp(1 - p.turn / TURN_T, 0, 1);
     p.vx = p.v0 * Math.cos(Math.PI * f) * lerp(1, 0.85, f);
     p.vy += (-6 - p.vy) * Math.min(1, 2.5 * dt);
     if (f >= 0.5 && !p.flipped) { p.s = -p.s; p.a = -p.a; p.flipped = true; }
@@ -91,18 +92,18 @@ function airStep(dt) {
   const g = Math.atan2(p.vy, p.vx);
   if (p.s * Math.cos(g) < -0.3 && Math.abs(p.in) < 0.2) { p.s = -p.s; p.a = -p.a; }   // 뒤집힌 채 놓으면 바로 선다
   const aTrim = clamp((GRAV * 0.985 / (KL * V * V) - CL_BASE) / 5, -0.25, 0.25);   // 키를 안 눌러도 속도에 맞춰 수평에 가깝게 맞춰 준다
-  const pg = clamp(Math.pow(60 / V, 2), 0.2, 1.6);                                  // 빠를수록 같은 입력에 덜 꺾이게 해서 조작감을 같게 한다
-  const aCmd = p.s * (aTrim + p.in * (p.in > 0 ? 0.15 : 0.1) * pg);
-  p.a += (aCmd - p.a) * Math.min(1, dt * 16);
+  const pg = clamp(Math.pow(60 / V, 1.6), 0.3, 2.0);                                  // 빠를수록 같은 입력에 덜 꺾이게 해서 조작감을 같게 한다
+  const aCmd = p.s * (aTrim + p.in * (p.in > 0 ? 0.2 : 0.14) * pg);
+  p.a += (aCmd - p.a) * Math.min(1, dt * 28);
   p.th = g + p.a;
   const f = aero(V, p.a), ux = p.vx / V, uy = p.vy / V;
   p.vx += (f.aT * Math.cos(p.th) - f.aD * ux - f.aL * uy) * dt;
   p.vy += (f.aT * Math.sin(p.th) - f.aD * uy + f.aL * ux - GRAV) * dt;
   if (p.neutral) {   // 손을 뗀 상태: 흔들림 없이 천천히 내려가고 속도도 안정된다
     const xr = p.x - ship.x, over = xr > 0 && xr < DECK_L && p.y - WH - DECK_Y < 22;   // 갑판 위에 들어서면 조금 더 빨리 내려앉는다
-    p.vy += ((over ? -5 : -2.5) - p.vy) * Math.min(1, (over ? 3 : 1.6) * dt);
+    p.vy += ((over ? -5 : -2.5) - p.vy) * Math.min(1, (over ? 6 : 4) * dt);
     const Vt = lerp(SLOW_KT, CRUISE_KT, clamp((p.y - 45) / 90, 0, 1)) / KT;   // 손을 떼면 낮을수록 천천히 난다 (바퀴와는 무관)
-    p.vx += Math.sign(p.vx) * clamp((Vt - V) * 0.8, -7, 5) * dt;
+    p.vx += Math.sign(p.vx) * clamp((Vt - V) * 1.6, -12, 9) * dt;
   }
   p.x += p.vx * dt; p.y += p.vy * dt;
 }
@@ -537,7 +538,7 @@ const keys = {}, ctl = { up: false, down: false, left: false, right: false };
 function startTurn() {
   if (p.mode !== 'air' || p.turn > 0 || p.off || p.y <= 12) return;
   if (kts() < TURN_KT) { G.msg = { text: '속도가 모자라 선회할 수 없다 (' + TURN_KT + '노트 이상)', until: G.t + 1.6 }; sfx('stall'); return; }
-  p.turn = 2.2; p.v0 = p.vx; p.flipped = false; sfx('turn');
+  p.turn = TURN_T; p.v0 = p.vx; p.flipped = false; sfx('turn');
 }
 addEventListener('keydown', e => {
   if (e.repeat) return; keys[e.code] = true; initAudio();
@@ -565,7 +566,7 @@ function readKeys(dt) {
   ctl.up = !!keys.ArrowUp || touch.on.up > 0; ctl.down = !!keys.ArrowDown || touch.on.down > 0;
   ctl.left = !!keys.ArrowLeft || touch.on.left > 0; ctl.right = !!keys.ArrowRight || touch.on.right > 0;
   const tgt = ctl.up ? 1 : ctl.down ? -1 : 0;
-  keyIn += (tgt - keyIn) * Math.min(1, dt * 22);
+  keyIn += (tgt - keyIn) * Math.min(1, dt * 40);
   p.in = keyIn;
   const rev = p.s > 0 ? ctl.left : ctl.right;
   if (rev && !prevRev) startTurn();
@@ -604,7 +605,7 @@ function autoFly(dt) {
     if (!p.gear && since > 15 && far < 500 && p.y < 80) { p.gear = true; sfx('clunk'); }   // 항모 주변(500m 안)에서 낮게 날 때만 내린다
   }
   if (p.mode !== 'air') p.neutral = false;
-  p.thr += (tgt - p.thr) * Math.min(1, dt * 4);
+  p.thr += (tgt - p.thr) * Math.min(1, dt * 9);
   p.hook = p.gear && p.tookOff;
   if (p.mode === 'taxi' || p.mode === 'lift' || (p.mode === 'deck' && !p.landing)) p.hook = G.t < p.relT;   // 착함 뒤에는 후크를 들어 올린다
 }
@@ -855,7 +856,7 @@ function drawWorld() {
     world(p.x, p.y, () => {
       if (p.flip > 0) { const f = clamp(1 - p.flip / 0.6, 0, 1); drawPlane3D((p.flipFrom > 0 ? 0 : Math.PI) + Math.PI * f, 0, true); }
       else if (p.turn > 0) {
-        const f = clamp(1 - p.turn / 2.2, 0, 1);
+        const f = clamp(1 - p.turn / TURN_T, 0, 1);
         drawPlane3D((p.v0 > 0 ? 0 : Math.PI) + Math.PI * f, Math.sin(Math.PI * f) * 1.0, p.gear);
       } else {
         c.rotate(p.th); c.scale(1, p.s);
@@ -1005,11 +1006,12 @@ function drawHUD() {
 
 function updateCam(dt) {
   const xr = p.x - ship.x, near = Math.abs(xr - 130) < 900 && p.y < 260;
-  const zt = p.mode === 'deck' || p.mode === 'taxi' || p.mode === 'lift' || (p.mode === 'down' && !G.result.sea) ? 2.9 : near ? 2.1 : 1.45;
-  cam.z = lerp(cam.z, zt, Math.min(1, dt * 1.5));
+  let zt = p.mode === 'deck' || p.mode === 'taxi' || p.mode === 'lift' || (p.mode === 'down' && !G.result.sea) ? 2.9 : near ? 2.1 : 1.45;
+  zt = Math.max(0.15, Math.min(zt, 0.5 * H / Math.max(p.y, 40)));   // 높이 올라가면 지평선(바다)이 항상 보이도록 축소
+  cam.z = lerp(cam.z, zt, Math.min(1, dt * (zt < cam.z ? 6 : 1.5)));
   const dir = p.vx >= 0 ? 1 : -1;
   const tx = p.x + dir * (0.2 + clamp((kts() - 120) / 900, 0, 0.12)) * W / cam.z, ty = Math.max(p.y * 0.92, H * 0.27 / cam.z);
-  cam.x = lerp(cam.x, tx, Math.min(1, dt * 3)); cam.y = lerp(cam.y, ty, Math.min(1, dt * 4));
+  cam.x = lerp(cam.x, tx, Math.min(1, dt * 5)); cam.y = lerp(cam.y, ty, Math.min(1, dt * 6)); cam.y = Math.min(cam.y, 0.4 * H / cam.z);   // 바다가 화면 밖으로 나가지 않게
 }
 
 function fit() {

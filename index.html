@@ -767,13 +767,14 @@ function fireStep(dt) {
     }
   } else p.gunT = 0;
 }
+const gunOn = () => (keys.Space || keys.KeyZ || touch.on.gun > 0 || G.demoFire) && p.ammo.gun > 0;   // 기관총을 쏘는 동안에는 로켓·폭탄을 쓸 수 없다
 function fireRocket() {
-  if (p.mode !== 'air' || p.off || p.turn > 0 || p.ammo.rk <= 0 || G.t < p.rkT) return;
+  if (gunOn() || p.mode !== 'air' || p.off || p.turn > 0 || p.ammo.rk <= 0 || G.t < p.rkT) return;
   const dx = Math.cos(p.th), dy = Math.sin(p.th); p.ammo.rk--; p.rkT = G.t + 0.25; sfx('rocket');
   PROJ.push({ k: 'r', x: p.x + dx * 8, y: p.y + dy * 8 - 1, vx: p.vx + dx * 130, vy: p.vy + dy * 130, life: 4 });
 }
 function dropBomb() {
-  if (p.mode !== 'air' || p.off || p.turn > 0 || p.ammo.bm <= 0 || G.t < p.bmT) return;
+  if (gunOn() || p.mode !== 'air' || p.off || p.turn > 0 || p.ammo.bm <= 0 || G.t < p.bmT) return;
   p.ammo.bm--; p.bmT = G.t + 0.25; sfx('bomb');
   PROJ.push({ k: 'm', x: p.x, y: p.y - 2.5, vx: p.vx, vy: p.vy - 15, life: 30, lb: p.ammo.lb });
 }

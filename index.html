@@ -423,33 +423,35 @@ let ISLANDS = [];
 function gh(x) { for (const s of ISLANDS) if (x > s.a && x < s.b) { const u = (x - s.a) / (s.b - s.a); return 2 + s.pk * Math.pow(Math.sin(Math.PI * u), 1.5); } return 0; }
 const HP = { aa: 4, bunker: 10, fuel: 3, radar: 4, boat: 8, runway: 14, tank: 6, cave: 14, dd: 16, tr: 10, bb: 60, cv: 40 };
 const BOX = { aa: { w: 6, h: 5 }, bunker: { w: 12, h: 6 }, fuel: { w: 6, h: 6 }, radar: { w: 6, h: 10 }, boat: { w: 26, h: 7 }, runway: { w: 60, h: 3 }, tank: { w: 9, h: 4 }, cave: { w: 8, h: 7 }, dd: { w: 44, h: 14 }, tr: { w: 36, h: 10 }, bb: { w: 84, h: 20 }, cv: { w: 96, h: 14 } };
+const SK = { boat: 1.6, dd: 2.2, tr: 2.0, bb: 2.4, cv: 2.4 }, SP = { boat: 5, dd: 9, tr: 4, bb: 6, cv: 7 };   // 배의 크기 배율, 순항 속도(m/s)
+Object.assign(BOX, { boat: { w: 42, h: 11 }, dd: { w: 97, h: 31 }, tr: { w: 72, h: 20 }, bb: { w: 200, h: 48 }, cv: { w: 230, h: 34 } });
 const DMG = {
   gun: { aa: 0.35, bunker: 0.08, fuel: 0.5, radar: 0.35, boat: 0.3, runway: 0.03, tank: 0.15, cave: 0, dd: 0.06, tr: 0.12, bb: 0.02, cv: 0.03 },
   rocket: { aa: 5, bunker: 7, fuel: 6, radar: 5, boat: 6, runway: 4, tank: 6, cave: 5, dd: 6, tr: 6, bb: 3.5, cv: 5 },
   bomb: { aa: 10, bunker: 14, fuel: 10, radar: 10, boat: 12, runway: 10, tank: 10, cave: 8, dd: 14, tr: 14, bb: 12, cv: 16 }
 };
-const SHIPS = { boat: 1, dd: 1, tr: 1, bb: 1, cv: 1 }, DEF_W = { aa: 1, bunker: 1.5, cave: 2, radar: 1 }, AA_N = { aa: 1, dd: 1, bb: 3, cv: 2, cave: 1 };
+const SHIPS = { boat: 1, dd: 1, tr: 1, bb: 1, cv: 1 }, DEF_W = { aa: 1, bunker: 1.5, cave: 2, radar: 1 }, AA_N = { aa: 1, dd: 1, bb: 3, cv: 2, cave: 1 }, AA_R = { aa: 1500, cave: 1200, dd: 1100, bb: 1200, cv: 1100 };
 const TARGETS = [], PROJ = [], TREES = [], ENE = [], EB = [], FLAK = [];
 const ES = { zero: { v: 135, w: 1.7, hp: 4 }, ace: { v: 150, w: 2.0, hp: 8 }, n1k: { v: 155, w: 1.9, hp: 9 }, d4y: { v: 105, w: 0.9, hp: 6 }, b6n: { v: 100, w: 0.8, hp: 7 } };
 const TINTS = { day: ['#4f9ad6', '#bfe4f5'], dawn: ['#3b5f99', '#f0b49a'], dusk: ['#4a4f8c', '#f2a65a'], night: ['#0b1430', '#2a3f66'] };
 const ZR = 'zero', OFF = 3000;   // 작전 배치 좌표에서 3km를 빼서 섬을 항모에 가깝게 둔다
 // 기획서의 미션 10개
 const MISSIONS = [
-  { name: '구니버드의 섬', date: '1944년 1월', place: '미드웨이 환초', kind: '훈련', tint: 'day', goal: 'train', brief: '이륙해서 표적 3개를 맞히고, 항모에 4번 착함한다', islands: [[6000, 700, 24]], waves: [],
+  { name: '구니버드의 섬', date: '1944년 1월', place: '미드웨이 환초', kind: '훈련', tint: 'day', goal: 'train', brief: '이륙해서 표적 3개를 맞히고, 항모에 4번 착함한다', islands: [[6000, 1300, 24]], waves: [],
     build: (add, P) => { add('boat', 5300); add('boat', 5550); add('boat', 5800); add('bunker', P(0, 0.5)); }, bonus: m => m.greens >= 4 },
-  { name: '첫 번째 깃발', date: '1월 31일', place: '마주로 환초', kind: '섬 점령', tint: 'day', goal: 'capture', cap: 2, brief: '방어 시설을 부수고 상륙을 엄호해 깃발을 올린다', islands: [[6000, 380, 14], [6600, 380, 14], [7200, 560, 22]],
+  { name: '첫 번째 깃발', date: '1월 31일', place: '마주로 환초', kind: '섬 점령', tint: 'day', goal: 'capture', cap: 2, brief: '방어 시설을 부수고 상륙을 엄호해 깃발을 올린다', islands: [[6000, 700, 14], [7000, 700, 14], [8000, 1100, 22]],
     waves: [{ t: 45, l: [ZR, ZR] }, { t: 150, l: [ZR, ZR, ZR] }],
     build: (add, P) => { add('aa', P(0, 0.4)); add('aa', P(1, 0.3)); add('aa', P(1, 0.7)); [0.25, 0.5, 0.75].forEach(x => add('aa', P(2, x))); [0.35, 0.65].forEach(x => add('bunker', P(2, x))); add('radar', P(2, 0.5)); add('fuel', P(2, 0.42)); add('fuel', P(2, 0.46)); add('boat', 5600); add('boat', 5900); },
     bonus: () => G.land && G.land.str >= 50 },
-  { name: '두 섬, 하나의 활주로', date: '2월 1일', place: '콰잘레인 환초 로이-나무르', kind: '섬 점령', tint: 'day', goal: 'capture', cap: 1, brief: '활주로를 부수고 두 번째 섬을 점령한다', islands: [[6500, 520, 24], [7300, 700, 30]],
+  { name: '두 섬, 하나의 활주로', date: '2월 1일', place: '콰잘레인 환초 로이-나무르', kind: '섬 점령', tint: 'day', goal: 'capture', cap: 1, brief: '활주로를 부수고 두 번째 섬을 점령한다', islands: [[6500, 900, 24], [7700, 1300, 30]],
     waves: [{ t: 40, l: [ZR, ZR, ZR] }, { t: 130, l: [ZR, ZR, ZR, ZR] }, { t: 230, l: [ZR, ZR, ZR] }],
     build: (add, P) => { add('runway', P(0, 0.5)); add('aa', P(0, 0.25)); add('aa', P(0, 0.75)); add('fuel', P(0, 0.3)); [0.2, 0.4, 0.6, 0.8].forEach(x => add('aa', P(1, x))); [0.3, 0.5, 0.7].forEach(x => add('bunker', P(1, x))); add('radar', P(1, 0.55)); add('boat', 6000); },
     bonus: () => G.m.runwayFirst },
-  { name: '새벽의 고양이들', date: '2월 17일', place: '트럭 환초', kind: '기지 무력화', tint: 'dawn', goal: 'air', brief: '제로센 12기를 격추하고 비행장 4곳을 부순다', islands: [[6300, 420, 8], [6900, 420, 8], [7500, 420, 8], [8100, 420, 8]],
+  { name: '새벽의 고양이들', date: '2월 17일', place: '트럭 환초', kind: '기지 무력화', tint: 'dawn', goal: 'air', brief: '제로센 12기를 격추하고 비행장 4곳을 부순다', islands: [[6300, 700, 8], [7200, 700, 8], [8100, 700, 8], [9000, 700, 8]],
     waves: [{ t: 20, l: [ZR, ZR, ZR, ZR] }, { t: 90, l: [ZR, ZR, ZR, ZR, 'ace'] }, { t: 170, l: [ZR, ZR, ZR, ZR, ZR] }, { t: 250, l: [ZR, ZR, ZR, ZR] }],
-    build: (add, P) => { [0, 1, 2, 3].forEach(k => { add('runway', P(k, 0.5)); add('aa', P(k, 0.2)); }); add('tr', 6000); add('tr', 6150); add('tr', 8500); add('tr', 8650); },
+    build: (add, P) => { [0, 1, 2, 3].forEach(k => { add('runway', P(k, 0.5)); add('aa', P(k, 0.2)); }); add('tr', 6000); add('tr', 6150); add('tr', 9900); add('tr', 10050); },
     bonus: m => m.ace },
-  { name: '큰 섬, 긴 하루', date: '6월 15일', place: '사이판', kind: '섬 점령', tint: 'dusk', goal: 'capture', cap: 0, tanks: 5, brief: '해안, 비행장, 산을 차례로 점령한다. 해가 지기 전에 전차를 막는다', islands: [[6200, 1500, 40]],
+  { name: '큰 섬, 긴 하루', date: '6월 15일', place: '사이판', kind: '섬 점령', tint: 'dusk', goal: 'capture', cap: 0, tanks: 5, brief: '해안, 비행장, 산을 차례로 점령한다. 해가 지기 전에 전차를 막는다', islands: [[6200, 2600, 40]],
     waves: [{ t: 60, l: [ZR, ZR, ZR] }, { t: 180, l: [ZR, ZR, ZR, ZR] }], landWaves: [ZR, ZR, ZR],
     build: (add, P) => { [0.12, 0.3, 0.5, 0.7, 0.85, 0.6].forEach(x => add('aa', P(0, x))); [0.2, 0.45, 0.65, 0.8].forEach(x => add('bunker', P(0, x))); add('radar', P(0, 0.55)); add('runway', P(0, 0.4)); add('fuel', P(0, 0.5)); add('fuel', P(0, 0.52)); },
     bonus: () => G.land && G.land.str >= 40 },
@@ -459,11 +461,11 @@ const MISSIONS = [
   { name: '어둠 속의 귀환', date: '6월 20일', place: '필리핀해', kind: '적 항모 공격', tint: 'night', goal: 'fleet', fleet: ['cv'], landAfter: true, brief: '적 항모를 침몰시키고 어둠 속에서 항모로 돌아와 착함한다', islands: [],
     waves: [{ t: 60, l: [ZR, ZR, ZR] }, { t: 150, l: [ZR, ZR, ZR] }],
     build: add => { add('dd', 7300); add('bb', 7700); add('cv', 8100); add('dd', 8500); }, bonus: () => p.fuel >= 10 },
-  { name: '오로테의 절벽', date: '7월 21일', place: '괌', kind: '섬 점령', tint: 'day', goal: 'capture', cap: 0, brief: '절벽 동굴의 포대를 로켓으로 부수고 상륙을 엄호한다', islands: [[6400, 1200, 46]],
+  { name: '오로테의 절벽', date: '7월 21일', place: '괌', kind: '섬 점령', tint: 'day', goal: 'capture', cap: 0, brief: '절벽 동굴의 포대를 로켓으로 부수고 상륙을 엄호한다', islands: [[6400, 2200, 46]],
     waves: [{ t: 60, l: [ZR, ZR] }, { t: 200, l: [ZR, ZR] }],
     build: (add, P) => { [0.2, 0.4, 0.6, 0.8].forEach(x => add('cave', P(0, x))); [0.3, 0.5, 0.7, 0.9].forEach(x => add('aa', P(0, x))); add('bunker', P(0, 0.35)); add('bunker', P(0, 0.65)); add('radar', P(0, 0.5)); },
     bonus: () => G.land && G.land.str >= 50 },
-  { name: '산호 능선', date: '9월 15일', place: '펠렐리우', kind: '섬 점령', tint: 'day', goal: 'capture', cap: 0, brief: '문이 열릴 때만 맞는 동굴 포대를 부수고 상륙을 엄호한다', islands: [[6400, 1000, 30]],
+  { name: '산호 능선', date: '9월 15일', place: '펠렐리우', kind: '섬 점령', tint: 'day', goal: 'capture', cap: 0, brief: '문이 열릴 때만 맞는 동굴 포대를 부수고 상륙을 엄호한다', islands: [[6400, 1800, 30]],
     waves: [{ t: 50, l: [ZR, ZR] }],
     build: (add, P) => { [0.15, 0.3, 0.5, 0.7, 0.85].forEach(x => add('cave', P(0, x))); [0.25, 0.55, 0.8].forEach(x => add('aa', P(0, x))); [0.2, 0.45, 0.75].forEach(x => add('bunker', P(0, x))); },
     bonus: () => G.land && G.land.str >= 50 },
@@ -505,7 +507,7 @@ function endMission(win, why) {
 function makeTargets(M) {
   TARGETS.length = 0; TREES.length = 0;
   const P = (k, f) => ISLANDS[k].a + (ISLANDS[k].b - ISLANDS[k].a) * f + OFF;
-  const add = (type, x0) => { const x = x0 - OFF; const t = { type, x, y: SHIPS[type] ? 0 : gh(x), hp: HP[type], hp0: HP[type], alive: true, burn: 0, fire: Math.random() * 2, deadT: 0 }; t.isl = ISLANDS.findIndex(s => x > s.a && x < s.b); TARGETS.push(t); return t; };
+  const add = (type, x0) => { const x = x0 - OFF; const t = { type, x, y: SHIPS[type] ? 0 : gh(x), hp: HP[type], hp0: HP[type], alive: true, burn: 0, fire: Math.random() * 2, deadT: 0, x0: x, dir: TARGETS.length % 2 ? -1 : 1, launch: 10 + Math.random() * 12 }; t.isl = ISLANDS.findIndex(s => x > s.a && x < s.b); TARGETS.push(t); return t; };
   M.build(add, P);
   ISLANDS.forEach(s => { for (let x = s.a + 50; x < s.b - 50; x += 34) { const h = Math.abs(Math.sin(x * 12.9898) * 43758.5453) % 1, r = 3 + h * 2.5, tx = x + h * 10; TREES.push({ x: tx, y: gh(tx), r, hp: 3, hp0: 3, alive: true }); } });
 }
@@ -543,6 +545,8 @@ function missionStep(dt) {
   m.t += dt;
   while (m.wave < M.waves.length && m.t >= M.waves[m.wave].t) spawnWave(M.waves[m.wave++].l);
   for (let i = m.hits.length - 1; i >= 0; i--) if (m.t >= m.hits[i].t) { hitCarrier(m.hits[i].d); m.hits.splice(i, 1); }
+  for (const t of TARGETS) if (SHIPS[t.type] && t.alive) { t.x += t.dir * SP[t.type] * dt; if (Math.abs(t.x - t.x0) > 450) t.dir = t.x > t.x0 ? -1 : 1; }   // 순찰
+  if (M.goal === 'fleet') for (const t of TARGETS) if (t.type === 'cv' && t.alive) { t.launch -= dt; if (t.launch <= 0) { t.launch = 22 + Math.random() * 10; if (ENE.length < 10) spawnEnemy(ZR, t.x, 22); } }   // 적 항모가 전투기를 발진
   G.dark = M.tint === 'night' ? clamp((m.t - 40) / 160, 0, 0.5) : M.tint === 'dusk' ? 0.1 + clamp(m.t / 600, 0, 0.2) : 0;
   if (G.land) landStep(dt, M);
   if (G.carrierHp < 70 && Math.random() < dt * 6) FX.push({ k: 'smoke', x: ship.x + 40 + Math.random() * 170, y: DECK_Y + 2, vx: ship.v - 6, vy: 5, life: 1.6, t: 0, s: 2 + Math.random() * 2 });
@@ -595,15 +599,17 @@ function ebStep(dt) {
 function flakStep(dt) {
   for (const t of TARGETS) {
     if (!t.alive || !AA_N[t.type] || (t.type === 'cave' && !isOpen(t))) continue;
-    t.fire -= dt; if (t.fire > 0) continue; t.fire = 1.2 + Math.random() * 0.8;
+    t.fire -= dt; if (t.fire > 0) continue; t.fire = 0.8 + Math.random() * 0.6;
     if (p.mode !== 'air') continue;
-    const d = Math.hypot(p.x - t.x, p.y - t.y); if (d > 1050 || d < 25) continue;
-    for (let k = 0; k < AA_N[t.type]; k++) { const f = 0.45 + Math.random() * 0.4, err = 30 + d * 0.03; FLAK.push({ x0: t.x, y0: t.y + 4, x: p.x + p.vx * f + (Math.random() - 0.5) * err * 2, y: p.y + p.vy * f + (Math.random() - 0.5) * err, t: f, life: f }); }
+    const d = Math.hypot(p.x - t.x, p.y - t.y); if (d > (AA_R[t.type] || 1100) || d < 25) continue;
+    t.flashT = G.t; if (d < 1300 && Math.random() < 0.5) sfx('gun');
+    const hy = t.y + (SHIPS[t.type] ? BOX[t.type].h * 0.7 : 4);
+    for (let k = 0; k < AA_N[t.type]; k++) { const f = 0.4 + Math.random() * 0.4, err = 22 + d * 0.02; FLAK.push({ x0: t.x, y0: hy, x: p.x + p.vx * f + (Math.random() - 0.5) * err * 2, y: p.y + p.vy * f + (Math.random() - 0.5) * err, t: f, life: f }); }
   }
   for (let i = FLAK.length - 1; i >= 0; i--) {
     const q = FLAK[i]; q.t -= dt; if (q.t > 0) continue;
     FX.push({ k: 'flak', x: q.x, y: q.y, vx: 0, vy: 1, life: 0.6, t: 0 });
-    if (p.mode === 'air' && Math.hypot(p.x - q.x, p.y - q.y) < 18) hurt(5, '대공포에 맞아 격추되었다.');
+    if (p.mode === 'air' && Math.hypot(p.x - q.x, p.y - q.y) < 20) hurt(5, '대공포에 맞아 격추되었다.');
     FLAK.splice(i, 1);
   }
 }
@@ -734,8 +740,15 @@ function drawTarget(c, t, dead) {
   const poly = (pts, fill) => { c.beginPath(); pts.forEach((q, i) => i ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1])); c.closePath(); c.fillStyle = fill; c.fill(); };
   const rect = (x, y, w, h, fill) => { c.fillStyle = fill; c.fillRect(x, y, w, h); };
   if (dead && !SHIPS[t.type]) { c.fillStyle = '#26221f'; c.beginPath(); c.ellipse(0, 0.6, BOX[t.type].w * 0.6, 1.6, 0, 0, 7); c.fill(); rect(-2.2, 0, 1.6, 1.4, '#3a342f'); rect(0.8, 0, 2.2, 0.9, '#3a342f'); return; }
+  if (SHIPS[t.type] && !dead) { c.fillStyle = 'rgba(255,255,255,0.55)'; c.beginPath(); c.ellipse(-BOX[t.type].w / (2 * SK[t.type]) - 4, 0.2, 7, 0.9, 0, 0, 7); c.fill(); }   // 항적
   switch (t.type) {
-    case 'aa': rect(-3, 0, 6, 1.6, '#4b5a3a'); c.fillStyle = '#4b5a3a'; c.beginPath(); c.arc(0, 2.4, 1.8, 0, 7); c.fill(); c.strokeStyle = '#242a20'; c.lineWidth = 0.55; [-0.5, 0.5].forEach(o => { c.beginPath(); c.moveTo(o, 2.6); c.lineTo(o + 3.4, 5.4); c.stroke(); }); break;
+    case 'aa': {   // 대공포는 내 비행기를 향해 포신을 돌리고, 쏠 때 섬광이 번쩍인다
+      rect(-3, 0, 6, 1.6, '#4b5a3a'); c.fillStyle = '#4b5a3a'; c.beginPath(); c.arc(0, 2.4, 1.8, 0, 7); c.fill();
+      const an = p.mode === 'air' ? clamp(Math.atan2(p.y - t.y - 2.5, p.x - t.x), 0.15, Math.PI - 0.15) : 1.0, ca = Math.cos(an), sa = Math.sin(an);
+      c.strokeStyle = '#242a20'; c.lineWidth = 0.6; [-0.5, 0.5].forEach(o => { c.beginPath(); c.moveTo(o, 2.6); c.lineTo(o + ca * 4, 2.6 + sa * 4); c.stroke(); });
+      if (G.t - (t.flashT || -9) < 0.12) { c.fillStyle = 'rgba(255,220,120,0.95)'; c.beginPath(); c.arc(ca * 4.6, 2.6 + sa * 4.6, 1.5, 0, 7); c.fill(); }
+      break;
+    }
     case 'bunker': poly([[-6, 0], [-5.4, 3.6], [-3, 5.6], [0, 6.2], [3, 5.6], [5.4, 3.6], [6, 0]], '#6f7b64'); rect(-2.6, 2.4, 5.2, 0.9, '#161914'); break;
     case 'fuel': rect(-3, 0, 6, 5, '#d8d8d2'); rect(-3, 2, 6, 0.9, '#b5342c'); c.fillStyle = '#e8e8e2'; c.beginPath(); c.ellipse(0, 5, 3, 0.8, 0, 0, 7); c.fill(); break;
     case 'radar': rect(-0.4, 0, 0.8, 8, '#51585e'); c.strokeStyle = '#51585e'; c.lineWidth = 0.6; c.beginPath(); c.moveTo(-3, 9.4); c.quadraticCurveTo(0, 6.6, 3, 9.4); c.stroke(); break;
@@ -755,7 +768,7 @@ function drawTargets(c) {
     if (Math.abs(t.x - cam.x) > span / 2 + BOX[t.type].w) continue;
     const sea = SHIPS[t.type], dead = !t.alive, sink = dead && sea ? clamp((G.t - t.deadT) / 9, 0, 1) : 0;
     if (sea && sink >= 1) continue;
-    world(t.x, t.y + (sea ? (dead ? -sink * 9 : Math.sin(G.t * 2 + t.x) * 0.4) : 0), () => { if (sea && dead) c.rotate(-sink * 0.35); drawTarget(c, t, dead); });
+    world(t.x, t.y + (sea ? (dead ? -sink * 12 : Math.sin(G.t * 2 + t.x) * 0.5) : 0), () => { if (sea) { if (dead) c.rotate(-sink * 0.35); c.scale(t.dir < 0 ? -SK[t.type] : SK[t.type], SK[t.type]); } drawTarget(c, t, dead); });
   }
 }
 function drawLanding(c) {

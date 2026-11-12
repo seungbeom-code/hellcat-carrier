@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg">
+<meta name="theme-color" content="#0b1622">
+<title>헬캣 착함 대작전 — 1단계 시제품</title>
+<style>
+  html,body{margin:0;height:100%;background:#0b1622;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none}
+  canvas{display:block;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:#8fc4e8}
+  #rot{display:none;position:fixed;inset:0;background:#0b1622;color:#fff;font:600 20px system-ui,sans-serif;align-items:center;justify-content:center;text-align:center;z-index:5}
+  @media (orientation:portrait) and (max-width:700px){#rot{display:flex}}
+</style>
+</head>
+<body>
+<canvas id="c" width="960" height="540"></canvas>
+<div id="rot">폰을 가로로 돌려 주세요</div>
+<script>
+'use strict';
+// ───────── 상수 (단위: m, m/s) ─────────
+const W = 960, H = 540, KT = 1.944;
+const GRAV = 9.8, KL = 0.004375, KD0 = 0.00012, KDG = 0.00015, KDF = 0.00025, AMAX = 4.4, PWR = 590;
+const SHIP_V = 15.4;                 // 갑판 맞바람 30노트
+const DECK_Y = 20, DECK_L = 260, WH = 3.2;   // 갑판 높이, 길이, 바퀴 밑까지 거리
+const WIRES = [30, 40, 50, 60, 70, 80], BARRIER = 106, HOOK_BACK = 5;
+const TD = 60, SLOPE = 0.065, CUT_X = -4;    // 접지 목표, 활공 기울기, 컷 신호 위치
+const START_XR = 122, UTURN_XR = -650;
+
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+
+// ───────── 상태 ─────────
+const ship = { x: 0, v: SHIP_V };
+const cam = { x: 0, y: 60, z: 3 };
+const G = { t: 0, stickers: [], result: null, assist: true, lso: null, lsoT: 0, flag: 0 };
+let p;
+function reset() {
+  p = { mode: 'deck', x: 0, y: DECK_Y + WH, vx: SHIP_V, vy: 0, th: 0, a: 0.035, s: 1, in: 0, thr: 0,
+        gear: true, flaps: true, hook: false, fuel: 100, xr: START_XR, vr: 0, held: true, flagT: 0,
+        landing: false, wire: -1, turn: 0, tookOff: false, prevY: DECK_Y + WH,
+        ap: { maxErr: 0, maxSpd: 0, on: false }, td: null };
+  p.x = ship.x + p.xr;
+  G.result = null; G.lso = null; G.park = 'aft';
+}
+const kts = () => Math.hypot(p.vx, p.vy) * KT;
+
+// ───────── 비행 물리 ─────────
+function aero(V, alpha) {
+  let CL = 5 * alpha + p.s * (0.25 + (p.flaps ? 0.5 : 0));
+  const m = p.flaps ? 1.9 : 1.4; CL = clamp(CL, -m, m);
+  const q = KL * V * V;
+  const kd = KD0 + (p.gear ? KDG : 0) + (p.flaps ? KDF : 0);
+  const thr = p.fuel > 0 ? p.thr : 0;
+  return { aL: q * CL, aD: kd * V * V + q * CL * CL * 0.06, aT: thr * Math.min(AMAX, PWR / Math.max(V, 1)) };
+}
+function stallKt() { return Math.sqrt(GRAV / (KL * (p.flaps ? 1.9 : 1.4))) * KT; }
+
+function airStep(dt) {
+  p.prevY = p.y;
+  let V = Math.hypot(p.vx, p.vy) || 0.01;
+  if (p.turn > 0) {                       // 수평 U턴
+    p.turn -= dt;
+    const f = clamp(1 - p.turn / 2.2, 0, 1);
+    p.vx = p.v0 * Math.cos(Math.PI * f) * lerp(1, 0.92, f);
+    p.vy *= 1 - Math.min(1, 3 * dt);
+    if (f >= 0.5 && !p.flipped) { p.s = -p.s; p.a = -p.a; p.flipped = true; }
+    p.th = p.s > 0 ? 0.03 : Math.PI - 0.03;
+    if (p.turn <= 0) { p.vx = -p.v0 * 0.92; p.turn = 0; }
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    return;
+  }
+  const g = Math.atan2(p.vy, p.vx);
+  if (p.s * Math.cos(g) < -0.3 && Math.abs(p.in) < 0.2) { p.s = -p.s; p.a = -p.a; }   // 뒤집힌 채 놓으면 바로 선다
+  const aCmd = p.s * (0.035 + p.in * (p.in > 0 ? 0.19 : 0.16));
+  p.a += (aCmd - p.a) * Math.min(1, dt * 5);
+  p.th = g + p.a;
+  const f = aero(V, p.a), ux = p.vx / V, uy = p.vy / V;
+  p.vx += (f.aT * Math.cos(p.th) - f.aD * ux - f.aL * uy) * dt;
+  p.vy += (f.aT * Math.sin(p.th) - f.aD * uy + f.aL * ux - GRAV) * dt;
+  p.x += p.vx * dt; p.y += p.vy * dt;
+}
+
+function deckStep(dt) {
+  const V = p.vr + ship.v;
+  if (p.held) {
+    p.vr = 0;
+    if (p.thr > 0.8) { p.flagT += dt; if (p.flagT > 1.2) p.held = false; } else p.flagT = 0;
+  } else {
+    const alpha = 0.035 + Math.max(0, p.in) * 0.19;
+    const f = aero(V, alpha);
+    let acc = f.aT - f.aD - 0.4;
+    if (p.landing) {
+      if (p.wire >= 0 && p.xr - HOOK_BACK >= WIRES[p.wire]) acc = -34;
+      else if (p.thr < 0.3) acc -= 2.5;
+    } else if (p.thr < 0.1) acc -= 4;
+    p.vr = Math.max(0, p.vr + acc * dt);
+    p.th = Math.max(0, p.in) * 0.12;
+    if (f.aL > GRAV * 1.02 && !(p.landing && p.wire >= 0 && p.xr - HOOK_BACK >= WIRES[p.wire])) {   // 떠오름
+      p.mode = 'air'; p.vx = V; p.vy = 1.2; p.a = alpha; p.landing = false; p.wire = -1; p.tookOff = true;
+      p.y = DECK_Y + WH + 0.05; p.x = ship.x + p.xr; return;
+    }
+    if (p.landing) {
+      if (p.wire < 0 && p.xr >= BARRIER && p.vr > 1.5) return finish('barrier');
+      if (p.vr <= 0.05) return finish(p.wire >= 0 ? 'wire' : 'nowire');
+    }
+  }
+  p.xr += p.vr * dt;
+  p.x = ship.x + p.xr; p.y = DECK_Y + WH; p.vx = p.vr + ship.v; p.vy = 0;
+  if (p.xr > DECK_L + 1) { p.mode = 'air'; p.a = 0.035; p.tookOff = true; p.landing = false; }   // 갑판 끝에서 떨어짐
+}
+
+// ───────── 신호장교 ─────────
+function idealY(xr) { return DECK_Y + WH + Math.max(0, TD - xr) * SLOPE; }
+function lsoSignal() {
+  if (p.mode !== 'air' || p.s < 0 || p.turn > 0) return null;
+  const xr = p.x - ship.x, d = TD - xr;
+  if (d < 0 || d > 950 || p.y > 190) return null;
+  const err = p.y - idealY(xr), kt = kts(), tol = 3 + d * 0.02;
+  if (d < 170 && (Math.abs(err) > tol * 2.2 || kt > 102 || kt < 68 || !p.gear || !p.hook)) return 'WAVEOFF';
+  if (!p.gear) return 'GEAR';
+  if (!p.hook) return 'HOOK';
+  if (!p.flaps) return 'FLAPS';
+  if (xr >= CUT_X) return 'CUT';
+  if (err > tol) return 'HIGH';
+  if (err < -tol) return 'LOW';
+  if (kt > 93) return 'FAST';
+  if (kt < 78) return 'SLOW';
+  return 'ROGER';
+}
+const LSO_TEXT = { ROGER: '좋음', HIGH: '높음 — 출력 줄여', LOW: '낮음 — 출력 올려', FAST: '빠름 — 기수 들어', SLOW: '느림 — 기수 내려',
+  GEAR: '바퀴!', HOOK: '후크!', FLAPS: '플랩!', CUT: '컷! 출력 0', WAVEOFF: '재접근! 출력 최대' };
+
+function trackApproach() {
+  const xr = p.x - ship.x, d = TD - xr;
+  if (p.mode === 'air' && p.s > 0 && d > 0 && d < 380 && p.y < 150) {
+    p.ap.on = true;
+    if (xr < CUT_X) {
+      p.ap.maxErr = Math.max(p.ap.maxErr, Math.abs(p.y - idealY(xr)));
+      p.ap.maxSpd = Math.max(p.ap.maxSpd, Math.abs(kts() - 85));
+    }
+  } else if (p.mode === 'air' && (p.s < 0 || d > 500)) p.ap = { maxErr: 0, maxSpd: 0, on: false };
+}
+
+// ───────── 접지, 충돌, 판정 ─────────
+function crash(why, ditch) { p.mode = 'down'; G.result = { kind: ditch ? 'ditch' : 'crash', why }; }
+function checkContact() {
+  const xr = p.x - ship.x, wheel = p.y - WH;
+  if (p.y <= 2.2) {
+    const soft = Math.hypot(p.vx, p.vy) < 52 && p.vy > -5;
+    return crash(soft ? '바다에 내려앉았다. 조종사는 구축함이 구조했다.' : '바다에 추락했다.', soft);
+  }
+  if (xr > -4 && xr < DECK_L + 2 && wheel < DECK_Y) {
+    const wasAbove = p.prevY - WH >= DECK_Y - 0.6 && xr >= 0;
+    if (!wasAbove) return crash(xr < 12 ? '배 꼬리에 부딪혔다. 너무 낮았다.' : '선체에 부딪혔다.');
+    const rel = p.vx - ship.v;
+    if (!p.gear) return crash('바퀴를 내리지 않고 내렸다.');
+    if (p.vy < -7.5) return crash('너무 세게 내려앉았다.');
+    if (rel < 2) return crash('갑판과 반대 방향으로 내렸다.');
+    p.td = { kt: kts(), sink: -p.vy, xr, sig: G.lso };
+    p.mode = 'deck'; p.landing = true; p.held = false; p.xr = xr; p.vr = rel; p.vy = 0; p.y = DECK_Y + WH; p.th = 0;
+    p.wire = p.hook ? WIRES.findIndex(w => w >= xr - HOOK_BACK) : -1;
+  }
+}
+function finish(kind) {
+  const n = p.wire + 1, ap = p.ap, td = p.td || { kt: 0 };
+  let grade, note;
+  if (kind === 'barrier') { grade = 'barrier'; note = p.hook ? '와이어를 모두 지나쳐 방벽에 걸렸다.' : '후크를 내리지 않아 방벽에 걸렸다.'; }
+  else if (kind === 'nowire') { grade = 'brown'; note = '와이어 없이 멈췄다.'; }
+  else if (n === 1 || td.sig === 'WAVEOFF' || td.kt > 100) { grade = 'red'; note = n === 1 ? '1번 와이어. 배 꼬리에 너무 가까웠다.' : td.sig === 'WAVEOFF' ? '재접근 신호를 무시했다.' : '너무 빨랐다.'; }
+  else if (n <= 4 && ap.maxErr < 6 && ap.maxSpd < 9) { grade = 'green'; note = n + '번 와이어. 완벽하다!'; }
+  else if (n <= 5 && ap.maxErr < 12) { grade = 'yellow'; note = n + '번 와이어. 접근이 조금 흔들렸다.'; }
+  else { grade = 'brown'; note = n + '번 와이어. 안전하게는 내렸다.'; }
+  p.mode = 'done'; p.vr = 0;
+  G.stickers.push(grade); if (G.stickers.length > 12) G.stickers.shift();
+  G.result = { kind: 'land', grade, note, wire: n, kt: Math.round(td.kt) };
+}
+
+// ───────── 한 걸음 ─────────
+function update(dt) {
+  G.t += dt; ship.x += ship.v * dt;
+  if (p.mode === 'deck') deckStep(dt);
+  else if (p.mode === 'air') { airStep(dt); checkContact(); }
+  else if (p.mode === 'done') { p.x = ship.x + p.xr; }
+  else if (p.mode === 'down') { p.y = Math.max(1, p.y - 6 * dt); p.x += p.vx * dt; p.vx *= 1 - Math.min(1, 2 * dt); }
+  if (p.mode === 'air' || (p.mode === 'deck' && !p.held)) p.fuel = Math.max(0, p.fuel - (0.03 + 0.25 * p.thr) * dt);
+  G.lso = lsoSignal(); trackApproach();
+}
+
+// ───────── 입력 ─────────
+const keys = {};
+function toggle(k) {
+  if (p.mode !== 'air' && p.mode !== 'deck') return;
+  if (k === 'gear' && p.mode === 'air') p.gear = !p.gear;
+  if (k === 'flaps') p.flaps = !p.flaps;
+  if (k === 'hook') p.hook = !p.hook;
+  if (k === 'uturn' && p.mode === 'air' && p.turn <= 0 && p.y > 12) { p.turn = 2.2; p.v0 = p.vx; p.flipped = false; }
+}
+addEventListener('keydown', e => {
+  if (e.repeat) return; keys[e.code] = true;
+  if (e.code === 'KeyG') toggle('gear'); if (e.code === 'KeyF') toggle('flaps'); if (e.code === 'KeyH') toggle('hook');
+  if (e.code === 'KeyX') toggle('uturn'); if (e.code === 'KeyR') reset(); if (e.code === 'Space') p.thr = 0;
+  if (e.code === 'KeyA') G.assist = !G.assist;
+  if (e.code === 'Enter' && G.result) reset();
+  if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault();
+});
+addEventListener('keyup', e => { keys[e.code] = false; });
+let keyIn = 0;
+function readKeys(dt) {
+  const up = keys.ArrowUp, dn = keys.ArrowDown;
+  const tgt = up ? 1 : dn ? -1 : 0;
+  keyIn += (tgt - keyIn) * Math.min(1, dt * 8);
+  if (!touch.pad) p.in = keyIn;
+  if (keys.KeyW || keys.ShiftLeft) p.thr = clamp(p.thr + 0.7 * dt, 0, 1);
+  if (keys.KeyS || keys.ControlLeft) p.thr = clamp(p.thr - 0.7 * dt, 0, 1);
+}
+// 터치 버튼
+const BTN = [
+  { id: 'gear', x: 120, y: 470, w: 74, h: 50, label: '바퀴' }, { id: 'flaps', x: 200, y: 470, w: 74, h: 50, label: '플랩' },
+  { id: 'hook', x: 280, y: 470, w: 74, h: 50, label: '후크' }, { id: 'uturn', x: 620, y: 470, w: 84, h: 50, label: 'U턴' },
+  { id: 'reset', x: 14, y: 12, w: 64, h: 34, label: '다시' }
+];
+const THR = { x: 22, y: 150, w: 70, h: 330 }, PAD = { x: 740, y: 190, w: 200, h: 300 };
+const touch = { pad: false, ids: {} };
+function pos(e) { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) * W / r.width, y: (e.clientY - r.top) * H / r.height }; }
+const inR = (m, r) => m.x >= r.x && m.x <= r.x + r.w && m.y >= r.y && m.y <= r.y + r.h;
+function drag(kind, m) {
+  if (kind === 'thr') p.thr = clamp(1 - (m.y - THR.y - 15) / (THR.h - 30), 0, 1);
+  if (kind === 'pad') p.in = clamp(-(m.y - (PAD.y + PAD.h / 2)) / (PAD.h / 2 - 20), -1, 1);
+}
+cv.addEventListener('pointerdown', e => {
+  const m = pos(e); e.preventDefault();
+  if (G.result && m.y > 150 && m.y < 400 && m.x > 250 && m.x < 710) return reset();
+  for (const b of BTN) if (inR(m, b)) { b.id === 'reset' ? reset() : toggle(b.id); return; }
+  if (inR(m, THR)) { touch.ids[e.pointerId] = 'thr'; drag('thr', m); }
+  else if (inR(m, PAD)) { touch.ids[e.pointerId] = 'pad'; touch.pad = true; drag('pad', m); }
+  try { cv.setPointerCapture(e.pointerId); } catch (_) {}
+});
+cv.addEventListener('pointermove', e => { const k = touch.ids[e.pointerId]; if (k) drag(k, pos(e)); });
+const up = e => { if (touch.ids[e.pointerId] === 'pad') { touch.pad = false; p.in = 0; } delete touch.ids[e.pointerId]; };
+cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+
+// ───────── 그리기 ─────────
+const sx = x => (x - cam.x) * cam.z + W / 2, sy = y => H / 2 - (y - cam.y) * cam.z;
+function world(x, y, fn) { ctx.save(); ctx.translate(sx(x), sy(y)); ctx.scale(cam.z, -cam.z); fn(); ctx.restore(); }
+
+function drawPlane(o) {   // 원점: 기체 중심, 오른쪽이 기수, 단위 m
+  const c = ctx;
+  if (o.hook) { c.strokeStyle = '#333'; c.lineWidth = 0.28; c.beginPath(); c.moveTo(-5.5, -0.8); c.lineTo(-7.6, -3.5); c.lineTo(-7.0, -3.7); c.stroke(); }
+  if (o.gear) {
+    c.strokeStyle = '#9aa3ad'; c.lineWidth = 0.4; c.beginPath(); c.moveTo(1.8, -1.6); c.lineTo(2.3, -2.5); c.stroke();
+    c.fillStyle = '#222'; c.beginPath(); c.arc(2.3, -2.45, 0.75, 0, 7); c.fill();
+    c.beginPath(); c.arc(-7.6, -1.2, 0.4, 0, 7); c.fill();
+  }
+  c.fillStyle = '#24405f'; c.beginPath(); c.moveTo(-6.2, 1.2); c.lineTo(-9.3, 5.2); c.lineTo(-10.2, 5.2); c.lineTo(-9.6, 0.8); c.closePath(); c.fill();   // 꼬리날개
+  c.beginPath(); c.moveTo(8.2, 1.0); c.bezierCurveTo(3, 4.4, -4, 3.2, -9.6, 1.3); c.lineTo(-9.6, 0.3); c.bezierCurveTo(-3, -2.8, 4, -3.3, 8.2, -1.0); c.closePath();
+  c.fillStyle = '#2f4f74'; c.fill();
+  c.save(); c.clip(); c.fillStyle = '#e9edf0'; c.fillRect(-10, -4, 19, 3.1); c.fillStyle = '#5f86ad'; c.fillRect(-10, -0.9, 19, 0.9); c.restore();   // 3색 위장
+  c.fillStyle = '#1d3552'; c.beginPath(); c.moveTo(8.2, 1.0); c.quadraticCurveTo(9.3, 0, 8.2, -1.0); c.lineTo(6.4, -1.9); c.lineTo(6.4, 2.0); c.closePath(); c.fill();   // 엔진 덮개
+  c.fillStyle = '#bfe3f2'; c.beginPath(); c.moveTo(-1.2, 2.5); c.quadraticCurveTo(1, 4.6, 3.6, 2.7); c.closePath(); c.fill();   // 조종석
+  c.fillStyle = '#6b4a2e'; c.beginPath(); c.arc(1.2, 3.0, 0.85, 0, 7); c.fill();
+  c.fillStyle = '#f2c9a0'; c.beginPath(); c.arc(1.55, 2.9, 0.5, 0, 7); c.fill();
+  c.fillStyle = '#1c3350'; c.beginPath(); c.ellipse(0.4, -0.7, 3.8, 0.75, 0, 0, 7); c.fill();   // 날개
+  if (o.flaps) { c.fillStyle = '#16293f'; c.save(); c.translate(-2.6, -1.0); c.rotate(-0.6); c.fillRect(-1.6, -0.25, 1.8, 0.5); c.restore(); }
+  c.fillStyle = '#1a2f6b'; c.beginPath(); c.arc(-4.2, 0.9, 1.15, 0, 7); c.fill();   // 국적 표지
+  c.fillStyle = '#fff'; c.fillRect(-6.1, 0.6, 3.8, 0.6);
+  c.beginPath(); for (let i = 0; i < 5; i++) { const a = Math.PI / 2 + i * 2.513; c.lineTo(-4.2 + Math.cos(a) * 1.0, 0.9 + Math.sin(a) * 1.0); } c.closePath(); c.fill();
+  c.fillStyle = '#c9ced4'; c.beginPath(); c.arc(8.9, 0, 0.6, 0, 7); c.fill();   // 프로펠러
+  const sp = o.thr || 0;
+  if (sp > 0.02) { c.fillStyle = 'rgba(230,235,240,' + (0.18 + 0.2 * sp) + ')'; c.beginPath(); c.ellipse(9.1, 0, 0.45, 3.6, 0, 0, 7); c.fill(); }
+  else { c.fillStyle = '#333'; c.fillRect(8.95, -3.4, 0.3, 6.8); }
+}
+
+function drawShip() {
+  const c = ctx;
+  world(ship.x, 0, () => {
+    // 물보라
+    c.fillStyle = 'rgba(255,255,255,0.7)';
+    for (let i = 0; i < 9; i++) { const wx = -6 - i * 14 - ((G.t * 15) % 14); c.beginPath(); c.ellipse(wx, 0.3, 7 - i * 0.5, 1.2 - i * 0.1, 0, 0, 7); c.fill(); }
+    // 함교
+    c.fillStyle = '#8795a3'; c.fillRect(132, DECK_Y, 36, 17); c.fillStyle = '#6f7d8b'; c.fillRect(146, DECK_Y + 17, 13, 9); c.fillRect(138, DECK_Y + 17, 5, 5);
+    c.strokeStyle = '#4c5864'; c.lineWidth = 0.6; c.beginPath(); c.moveTo(140.5, DECK_Y + 22); c.lineTo(140.5, DECK_Y + 36); c.moveTo(136, DECK_Y + 31); c.lineTo(145, DECK_Y + 31); c.stroke();
+    c.fillStyle = '#c8e4f2'; for (let i = 0; i < 5; i++) c.fillRect(135 + i * 6.5, DECK_Y + 11, 4, 2.4);
+    // 선체
+    c.beginPath(); c.moveTo(-3, DECK_Y); c.lineTo(263, DECK_Y); c.lineTo(257, 13); c.lineTo(250, -2); c.lineTo(8, -2); c.lineTo(2, 13); c.closePath();
+    c.fillStyle = '#8c99a6'; c.fill();
+    c.save(); c.clip();   // 지그재그 위장
+    c.fillStyle = '#4d5a68'; [[20, 60], [95, 40], [170, 55], [228, 30]].forEach(([a, w]) => { c.beginPath(); c.moveTo(a, -2); c.lineTo(a + w * 0.4, DECK_Y); c.lineTo(a + w, DECK_Y); c.lineTo(a + w * 0.7, -2); c.closePath(); c.fill(); });
+    c.fillStyle = '#c3ccd4'; [[62, 26], [140, 22], [205, 18]].forEach(([a, w]) => { c.beginPath(); c.moveTo(a, -2); c.lineTo(a + w * 0.5, 14); c.lineTo(a + w, -2); c.closePath(); c.fill(); });
+    c.fillStyle = '#7a2e2e'; c.fillRect(-5, -2, 270, 2.6);
+    c.restore();
+    // 비행갑판
+    c.fillStyle = '#2a3654'; c.fillRect(-3, DECK_Y - 1.6, 266, 1.6);
+    c.fillStyle = '#e8ecf0'; for (let x = 4; x < 256; x += 12) c.fillRect(x, DECK_Y - 0.5, 6, 0.3);
+    // 와이어와 방벽
+    c.strokeStyle = '#f4d35e'; c.lineWidth = 0.35;
+    WIRES.forEach(w => { c.beginPath(); c.moveTo(w - 0.8, DECK_Y); c.quadraticCurveTo(w, DECK_Y + 1.3, w + 0.8, DECK_Y); c.stroke(); });
+    c.strokeStyle = '#d9dde2'; c.lineWidth = 0.4;
+    [BARRIER, BARRIER + 7].forEach(b => { c.beginPath(); c.moveTo(b, DECK_Y); c.lineTo(b, DECK_Y + 3.4); c.moveTo(b - 0.6, DECK_Y + 3.2); c.lineTo(b + 0.6, DECK_Y + 3.2); c.stroke(); });
+    // 신호장교(작게)
+    c.fillStyle = '#e8ecf0'; c.fillRect(9.4, DECK_Y, 0.9, 2.2); c.fillStyle = '#f2c9a0'; c.beginPath(); c.arc(9.85, DECK_Y + 2.8, 0.6, 0, 7); c.fill();
+    c.fillStyle = '#ff5a3c'; c.fillRect(7.6, DECK_Y + 1.6, 1.3, 1.0); c.fillRect(10.8, DECK_Y + 1.6, 1.3, 1.0);
+    // 발진 장교와 깃발
+    if (p.mode === 'deck' && !p.landing && p.xr < START_XR + 30) {
+      const fx = START_XR + 16, dn = !p.held;
+      c.fillStyle = '#f4d35e'; c.fillRect(fx, DECK_Y, 0.9, 2.2); c.fillStyle = '#f2c9a0'; c.beginPath(); c.arc(fx + 0.45, DECK_Y + 2.8, 0.6, 0, 7); c.fill();
+      c.save(); c.translate(fx + 0.9, DECK_Y + 1.8); c.rotate(dn ? -0.5 : 1.1 + Math.sin(G.t * 14) * (p.thr > 0.8 ? 0.3 : 0));
+      c.strokeStyle = '#333'; c.lineWidth = 0.18; c.beginPath(); c.moveTo(0, 0); c.lineTo(3, 0); c.stroke();
+      for (let i = 0; i < 4; i++) { c.fillStyle = i % 2 ? '#111' : '#fff'; c.fillRect(1.4 + (i % 2) * 0.8, i < 2 ? 0 : 0.8, 0.8, 0.8); }
+      c.restore();
+    }
+  });
+  // 앞쪽에 세워 둔 비행기
+  if (p.mode === 'air' && Math.abs(p.x - ship.x - 130) > 400) G.park = 'fwd';   // 멀리 나간 사이 앞쪽으로 옮겨 둔다
+  (G.park === 'fwd' ? [205, 228] : [38, 62]).forEach(x => world(ship.x + x, DECK_Y + WH, () => drawPlane({ gear: true, thr: 0 })));
+}
+
+function drawGuide() {   // 접근 안내선과 U턴 지점
+  if (!G.assist || p.mode === 'done') return;
+  const c = ctx;
+  c.save(); c.setLineDash([10, 8]); c.strokeStyle = 'rgba(255,255,255,0.75)'; c.lineWidth = 2;
+  c.beginPath(); c.moveTo(sx(ship.x + TD), sy(idealY(TD))); c.lineTo(sx(ship.x + UTURN_XR), sy(idealY(UTURN_XR))); c.stroke(); c.setLineDash([]);
+  const ux = sx(ship.x + UTURN_XR), uy = sy(idealY(UTURN_XR));
+  c.strokeStyle = '#ffd23f'; c.lineWidth = 3; c.beginPath(); c.arc(ux, uy, 16, 0, 7); c.stroke();
+  c.fillStyle = '#ffd23f'; c.font = '700 13px system-ui,sans-serif'; c.textAlign = 'center'; c.fillText('U턴 지점', ux, uy - 24);
+  c.restore();
+}
+
+function drawWorld() {
+  const c = ctx, seaY = sy(0);
+  const sky = c.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, '#4f9ad6'); sky.addColorStop(1, '#bfe4f5');
+  c.fillStyle = sky; c.fillRect(0, 0, W, H);
+  c.fillStyle = 'rgba(255,255,255,0.85)';   // 구름
+  for (let i = 0; i < 14; i++) {
+    const wx = i * 900 + (i * 373) % 500, wy = 260 + (i * 197) % 520;
+    let X = ((wx - cam.x * 0.6) * cam.z * 0.6 + W / 2) % (W + 400); if (X < -200) X += W + 400;
+    const Y = H / 2 - (wy - cam.y) * cam.z * 0.6;
+    c.beginPath(); c.ellipse(X, Y, 70, 20, 0, 0, 7); c.ellipse(X + 40, Y - 14, 44, 18, 0, 0, 7); c.ellipse(X - 42, Y - 8, 36, 14, 0, 0, 7); c.fill();
+  }
+  const sea = c.createLinearGradient(0, seaY, 0, H); sea.addColorStop(0, '#1f8fa8'); sea.addColorStop(1, '#0e4f73');
+  c.fillStyle = sea; c.fillRect(0, seaY, W, Math.max(0, H - seaY));
+  c.strokeStyle = 'rgba(255,255,255,0.35)'; c.lineWidth = 2;   // 물결
+  const span = W / cam.z, x0 = Math.floor((cam.x - span / 2) / 45) * 45;
+  for (let x = x0; x < cam.x + span / 2 + 45; x += 45) {
+    const r = ((x / 45) % 5 + 5) % 5, X = sx(x), Y = seaY + 8 + r * 9;
+    if (Y < H) { c.beginPath(); c.moveTo(X, Y); c.quadraticCurveTo(X + 9, Y - 4, X + 18, Y); c.stroke(); }
+  }
+  drawShip(); drawGuide();
+  // 플레이어 기체
+  if (p.mode !== 'down' || G.result.kind === 'ditch') {
+    world(p.x, p.y, () => {
+      c.rotate(p.th);
+      const f = p.turn > 0 ? Math.abs(Math.cos(Math.PI * clamp(1 - p.turn / 2.2, 0, 1))) : 1;
+      c.scale(Math.max(0.25, f), p.s);
+      drawPlane({ gear: p.gear, flaps: p.flaps, hook: p.hook, thr: p.fuel > 0 ? p.thr : 0 });
+    });
+  }
+  if (p.mode === 'down') {   // 물기둥
+    const X = sx(p.x), k = clamp((G.t - (G.result.t0 || (G.result.t0 = G.t))) * 2, 0, 1);
+    c.fillStyle = 'rgba(255,255,255,' + (0.9 - 0.5 * k) + ')'; c.beginPath(); c.ellipse(X, sy(0) - 20 * k, 26 + 20 * k, 30 * k + 6, 0, 0, 7); c.fill();
+  }
+}
+
+function panel(x, y, w, h, a) { ctx.fillStyle = 'rgba(8,20,34,' + (a || 0.55) + ')'; ctx.beginPath(); ctx.roundRect(x, y, w, h, 10); ctx.fill(); }
+
+function drawLSO() {   // 신호장교 확대창
+  const sig = G.lso; if (!sig) return;
+  const c = ctx, x = 720, y = 58, w = 226, h = 122, t = G.t;
+  const warn = sig === 'WAVEOFF', good = sig === 'ROGER' || sig === 'CUT';
+  panel(x, y, w, h, 0.72);
+  c.strokeStyle = warn ? '#ff5a3c' : good ? '#59d37a' : '#ffd23f'; c.lineWidth = 3; c.beginPath(); c.roundRect(x, y, w, h, 10); c.stroke();
+  const cx = x + 52, cy = y + 66;
+  let L = Math.PI, R = 0;   // 팔 각도 (왼팔, 오른팔)
+  if (sig === 'HIGH') { L = Math.PI * 0.75; R = Math.PI * 0.25; }
+  if (sig === 'LOW') { L = Math.PI * 1.25; R = -Math.PI * 0.25; }
+  if (sig === 'FAST') { L = Math.PI * 1.4; R = -Math.PI * 0.4 + Math.sin(t * 9) * 0.25; }
+  if (sig === 'SLOW') { const k = Math.sin(t * 9) * 0.3; L = Math.PI + k; R = -k; }
+  if (sig === 'CUT') { L = Math.PI * 1.3; R = Math.PI * 0.85; }
+  if (sig === 'WAVEOFF') { const k = Math.sin(t * 12) * 0.5; L = Math.PI * 0.6 + k; R = Math.PI * 0.4 - k; }
+  if (sig === 'GEAR' || sig === 'HOOK' || sig === 'FLAPS') { L = Math.PI * 1.2; R = Math.PI * 0.3 + Math.sin(t * 10) * 0.4; }
+  c.fillStyle = '#f2f4f6'; c.beginPath(); c.roundRect(cx - 9, cy - 8, 18, 34, 5); c.fill();
+  c.fillStyle = '#f2c9a0'; c.beginPath(); c.arc(cx, cy - 20, 10, 0, 7); c.fill();
+  c.fillStyle = '#d9a441'; c.beginPath(); c.arc(cx, cy - 23, 10, Math.PI, 0); c.fill();
+  [[L, -1], [R, 1]].forEach(([a, sd]) => {
+    const ax = cx + sd * 8, ay = cy - 2, ex = ax + Math.cos(a) * 26, ey = ay - Math.sin(a) * 26;
+    c.strokeStyle = '#f2f4f6'; c.lineWidth = 6; c.lineCap = 'round'; c.beginPath(); c.moveTo(ax, ay); c.lineTo(ex, ey); c.stroke();
+    c.fillStyle = '#ff5a3c'; c.beginPath(); c.arc(ex, ey, 9, 0, 7); c.fill(); c.strokeStyle = '#ffd23f'; c.lineWidth = 2; c.stroke();
+  });
+  c.lineCap = 'butt';
+  c.fillStyle = '#fff'; c.textAlign = 'left'; c.font = '700 12px system-ui,sans-serif'; c.fillText('신호장교', x + 108, y + 26);
+  c.font = '800 17px system-ui,sans-serif'; c.fillStyle = warn ? '#ff8a73' : good ? '#8df0a8' : '#ffe27a';
+  const parts = LSO_TEXT[sig].split(' — '); c.fillText(parts[0], x + 108, y + 58);
+  if (parts[1]) { c.font = '600 13px system-ui,sans-serif'; c.fillStyle = '#fff'; c.fillText(parts[1], x + 108, y + 82); }
+}
+
+function hint() {
+  if (G.result) return '';
+  const xr = p.x - ship.x;
+  if (p.mode === 'deck' && !p.landing) {
+    if (p.held) return p.thr > 0.8 ? '발진 신호를 기다린다…' : '출력 레버를 끝까지 올린다 (W 키)';
+    return kts() > 78 ? '기수를 든다! (↑ 키)' : '달리는 중… 속도가 붙으면 기수를 든다';
+  }
+  if (p.mode === 'deck') return '';
+  if (p.turn > 0) return '선회 중';
+  if (G.lso) return '';
+  if (p.s > 0 && xr > 150) return p.y < 60 ? '바퀴(G)와 플랩(F)을 올리고 상승한다' : 'U턴(X)해서 항모 뒤쪽으로 돌아간다';
+  if (p.s < 0 && xr > UTURN_XR) return '노란 원까지 가며 속도를 줄이고, 바퀴·플랩·후크를 내린다';
+  if (p.s < 0) return '지금 U턴! (X 키)';
+  if (p.s > 0 && xr < UTURN_XR - 400) return '항모 쪽으로 다가간다';
+  return '';
+}
+
+function drawHUD() {
+  const c = ctx, kt = kts(), xr = p.x - ship.x;
+  // 속도, 고도
+  panel(360, 10, 240, 44);
+  c.fillStyle = '#fff'; c.textAlign = 'center'; c.font = '800 20px system-ui,sans-serif';
+  const stall = (p.mode === 'air') && kt < stallKt() * 1.12;
+  c.fillStyle = stall ? '#ff8a73' : '#fff'; c.fillText(Math.round(kt) + ' 노트', 420, 39);
+  c.fillStyle = '#fff'; c.fillText(Math.round(Math.max(0, p.y - WH)) + ' m', 540, 39);
+  if (stall && Math.sin(G.t * 12) > 0) { c.fillStyle = '#ff5a3c'; c.font = '800 22px system-ui,sans-serif'; c.fillText('실속!', 480, 84); }
+  // 연료
+  panel(92, 10, 150, 36); c.fillStyle = '#243447'; c.fillRect(140, 22, 92, 12);
+  c.fillStyle = p.fuel < 20 ? '#ff5a3c' : '#59d37a'; c.fillRect(140, 22, 92 * p.fuel / 100, 12);
+  c.fillStyle = '#fff'; c.font = '700 13px system-ui,sans-serif'; c.textAlign = 'left'; c.fillText('연료', 104, 33);
+  // 항모 방향
+  if (p.mode === 'air') {
+    const d = (ship.x + 130) - p.x, far = Math.abs(d) > W / cam.z * 0.6;
+    if (far) { panel(250, 10, 100, 36); c.fillStyle = '#fff'; c.textAlign = 'center'; c.font = '700 14px system-ui,sans-serif'; c.fillText((d < 0 ? '◀ ' : '') + '항모 ' + Math.round(Math.abs(d)) + 'm' + (d > 0 ? ' ▶' : ''), 300, 33); }
+  }
+  // 성적판
+  if (G.stickers.length) {
+    panel(612, 10, 22 + G.stickers.length * 22, 36);
+    const col = { green: '#59d37a', yellow: '#ffd23f', brown: '#a9793f', red: '#ff5a3c', barrier: '#8a94a0' };
+    G.stickers.forEach((s, i) => { c.fillStyle = col[s]; c.beginPath(); c.arc(634 + i * 22, 28, 8, 0, 7); c.fill(); });
+  }
+  // 출력 레버
+  panel(THR.x, THR.y, THR.w, THR.h);
+  c.fillStyle = '#243447'; c.fillRect(THR.x + 30, THR.y + 15, 10, THR.h - 30);
+  const ty = THR.y + 15 + (1 - p.thr) * (THR.h - 30);
+  c.fillStyle = '#ffd23f'; c.beginPath(); c.roundRect(THR.x + 10, ty - 13, 50, 26, 6); c.fill();
+  c.fillStyle = '#111'; c.textAlign = 'center'; c.font = '800 13px system-ui,sans-serif'; c.fillText(Math.round(p.thr * 100) + '%', THR.x + 35, ty + 5);
+  c.fillStyle = '#fff'; c.font = '700 12px system-ui,sans-serif'; c.fillText('출력', THR.x + 35, THR.y - 6);
+  // 조종 패드
+  panel(PAD.x, PAD.y, PAD.w, PAD.h, 0.28);
+  c.strokeStyle = 'rgba(255,255,255,0.5)'; c.lineWidth = 1; c.beginPath(); c.moveTo(PAD.x + 20, PAD.y + PAD.h / 2); c.lineTo(PAD.x + PAD.w - 20, PAD.y + PAD.h / 2); c.stroke();
+  c.fillStyle = 'rgba(255,255,255,0.9)'; c.beginPath(); c.arc(PAD.x + PAD.w / 2, PAD.y + PAD.h / 2 - p.in * (PAD.h / 2 - 20), 26, 0, 7); c.fill();
+  c.fillStyle = '#fff'; c.font = '700 12px system-ui,sans-serif'; c.fillText('▲ 기수 올림', PAD.x + PAD.w / 2, PAD.y + 18); c.fillText('▼ 기수 내림', PAD.x + PAD.w / 2, PAD.y + PAD.h - 8);
+  // 버튼
+  for (const b of BTN) {
+    const on = b.id === 'gear' ? p.gear : b.id === 'flaps' ? p.flaps : b.id === 'hook' ? p.hook : null;
+    c.fillStyle = on === true ? 'rgba(52,150,84,0.9)' : on === false ? 'rgba(60,72,88,0.85)' : 'rgba(26,60,110,0.85)';
+    c.beginPath(); c.roundRect(b.x, b.y, b.w, b.h, 9); c.fill();
+    c.fillStyle = '#fff'; c.font = '800 15px system-ui,sans-serif'; c.textAlign = 'center';
+    c.fillText(b.label, b.x + b.w / 2, b.y + b.h / 2 + (on === null ? 5 : -1));
+    if (on !== null) { c.font = '600 11px system-ui,sans-serif'; c.fillText(on ? '내림' : '올림', b.x + b.w / 2, b.y + b.h - 8); }
+  }
+  drawLSO();
+  const hm = hint();
+  if (hm) { c.font = '700 16px system-ui,sans-serif'; const tw = c.measureText(hm).width; panel(480 - tw / 2 - 14, 96, tw + 28, 34, 0.7); c.fillStyle = '#fff'; c.textAlign = 'center'; c.fillText(hm, 480, 119); }
+  // 결과
+  if (G.result) {
+    const r = G.result; panel(250, 150, 460, 250, 0.86); c.textAlign = 'center';
+    const col = { green: '#59d37a', yellow: '#ffd23f', brown: '#a9793f', red: '#ff5a3c', barrier: '#8a94a0' };
+    const name = { green: '완벽', yellow: '양호', brown: '미흡', red: '위험', barrier: '방벽' };
+    if (r.kind === 'land') {
+      c.fillStyle = col[r.grade]; c.beginPath(); c.arc(480, 215, 38, 0, 7); c.fill();
+      c.fillStyle = '#111'; c.font = '800 20px system-ui,sans-serif'; c.fillText(name[r.grade], 480, 222);
+      c.fillStyle = '#fff'; c.font = '700 18px system-ui,sans-serif'; c.fillText(r.note, 480, 290);
+      c.font = '600 14px system-ui,sans-serif'; c.fillStyle = '#c9d4de'; c.fillText('접지 속도 ' + r.kt + '노트', 480, 318);
+    } else {
+      c.fillStyle = '#fff'; c.font = '800 26px system-ui,sans-serif'; c.fillText(r.kind === 'ditch' ? '불시착수' : '추락', 480, 225);
+      c.font = '700 16px system-ui,sans-serif'; c.fillText(r.why, 480, 282);
+    }
+    c.fillStyle = '#ffd23f'; c.font = '800 16px system-ui,sans-serif'; c.fillText('여기를 누르면 다시 이륙 (Enter)', 480, 368);
+  }
+}
+
+function updateCam(dt) {
+  const xr = p.x - ship.x, near = Math.abs(xr - 130) < 900 && p.y < 260;
+  const zt = p.mode === 'deck' || p.mode === 'done' ? 2.9 : near ? 2.1 : 1.45;
+  cam.z = lerp(cam.z, zt, Math.min(1, dt * 1.5));
+  const dir = p.vx >= 0 ? 1 : -1;
+  const tx = p.x + dir * 0.2 * W / cam.z, ty = Math.max(p.y * 0.92, H * 0.27 / cam.z);
+  cam.x = lerp(cam.x, tx, Math.min(1, dt * 3)); cam.y = lerp(cam.y, ty, Math.min(1, dt * 4));
+}
+
+function fit() {
+  const s = Math.min(innerWidth / W, innerHeight / H);
+  cv.style.width = W * s + 'px'; cv.style.height = H * s + 'px';
+}
+addEventListener('resize', fit); fit();
+
+let last = 0, acc = 0;
+const STEP = 1 / 120;
+function frame(ts) {
+  const dt = Math.min(0.05, (ts - last) / 1000 || 0); last = ts;
+  if (!G.paused) {
+    readKeys(dt); acc += dt;
+    while (acc >= STEP) { update(STEP); acc -= STEP; }
+    updateCam(dt);
+  }
+  drawWorld(); drawHUD();
+  requestAnimationFrame(frame);
+}
+reset(); cam.x = p.x; cam.y = 60;
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

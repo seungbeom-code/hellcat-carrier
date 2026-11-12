@@ -212,6 +212,7 @@ function checkContact() {
   if (xr > -4 && xr < DECK_L + 4 && wheel < DECK_Y) {
     const wasAbove = p.prevY - WH >= DECK_Y - 0.6 && xr >= 0 && xr <= DECK_L;
     if (!wasAbove) return crash('선체에 부딪혔다. 너무 낮았다.');
+    if (p.turn > 0) return crash('선회 중에 날개가 갑판에 부딪혔다. 선회하는 동안은 착함할 수 없다.');
     const kt = kts(), pitch = levelPitch();
     if (!p.gear || p.s * p.vx <= 0) return crash('바퀴가 아닌 곳으로 내렸다.');
     if (p.vy < -LAND_SINK) return crash('너무 세게 내려앉았다. 천천히 내려와야 한다.');

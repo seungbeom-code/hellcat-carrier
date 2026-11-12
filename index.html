@@ -875,13 +875,7 @@ function drawWorld() {
   const c = ctx, seaY = sy(0);
   const sky = c.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, '#4f9ad6'); sky.addColorStop(1, '#bfe4f5');
   c.fillStyle = sky; c.fillRect(0, 0, W, H);
-  c.fillStyle = 'rgba(255,255,255,0.85)';   // 구름
-  for (let i = 0; i < 14; i++) {
-    const wx = i * 900 + (i * 373) % 500, wy = 260 + (i * 197) % 520;
-    let X = ((wx - cam.x * 0.6) * cam.z * 0.6 + W / 2) % (W + 400); if (X < -200) X += W + 400;
-    const Y = H / 2 - (wy - cam.y) * cam.z * 0.6;
-    c.beginPath(); c.ellipse(X, Y, 70, 20, 0, 0, 7); c.ellipse(X + 40, Y - 14, 44, 18, 0, 0, 7); c.ellipse(X - 42, Y - 8, 36, 14, 0, 0, 7); c.fill();
-  }
+  // 구름은 없앴다
   const sea = c.createLinearGradient(0, seaY, 0, H); sea.addColorStop(0, '#1f8fa8'); sea.addColorStop(1, '#0e4f73');
   c.fillStyle = sea; c.fillRect(0, seaY, W, Math.max(0, H - seaY));
   c.strokeStyle = 'rgba(255,255,255,0.35)'; c.lineWidth = 2;   // 물결

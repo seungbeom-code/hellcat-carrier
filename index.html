@@ -6,7 +6,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg">
 <meta name="theme-color" content="#0b1622">
-<title>헬캣 착함 대작전 — 1단계 시제품</title>
+<title>헬캣 착함 대작전 1944</title>
 <style>
   html,body{margin:0;height:100%;background:#0b1622;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none}
   canvas{display:block;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:#8fc4e8}
@@ -31,8 +31,7 @@ const TURN_T = 1.6;   // 선회에 걸리는 시간(초)
 const HOOK_BACK = 7.5, CRUISE_KT = 270, SLOW_KT = 105;   // 후크 끝 위치, 손을 뗐을 때 순항 속도, 항모 근처 접근 속도
 const TAKEOFF_KT = 100, TURN_KT = 100;   // 이륙과 선회에 필요한 최소 속도
 const LAND_KT = 125, LAND_SINK = 8, LAND_PITCH = 0.22;   // 착함 허용 한계: 속도, 가라앉는 속도, 기울기
-const TD = 53, SLOPE = 0.065, CUT_X = -4;    // 접지 목표, 활공 기울기, 컷 신호 위치
-const START_XR = 156, LAUNCH_XR = 156, UTURN_XR = -650;   // 발진선
+const START_XR = 156, LAUNCH_XR = 156;   // 발진선
 const ELEV_A = 118, ELEV_W = 24, ELEV_C = ELEV_A + ELEV_W / 2, ELEV_DEPTH = 14, TAXI_V = 13;   // 가운데 엘리베이터
 const LOADS = [   // 기획서의 출격 장비 네 가지
   { name: '제공', fuel: 160, accel: 1.0, ammo: '기관총 2,400발 + 보조 연료탱크', hud: '기관총 2400 · 보조탱크', lines: ['기관총 + 보조 탱크', '가벼움 · 연료 +60%', '공중전 · 함대 방어'] },
@@ -161,12 +160,13 @@ function lsoSignal() {
   const xr = p.x - ship.x;
   if (xr < -520 || xr > DECK_L + 520 || p.y > DECK_Y + WH + 80 || p.vy > 0.5) return null;
   if (!((p.vx > 0 && xr < DECK_L) || (p.vx < 0 && xr > 0))) return null;
+  const ahead = p.vx > 0 ? -xr : xr - DECK_L;   // 갑판 끝까지 남은 거리 (뒤에서 다가올 때)
+  if (ahead > 0 && p.y - WH - DECK_Y < ahead * 0.03 + 1.5) return 'UNDER';
   if (kts() > LAND_KT * 0.94) return 'FAST';
   if (p.vy < -LAND_SINK * 0.75) return 'LOW';
   if (Math.abs(levelPitch()) > LAND_PITCH * 0.75) return 'HIGH';
   return 'ROGER';
 }
-const LSO_TEXT = { ROGER: '좋음 — 그대로', FAST: '빠름 — 손을 뗀다', LOW: '너무 급하다 — ▲', HIGH: '수평을 맞춘다' };
 
 // ───────── 접지, 충돌, 판정 ─────────
 function crash(why, ditch) {
@@ -477,7 +477,7 @@ const GOALS = {
   train: m => m.landings >= 1 && m.kills >= 3,
   capture: m => m.flag > 0,
   air: m => m.zeros >= 12 && !TARGETS.some(t => t.type === 'runway' && t.alive),
-  defend: (m, M) => m.wave >= M.waves.length && !(m.queue && m.queue.length) && ENE.length === 0,
+  defend: (m, M) => m.wave >= M.waves.length && !(m.queue && m.queue.length) && !ENE.some(e => !e.dead && (e.type === 'd4y' || e.type === 'b6n')),
   fleet: (m, M) => !TARGETS.some(t => M.fleet.includes(t.type) && t.alive)
 };
 function loadSave() { try { const v = JSON.parse(localStorage.getItem('hellcat-save')); if (v && Array.isArray(v.stars)) return v; } catch (_) {} return { stars: Array(10).fill(0) }; }
@@ -576,7 +576,7 @@ function enemyStep(dt) {
       if (e.seeT <= 0) { e.seeT = 0.5; e.sx = p.x; e.sy = p.y; e.svx = p.vx; e.svy = p.vy; e.ex = (Math.random() - 0.5) * 90; e.ey = (Math.random() - 0.5) * 50; }   // 0.5초마다 내 위치를 새로 본다 (오차 포함)
       const dP = Math.hypot(p.x - e.x, p.y - e.y);
       if (!air) { tx = cx + Math.sin(e.tm * 0.2 + i) * 800; ty = 170 + (i % 3) * 40; e.att = false; }
-      else if (e.st === 'ext') { tx = e.x + Math.cos(e.h) * 800; ty = e.y + 60; e.xt -= dt; if (e.xt <= 0) e.st = 'app'; }   // 공격 뒤에는 멀리 빠져나간다
+      else if (e.st === 'ext') { tx = e.x + Math.cos(e.h) * 800; ty = e.y + (e.up ? 140 : -90); e.xt -= dt; if (e.xt <= 0) e.st = 'app'; }   // 공격 뒤에는 멀리 빠져나간다
       else {
         if (!e.att && att < 2 && dP < 1600) { e.att = true; att++; }   // 동시에 2기까지만 덤빈다
         if (e.att) { tx = e.sx + e.svx * 0.5 + e.ex; ty = e.sy + e.svy * 0.5 + e.ey; }
@@ -599,14 +599,15 @@ function enemyStep(dt) {
     const floor = Math.max(bomber ? 12 : 40, gh(e.x) + 40), nearShip = Math.abs(e.x - cx) < 170 && e.y > DECK_Y - 4;
     if (e.y < floor && Math.sin(e.h) < 0.05 && !(e.st === 'dive' && e.y > DECK_Y - 2)) e.h += clamp(angd(Math.cos(e.h) >= 0 ? 0.35 : Math.PI - 0.35, e.h), -wmax * 1.4 * dt, wmax * 1.4 * dt);   // 땅이 가까우면 기수를 든다
     if (e.y <= Math.max(1, gh(e.x)) && !nearShip) { killEnemy(e); continue; }   // 늦으면 추락한다
+    if (!bomber && air && Math.hypot(p.x - e.x, p.y - e.y) < 12) { hurt(15, '적기와 부딪혔다.'); killEnemy(e); continue; }   // 공중 충돌
     if (!bomber && air && e.att && e.st === 'app') {   // 사격
       const d = Math.hypot(p.x - e.x, p.y - e.y), tf = d / 560, aimA = Math.atan2(p.y + p.vy * tf - e.y, p.x + p.vx * tf - e.x);
       if (e.bt > 0) { e.bt -= dt; e.cd -= dt; if (e.cd <= 0) { e.cd = 0.14; const a = e.h + (Math.random() - 0.5) * 0.07; EB.push({ x: e.x + Math.cos(e.h) * 8, y: e.y + Math.sin(e.h) * 8, vx: Math.cos(a) * 480 + Math.cos(e.h) * e.v, vy: Math.sin(a) * 480 + Math.sin(e.h) * e.v, life: 0.8 }); } }
       else { e.cd -= dt; if (e.cd <= 0 && d < 420 && Math.abs(angd(aimA, e.h)) < 0.1) { e.bt = 0.7; e.cd = 0; } }
-      if (e.bt <= 0 && (d < 130 || (d < 600 && Math.abs(angd(Math.atan2(p.y - e.y, p.x - e.x), e.h)) > 2.0))) { e.st = 'ext'; e.xt = 3.5 + Math.random() * 2; e.att = false; e.cd = 2.5; e.bt = 0; }
+      if ((e.bt <= 0 || d < 160) && (d < 220 || (d < 600 && Math.abs(angd(Math.atan2(p.y - e.y, p.x - e.x), e.h)) > 2.0))) { e.st = 'ext'; e.up = e.y >= p.y; e.xt = 3.5 + Math.random() * 2; e.att = false; e.cd = 2.5; e.bt = 0; }
     }
     if (e.att && (!air || Math.hypot(p.x - e.x, p.y - e.y) > 2200)) e.att = false;
-    if (e.x < ship.x - 4500 || e.x > ship.x + 11000) ENE.splice(i, 1);
+    if ((bomber && e.rel && Math.abs(e.x - cx) > 4500) || (Math.abs(e.x - p.x) > 8000 && Math.abs(e.x - cx) > 8000)) ENE.splice(i, 1);
   }
 }
 function ebStep(dt) {
@@ -624,12 +625,12 @@ function flakStep(dt) {
     const d = Math.hypot(p.x - t.x, p.y - t.y); if (d > (AA_R[t.type] || 1100) || d < 25) continue;
     t.flashT = G.t; if (d < 1300 && Math.random() < 0.5) sfx('gun');
     const hy = t.y + (SHIPS[t.type] ? BOX[t.type].h * 0.7 : 4);
-    for (let k = 0; k < AA_N[t.type]; k++) { const f = 0.4 + Math.random() * 0.4, err = 22 + d * 0.02; FLAK.push({ x0: t.x, y0: hy, x: p.x + p.vx * f + (Math.random() - 0.5) * err * 2, y: p.y + p.vy * f + (Math.random() - 0.5) * err, t: f, life: f }); }
+    for (let k = 0; k < AA_N[t.type]; k++) { const f = 0.4 + Math.random() * 0.4, err = 35 + d * 0.04; FLAK.push({ x0: t.x, y0: hy, x: p.x + p.vx * f + (Math.random() - 0.5) * err * 2, y: p.y + p.vy * f + (Math.random() - 0.5) * err, t: f, life: f }); }
   }
   for (let i = FLAK.length - 1; i >= 0; i--) {
     const q = FLAK[i]; q.t -= dt; if (q.t > 0) continue;
     FX.push({ k: 'flak', x: q.x, y: q.y, vx: 0, vy: 1, life: 1.1, t: 0 }); if (Math.abs(q.x - p.x) < 1000 && Math.random() < 0.6) sfx('boom');
-    if (p.mode === 'air' && Math.hypot(p.x - q.x, p.y - q.y) < 20) hurt(5, '대공포에 맞아 격추되었다.');
+    if (p.mode === 'air' && Math.hypot(p.x - q.x, p.y - q.y) < 16) hurt(5, '대공포에 맞아 격추되었다.');
     FLAK.splice(i, 1);
   }
 }
@@ -926,7 +927,6 @@ addEventListener('keydown', e => {
   if (e.code === 'Escape') goMenu(); if (e.code === 'KeyV') startLanding();
   if (e.code === 'KeyM') setMuted(!sound.muted);
   if (e.code === 'KeyR' && G.result) afterCrash();
-  if (e.code === 'KeyA') G.assist = !G.assist;
   if (e.code === 'Enter' && G.result) afterCrash();
   if (hangarOpen()) {
     if (e.code === 'ArrowRight') G.loadout = (G.loadout + 1) % 4; if (e.code === 'ArrowLeft') G.loadout = (G.loadout + 3) % 4;
@@ -1119,7 +1119,7 @@ function lsoSmall(c) {
   let L = PI * 1.42, R = -PI * 0.42;   // 신호가 없을 때는 팔을 내린다
   if (sig === 'ROGER') { L = PI; R = 0; }
   else if (sig === 'HIGH') { L = PI * 0.75; R = PI * 0.25; }
-  else if (sig === 'LOW') { L = PI * 1.25; R = -PI * 0.25; }
+  else if (sig === 'LOW' || sig === 'UNDER') { L = PI * 1.25; R = -PI * 0.25 + (sig === 'UNDER' ? Math.sin(t * 10) * 0.3 : 0); }
   else if (sig === 'FAST') { L = PI * 1.4; R = -PI * 0.4 + Math.sin(t * 9) * 0.25; }
   c.fillStyle = '#e8ecf0'; c.fillRect(x - 0.55, y, 1.1, 1.9);
   c.fillStyle = '#f2c9a0'; c.beginPath(); c.arc(x, y + 2.45, 0.55, 0, 7); c.fill();
@@ -1188,7 +1188,7 @@ function drawShip() {
     }
   });
   if (G.lso) {   // 신호장교 옆의 짧은 글자
-    const lx = sx(ship.x + 160), ly = sy(DECK_Y + 17.2), w = { ROGER: '좋음', FAST: '빠름', LOW: '급강하', HIGH: '수평' }[G.lso] || '';
+    const lx = sx(ship.x + 160), ly = sy(DECK_Y + 17.2), w = { ROGER: '좋음', FAST: '빠름', LOW: '급강하', HIGH: '수평', UNDER: '너무 낮음 ▲' }[G.lso] || '';
     c.font = '800 11px system-ui,sans-serif'; c.textAlign = 'center'; c.lineJoin = 'round'; c.lineWidth = 3; c.strokeStyle = 'rgba(20,30,45,0.85)';
     c.strokeText(w, lx, ly); c.fillStyle = G.lso === 'ROGER' ? '#8df0a8' : '#ffe27a'; c.fillText(w, lx, ly);
   }
@@ -1210,17 +1210,6 @@ function drawShip() {
     c.fillStyle = 'rgba(255,255,255,0.35)';
     for (let i = 0; i < 6; i++) { const k = (G.t * 2.2 + i / 6) % 1; c.beginPath(); c.arc(sx(p.x - 11 - k * 34), sy(DECK_Y + 1.5 + k * 3 + Math.sin(i * 9) * 1.2), (2 + k * 5) * cam.z * 0.5, 0, 7); c.fill(); }
   }
-}
-
-function drawGuide() {   // 접근 안내선과 U턴 지점
-  if (!G.assist || p.mode === 'done') return;
-  const c = ctx;
-  c.save(); c.setLineDash([10, 8]); c.strokeStyle = 'rgba(255,255,255,0.75)'; c.lineWidth = 2;
-  c.beginPath(); c.moveTo(sx(ship.x + TD), sy(idealY(TD))); c.lineTo(sx(ship.x + UTURN_XR), sy(idealY(UTURN_XR))); c.stroke(); c.setLineDash([]);
-  const ux = sx(ship.x + UTURN_XR), uy = sy(idealY(UTURN_XR));
-  c.strokeStyle = '#ffd23f'; c.lineWidth = 3; c.beginPath(); c.arc(ux, uy, 16, 0, 7); c.stroke();
-  c.fillStyle = '#ffd23f'; c.font = '700 13px system-ui,sans-serif'; c.textAlign = 'center'; c.fillText('U턴 지점', ux, uy - 24);
-  c.restore();
 }
 
 function drawWorld() {
@@ -1274,36 +1263,6 @@ function drawWorld() {
 
 function panel(x, y, w, h, a) { ctx.fillStyle = 'rgba(8,20,34,' + (a || 0.55) + ')'; ctx.beginPath(); ctx.roundRect(x, y, w, h, 10); ctx.fill(); }
 
-function drawLSO() {   // 신호장교 확대창
-  const sig = G.lso; if (!sig) return;
-  const c = ctx, x = 720, y = 58, w = 226, h = 122, t = G.t;
-  const warn = sig === 'WAVEOFF', good = sig === 'ROGER' || sig === 'CUT';
-  panel(x, y, w, h, 0.72);
-  c.strokeStyle = warn ? '#ff5a3c' : good ? '#59d37a' : '#ffd23f'; c.lineWidth = 3; c.beginPath(); c.roundRect(x, y, w, h, 10); c.stroke();
-  const cx = x + 52, cy = y + 66;
-  let L = Math.PI, R = 0;   // 팔 각도 (왼팔, 오른팔)
-  if (sig === 'HIGH') { L = Math.PI * 0.75; R = Math.PI * 0.25; }
-  if (sig === 'LOW') { L = Math.PI * 1.25; R = -Math.PI * 0.25; }
-  if (sig === 'FAST') { L = Math.PI * 1.4; R = -Math.PI * 0.4 + Math.sin(t * 9) * 0.25; }
-  if (sig === 'SLOW') { const k = Math.sin(t * 9) * 0.3; L = Math.PI + k; R = -k; }
-  if (sig === 'CUT') { L = Math.PI * 1.3; R = Math.PI * 0.85; }
-  if (sig === 'WAVEOFF') { const k = Math.sin(t * 12) * 0.5; L = Math.PI * 0.6 + k; R = Math.PI * 0.4 - k; }
-  if (sig === 'GEAR' || sig === 'HOOK') { L = Math.PI * 1.2; R = Math.PI * 0.3 + Math.sin(t * 10) * 0.4; }
-  c.fillStyle = '#f2f4f6'; c.beginPath(); c.roundRect(cx - 9, cy - 8, 18, 34, 5); c.fill();
-  c.fillStyle = '#f2c9a0'; c.beginPath(); c.arc(cx, cy - 20, 10, 0, 7); c.fill();
-  c.fillStyle = '#d9a441'; c.beginPath(); c.arc(cx, cy - 23, 10, Math.PI, 0); c.fill();
-  [[L, -1], [R, 1]].forEach(([a, sd]) => {
-    const ax = cx + sd * 8, ay = cy - 2, ex = ax + Math.cos(a) * 26, ey = ay - Math.sin(a) * 26;
-    c.strokeStyle = '#f2f4f6'; c.lineWidth = 6; c.lineCap = 'round'; c.beginPath(); c.moveTo(ax, ay); c.lineTo(ex, ey); c.stroke();
-    c.fillStyle = '#ff5a3c'; c.beginPath(); c.arc(ex, ey, 9, 0, 7); c.fill(); c.strokeStyle = '#ffd23f'; c.lineWidth = 2; c.stroke();
-  });
-  c.lineCap = 'butt';
-  c.fillStyle = '#fff'; c.textAlign = 'left'; c.font = '700 12px system-ui,sans-serif'; c.fillText('신호장교', x + 108, y + 26);
-  c.font = '800 17px system-ui,sans-serif'; c.fillStyle = warn ? '#ff8a73' : good ? '#8df0a8' : '#ffe27a';
-  const parts = LSO_TEXT[sig].split(' — '); c.fillText(parts[0], x + 108, y + 58);
-  if (parts[1]) { c.font = '600 13px system-ui,sans-serif'; c.fillStyle = '#fff'; c.fillText(parts[1], x + 108, y + 82); }
-}
-
 function hint() {
   if (G.result) return '';
   if (G.msg && G.t < G.msg.until) return G.msg.text;
@@ -1324,6 +1283,7 @@ function hint() {
   if (p.turn > 0) return '선회 중 — 속도와 고도가 조금 줄어든다';
   if (G.lso) return '';
   if (G.t - p.liftT < 5) return '▲ 로 상승한다';
+  if (G.m) { const low = p.fuel / p.fuelMax < 0.3, empty = p.ammo.gun <= 0 && p.ammo.rk <= 0 && p.ammo.bm <= 0; if (low || empty) return (low ? '연료' : '탄약') + '가 부족하다. 항모로 돌아가 엘리베이터에서 재보급한다'; if (Math.abs(xr - 130) > 900) return ''; }
   if (Math.abs(xr - 130) > 900) return '반대 방향 키로 선회해 항모로 돌아간다';
   return '손을 떼면 천천히 내려간다. 노란 줄무늬 어레스팅 구역에 수평으로 내려앉는다';
 }

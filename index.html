@@ -24,7 +24,8 @@ const W = 960, H = 540, KT = 1.944;
 const GRAV = 9.8, KL = 0.004375, KD0 = 0.00012, KDG = 0.00015, KDF = 0.00025, AMAX = 7.2, PWR = 590;
 const SHIP_V = 15.4;                 // 갑판 맞바람 30노트
 const DECK_Y = 20, DECK_L = 260, WH = 3.2;   // 갑판 높이, 길이, 바퀴 밑까지 거리
-const WIRES = [26, 37, 48, 59, 70, 81], BARRIER = 112, HOOK_BACK = 5;
+const WIRES = [28, 50, 72, 94, 190, 212, 234];
+const LAND_KT = 118, LAND_SINK = 8, LAND_PITCH = 0.22;   // 착함 허용 한계: 속도, 가라앉는 속도, 기울기
 const TD = 53, SLOPE = 0.065, CUT_X = -4;    // 접지 목표, 활공 기울기, 컷 신호 위치
 const START_XR = 122, UTURN_XR = -650;
 
@@ -40,7 +41,7 @@ let p;
 function reset() {
   p = { mode: 'deck', x: 0, y: DECK_Y + WH, vx: SHIP_V, vy: 0, th: 0, a: 0.035, s: 1, in: 0, thr: 0,
         gear: true, flaps: true, hook: false, fuel: 100, xr: START_XR, vr: 0, held: true, flagT: 0,
-        landing: false, wire: -1, turn: 0, go: false, tookOff: false, prevY: DECK_Y + WH,
+        landing: false, wire: -1, turn: 0, go: false, off: false, liftT: 0, tookOff: false, prevY: DECK_Y + WH,
         ap: { maxErr: 0, maxSpd: 0, on: false }, td: null };
   p.x = ship.x + p.xr;
   G.result = null; G.lso = null; G.park = 'aft';
@@ -61,37 +62,51 @@ function stallKt() { return Math.sqrt(GRAV / (KL * (p.flaps ? 1.9 : 1.4))) * KT;
 function airStep(dt) {
   p.prevY = p.y;
   let V = Math.hypot(p.vx, p.vy) || 0.01;
-  if (p.turn > 0) {                       // 수평 U턴
+  if (p.turn > 0) {                       // 선회: 출력이 줄어 속도와 고도를 조금 잃는다
     p.turn -= dt;
     const f = clamp(1 - p.turn / 2.2, 0, 1);
-    p.vx = p.v0 * Math.cos(Math.PI * f) * lerp(1, 0.92, f);
-    p.vy *= 1 - Math.min(1, 3 * dt);
+    p.vx = p.v0 * Math.cos(Math.PI * f) * lerp(1, 0.85, f);
+    p.vy += (-6 - p.vy) * Math.min(1, 2.5 * dt);
     if (f >= 0.5 && !p.flipped) { p.s = -p.s; p.a = -p.a; p.flipped = true; }
-    p.th = p.s > 0 ? 0.03 : Math.PI - 0.03;
-    if (p.turn <= 0) { p.vx = -p.v0 * 0.92; p.turn = 0; }
+    p.th = p.s > 0 ? -0.06 : Math.PI + 0.06;
+    if (p.turn <= 0) { p.vx = -p.v0 * 0.85; p.turn = 0; }
     p.x += p.vx * dt; p.y += p.vy * dt;
     return;
   }
   const g = Math.atan2(p.vy, p.vx);
   if (p.s * Math.cos(g) < -0.3 && Math.abs(p.in) < 0.2) { p.s = -p.s; p.a = -p.a; }   // 뒤집힌 채 놓으면 바로 선다
-  const inp = p.autoFlare ? Math.max(p.in, 0.32) : clamp(p.in + (G.assist && G.lso ? 0.26 : 0), -1, 1);   // 접근 중에는 손을 떼도 수평이 되게 맞춰 준다
-  const aCmd = p.s * (0.035 + inp * (inp > 0 ? 0.19 : 0.2));
+  const aCmd = p.s * (0.035 + p.in * (p.in > 0 ? 0.15 : 0.1));
   p.a += (aCmd - p.a) * Math.min(1, dt * 16);
   p.th = g + p.a;
   const f = aero(V, p.a), ux = p.vx / V, uy = p.vy / V;
   p.vx += (f.aT * Math.cos(p.th) - f.aD * ux - f.aL * uy) * dt;
   p.vy += (f.aT * Math.sin(p.th) - f.aD * uy + f.aL * ux - GRAV) * dt;
-  if (G.assist && G.lso && !p.autoFlare) {   // 접근 보조: 안내선과 85노트 쪽으로 부드럽게 끌어 준다
-    const xr = p.x - ship.x, err = p.y - idealY(xr), vyI = -(p.vx - ship.v) * SLOPE;
-    p.vy += clamp(-err * 1.0 - (p.vy - vyI) * 1.6, -5, 5) * dt;
-    p.vx += clamp((85 / KT - V) * 0.8, -2.5, 2.5) * dt;
+  if (p.neutral) {   // 손을 뗀 상태: 흔들림 없이 천천히 내려가고 속도도 안정된다
+    const xr = p.x - ship.x, over = xr > 0 && xr < DECK_L && p.y - WH - DECK_Y < 22;   // 갑판 위에 들어서면 조금 더 빨리 내려앉는다
+    p.vy += ((over ? -5 : -2.5) - p.vy) * Math.min(1, (over ? 3 : 1.6) * dt);
+    const Vt = (p.gear ? 92 : 140) / KT;
+    p.vx += Math.sign(p.vx) * clamp((Vt - V) * 0.7, -3, 3) * dt;
   }
-  if (p.autoFlare && p.x - ship.x > 22 && p.y - WH - DECK_Y > 0.4) p.vy -= 5 * dt;   // 컷 뒤에 오래 떠 있지 않게 눌러 준다
   p.x += p.vx * dt; p.y += p.vy * dt;
 }
+// 수평선에 대한 기수 각도 (어느 쪽을 보고 날든 같은 기준)
+function levelPitch() { const a = p.s > 0 ? p.th : Math.PI - p.th; return Math.atan2(Math.sin(a), Math.cos(a)); }
 
 function tailSit(V) { return 0.2 * clamp(1 - (V * KT - 34) / 30, 0, 1); }   // 느릴 때는 꼬리바퀴로 앉고, 빨라지면 꼬리가 들린다
 function deckStep(dt) {
+  if (p.landing) {                        // 착함 뒤: 후크가 와이어를 잡아 급히 멈춘다 (어느 방향이든)
+    const d = Math.sign(p.vr) || 1;
+    const room = (d > 0 ? DECK_L - p.xr : p.xr) - 8;   // 와이어가 남은 갑판 안에서 세워 준다
+    const dec = Math.max(34, p.vr * p.vr / (2 * clamp(room, 6, 40)));
+    p.vr -= d * dec * dt; if (p.vr * d <= 0) p.vr = 0;
+    p.xr += p.vr * dt;
+    const tail = tailSit(Math.abs(p.vr + ship.v));
+    p.th = p.s > 0 ? tail : Math.PI - tail;
+    p.x = ship.x + p.xr; p.y = DECK_Y + WH; p.vx = p.vr + ship.v; p.vy = 0;
+    if (p.xr < -3 || p.xr > DECK_L + 3) { p.mode = 'air'; p.landing = false; p.vy = -3; p.off = true; return; }   // 갑판이 모자라 떨어진다
+    if (p.vr === 0) finish();
+    return;
+  }
   const V = p.vr + ship.v;
   if (p.held) {
     p.vr = 0; p.th = tailSit(ship.v);
@@ -100,89 +115,63 @@ function deckStep(dt) {
     const alpha = 0.035 + Math.max(0, p.in) * 0.19;
     const f = aero(V, alpha);
     let acc = f.aT - f.aD - 0.4;
-    if (p.landing) {
-      if (p.wire >= 0 && p.xr - HOOK_BACK >= WIRES[p.wire]) { acc = -34; if (!p.wireSnd) { p.wireSnd = true; sfx('wire'); } }
-      else if (p.thr < 0.3) acc -= 2.5;
-    } else if (p.thr < 0.1) acc -= 4;
+    if (p.thr < 0.1) acc -= 4;
     p.vr = Math.max(0, p.vr + acc * dt);
     p.th = tailSit(V) + Math.max(0, p.in) * 0.12;
-    if (f.aL > GRAV * 1.02 && !(p.landing && p.wire >= 0 && p.xr - HOOK_BACK >= WIRES[p.wire])) {   // 떠오름
-      p.mode = 'air'; p.vx = V; p.vy = 0.6; p.a = alpha; p.landing = false; p.wire = -1; p.tookOff = true;
+    if (f.aL > GRAV * 1.02) {   // 떠오름
+      p.mode = 'air'; p.vx = V; p.vy = 0.6; p.a = alpha; p.tookOff = true; p.liftT = G.t;
       p.y = DECK_Y + WH + 0.05; p.x = ship.x + p.xr; return;
-    }
-    if (p.landing) {
-      if (p.wire < 0 && p.xr >= BARRIER && p.vr > 1.5) return finish('barrier');
-      if (p.vr <= 0.05) return finish(p.wire >= 0 ? 'wire' : 'nowire');
     }
   }
   p.xr += p.vr * dt;
   p.x = ship.x + p.xr; p.y = DECK_Y + WH; p.vx = p.vr + ship.v; p.vy = 0;
-  if (p.xr > DECK_L + 1) { p.mode = 'air'; p.a = 0.035; p.vy = -1.5; p.tookOff = true; p.landing = false; }   // 갑판 끝에서 떨어짐
+  if (p.xr > DECK_L + 1) { p.mode = 'air'; p.a = 0.035; p.vy = -1.5; p.tookOff = true; p.liftT = G.t; }   // 갑판 끝에서 떨어짐
 }
 
-// ───────── 신호장교 ─────────
-function idealY(xr) { return DECK_Y + WH + Math.max(0, TD - xr) * SLOPE; }
+// ───────── 신호장교: 갑판에 다가올 때 속도·강하·수평을 알려 준다 ─────────
 function lsoSignal() {
-  if (p.mode !== 'air' || p.s < 0 || p.turn > 0) return null;
-  const xr = p.x - ship.x, d = TD - xr;
-  if (d < 0 || d > 950 || p.y > 190) return null;
-  const err = p.y - idealY(xr), kt = kts(), tol = 5 + d * 0.03;
-  if (d < 130 && (Math.abs(err) > tol * 2.4 || kt > 112 || kt < 62 || !p.gear)) return 'WAVEOFF';
-  if (!p.gear) return 'GEAR';
-  if (!p.hook) return 'HOOK';
-  if (xr >= CUT_X) return 'CUT';
-  if (err > tol) return 'HIGH';
-  if (err < -tol) return 'LOW';
-  if (kt > 97) return 'FAST';
-  if (kt < 74) return 'SLOW';
+  if (p.mode !== 'air' || p.turn > 0 || !p.tookOff) return null;
+  const xr = p.x - ship.x;
+  if (xr < -520 || xr > DECK_L + 520 || p.y > DECK_Y + WH + 80 || p.vy > 0.5) return null;
+  if (!((p.vx > 0 && xr < DECK_L) || (p.vx < 0 && xr > 0))) return null;
+  if (kts() > LAND_KT * 0.94) return 'FAST';
+  if (p.vy < -LAND_SINK * 0.75) return 'LOW';
+  if (Math.abs(levelPitch()) > LAND_PITCH * 0.75) return 'HIGH';
   return 'ROGER';
 }
-const LSO_TEXT = { ROGER: '좋음', HIGH: '높음 — ▼ 살짝', LOW: '낮음 — ▲ 살짝', FAST: '빠름', SLOW: '느림',
-  GEAR: '바퀴!', HOOK: '후크!', CUT: '컷! 그대로 내려앉는다', WAVEOFF: '재접근! ▶ 누르고 ▲' };
-
-function trackApproach() {
-  const xr = p.x - ship.x, d = TD - xr;
-  if (p.mode === 'air' && p.s > 0 && d > 0 && d < 380 && p.y < 150) {
-    p.ap.on = true;
-    if (xr < CUT_X) {
-      p.ap.maxErr = Math.max(p.ap.maxErr, Math.abs(p.y - idealY(xr)));
-      p.ap.maxSpd = Math.max(p.ap.maxSpd, Math.abs(kts() - 85));
-    }
-  } else if (p.mode === 'air' && (p.s < 0 || d > 500)) p.ap = { maxErr: 0, maxSpd: 0, on: false };
-}
+const LSO_TEXT = { ROGER: '좋음 — 그대로', FAST: '빠름 — 손을 뗀다', LOW: '너무 급하다 — ▲', HIGH: '수평을 맞춘다' };
 
 // ───────── 접지, 충돌, 판정 ─────────
 function crash(why, ditch) { sfx(ditch ? 'splash' : 'crash'); p.mode = 'down'; G.result = { kind: ditch ? 'ditch' : 'crash', why }; }
 function checkContact() {
   const xr = p.x - ship.x, wheel = p.y - WH;
   if (p.y <= 2.2) {
-    const soft = Math.hypot(p.vx, p.vy) < 52 && p.vy > -5;
+    if (p.off) return crash('갑판이 모자라 바다로 떨어졌다. 갑판 가운데쯤에 내려야 한다.', true);
+    const soft = Math.hypot(p.vx, p.vy) < 56 && p.vy > -6;
     return crash(soft ? '바다에 내려앉았다. 조종사는 구축함이 구조했다.' : '바다에 추락했다.', soft);
   }
-  if (xr > -4 && xr < DECK_L + 2 && wheel < DECK_Y) {
-    const wasAbove = p.prevY - WH >= DECK_Y - 0.6 && xr >= 0;
-    if (!wasAbove) return crash(xr < 12 ? '배 꼬리에 부딪혔다. 너무 낮았다.' : '선체에 부딪혔다.');
-    const rel = p.vx - ship.v;
-    if (!p.gear) return crash('바퀴를 내리지 않고 내렸다.');
-    if (p.vy < -11) return crash('너무 세게 내려앉았다.');
-    if (rel < 2) return crash('갑판과 반대 방향으로 내렸다.');
-    p.td = { kt: kts(), sink: -p.vy, xr, sig: G.lso }; sfx('thump'); p.wireSnd = false;
-    p.mode = 'deck'; p.landing = true; p.held = false; p.xr = xr; p.vr = rel; p.vy = 0; p.y = DECK_Y + WH; p.th = 0;
-    p.wire = p.hook ? WIRES.findIndex(w => w >= xr - HOOK_BACK) : -1;
+  if (p.off) return;
+  if (xr > -4 && xr < DECK_L + 4 && wheel < DECK_Y) {
+    const wasAbove = p.prevY - WH >= DECK_Y - 0.6 && xr >= 0 && xr <= DECK_L;
+    if (!wasAbove) return crash('선체에 부딪혔다. 너무 낮았다.');
+    const kt = kts(), pitch = levelPitch();
+    if (!p.gear || p.s * p.vx <= 0) return crash('바퀴가 아닌 곳으로 내렸다.');
+    if (p.vy < -LAND_SINK) return crash('너무 세게 내려앉았다. 천천히 내려와야 한다.');
+    if (kt > LAND_KT) return crash('너무 빨랐다. 손을 떼고 속도를 줄여야 한다.');
+    if (Math.abs(pitch) > LAND_PITCH) return crash('수평이 아니었다. 기수를 너무 ' + (pitch > 0 ? '들었다.' : '숙였다.'));
+    p.td = { kt, sink: -p.vy, pitch }; sfx('thump'); sfx('wire');
+    p.mode = 'deck'; p.landing = true; p.held = false; p.xr = xr; p.vr = p.vx - ship.v; p.vy = 0; p.y = DECK_Y + WH;
   }
 }
-function finish(kind) {
-  const n = p.wire + 1, ap = p.ap, td = p.td || { kt: 0 };
+function finish() {
+  const td = p.td;
   let grade, note;
-  if (kind === 'barrier') { grade = 'barrier'; note = p.hook ? '와이어를 모두 지나쳐 방벽에 걸렸다.' : '후크를 내리지 않아 방벽에 걸렸다.'; }
-  else if (kind === 'nowire') { grade = 'brown'; note = '와이어 없이 멈췄다.'; }
-  else if (td.sig === 'WAVEOFF' || td.kt > 108) { grade = 'red'; note = td.sig === 'WAVEOFF' ? '재접근 신호를 무시했다.' : '너무 빨랐다.'; }
-  else if (n >= 2 && n <= 5 && ap.maxErr < 10 && ap.maxSpd < 15) { grade = 'green'; note = n + '번 와이어. 완벽하다!'; }
-  else if (ap.maxErr < 18) { grade = 'yellow'; note = n === 1 ? '1번 와이어. 조금 짧았다.' : n + '번 와이어. 접근이 조금 흔들렸다.'; }
-  else { grade = 'brown'; note = n + '번 와이어. 안전하게는 내렸다.'; }
+  if (td.sink < 5.6 && td.kt < 105 && Math.abs(td.pitch) < 0.12) { grade = 'green'; note = '부드럽고 반듯하게 내렸다. 완벽하다!'; }
+  else if (td.sink < 7) { grade = 'yellow'; note = td.kt >= 105 ? '조금 빨랐다.' : Math.abs(td.pitch) >= 0.12 ? '조금 기울었다.' : '조금 세게 내렸다.'; }
+  else { grade = 'brown'; note = '쿵! 그래도 안전하게는 내렸다.'; }
   p.mode = 'done'; p.vr = 0; sfx(grade);
   G.stickers.push(grade); if (G.stickers.length > 12) G.stickers.shift();
-  G.result = { kind: 'land', grade, note, wire: n, kt: Math.round(td.kt) };
+  G.result = { kind: 'land', grade, note, kt: Math.round(td.kt) };
 }
 
 // ───────── 소리 (파일 없이 합성) ─────────
@@ -241,7 +230,7 @@ function updateSound(dt) {
   sound.wg.gain.setTargetAtTime(p.mode === 'air' ? Math.min(0.06, V * V * 0.000007) : 0, t, 0.2);
   if (G.lso !== sound.lastSig) { if (G.lso === 'CUT') sfx('cut'); if (G.lso === 'WAVEOFF') sfx('waveoff'); sound.lastSig = G.lso; }
   sound.stallT -= dt;
-  if (p.mode === 'air' && p.turn <= 0 && kts() < stallKt() * 1.12 && sound.stallT <= 0) { sfx('stall'); sound.stallT = 0.28; }
+  if (p.mode === 'air' && p.turn <= 0 && kts() < stallKt() * 1.04 && sound.stallT <= 0) { sfx('stall'); sound.stallT = 0.28; }
 }
 
 // ───────── 한 걸음 ─────────
@@ -252,9 +241,7 @@ function update(dt) {
   else if (p.mode === 'done') { p.x = ship.x + p.xr; }
   else if (p.mode === 'down') { p.y = Math.max(1, p.y - 6 * dt); p.x += p.vx * dt; p.vx *= 1 - Math.min(1, 2 * dt); }
   if (p.mode === 'air' || (p.mode === 'deck' && !p.held)) p.fuel = Math.max(0, p.fuel - (0.03 + 0.25 * p.thr) * dt);
-  G.lso = lsoSignal(); trackApproach();
-  if (G.assist && G.lso === 'CUT' && p.mode === 'air') { p.thr = 0; p.autoFlare = true; }   // 자동 컷
-  if (p.mode !== 'air') p.autoFlare = false;
+  G.lso = lsoSignal();
 }
 
 // ───────── 입력: 방향키 네 개 ─────────
@@ -302,19 +289,20 @@ cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
 
 // 출력, 바퀴, 후크를 알아서 맞춘다
 function autoFly(dt) {
-  const fwd = p.s > 0 ? ctl.right : ctl.left, xr = p.x - ship.x, kt = kts();
+  const fwd = p.s > 0 ? ctl.right : ctl.left;
   let tgt = 0;
   if (p.mode === 'deck') { if (!p.landing) { if (fwd) p.go = true; tgt = p.go ? 1 : 0.12; } }
   else if (p.mode === 'air') {
-    if (p.autoFlare) tgt = 0;
-    else if (fwd) tgt = 1;
-    else if (G.lso) tgt = clamp(0.22 + (85 - kt) * 0.06, 0, 1);
-    else if (p.s < 0 && xr < 250) tgt = clamp(0.3 + (95 - kt) * 0.05, 0, 1);   // 항모 옆을 지나며 감속
-    else tgt = 0.6;
-    const want = !!G.lso || (p.s < 0 && xr < 250 && xr > -1000 && p.y < 170);
-    if (want && !p.gear) { p.gear = true; sfx('clunk'); }
-    if (!want && p.gear && p.y > 34) { p.gear = false; sfx('clunk'); }
+    if (p.turn > 0) tgt = 0.2;                 // 선회 중에는 출력이 줄어든다
+    else if (fwd) tgt = 1;                     // 가는 방향 키: 출력 최대
+    else if (ctl.up) tgt = 0.65;               // 올라갈 때는 출력을 보탠다
+    else if (ctl.down) tgt = 0.1;
+    else tgt = 0.25;
+    p.neutral = p.turn <= 0 && !fwd && !ctl.up && !ctl.down;   // 손을 떼면 초당 2.5m쯤 천천히 내려간다 (airStep에서 처리)
+    if (p.gear && p.y > 92) { p.gear = false; sfx('clunk'); }    // 높이 올라가면 바퀴를 접고
+    if (!p.gear && p.y < 76) { p.gear = true; sfx('clunk'); }    // 낮아지면 내린다
   }
+  if (p.mode !== 'air') p.neutral = false;
   p.thr += (tgt - p.thr) * Math.min(1, dt * 4);
   p.hook = p.gear && p.tookOff;
 }
@@ -400,7 +388,6 @@ function drawShip() {
     c.strokeStyle = '#f4d35e'; c.lineWidth = 0.35;
     WIRES.forEach(w => { c.beginPath(); c.moveTo(w - 0.8, DECK_Y); c.quadraticCurveTo(w, DECK_Y + 1.3, w + 0.8, DECK_Y); c.stroke(); });
     c.strokeStyle = '#d9dde2'; c.lineWidth = 0.4;
-    [BARRIER, BARRIER + 7].forEach(b => { c.beginPath(); c.moveTo(b, DECK_Y); c.lineTo(b, DECK_Y + 3.4); c.moveTo(b - 0.6, DECK_Y + 3.2); c.lineTo(b + 0.6, DECK_Y + 3.2); c.stroke(); });
     // 신호장교(작게)
     c.fillStyle = '#e8ecf0'; c.fillRect(9.4, DECK_Y, 0.9, 2.2); c.fillStyle = '#f2c9a0'; c.beginPath(); c.arc(9.85, DECK_Y + 2.8, 0.6, 0, 7); c.fill();
     c.fillStyle = '#ff5a3c'; c.fillRect(7.6, DECK_Y + 1.6, 1.3, 1.0); c.fillRect(10.8, DECK_Y + 1.6, 1.3, 1.0);
@@ -418,9 +405,6 @@ function drawShip() {
     c.fillStyle = 'rgba(255,255,255,0.35)';
     for (let i = 0; i < 6; i++) { const k = (G.t * 2.2 + i / 6) % 1; c.beginPath(); c.arc(sx(p.x - 11 - k * 34), sy(DECK_Y + 1.5 + k * 3 + Math.sin(i * 9) * 1.2), (2 + k * 5) * cam.z * 0.5, 0, 7); c.fill(); }
   }
-  // 앞쪽에 세워 둔 비행기
-  if (p.mode === 'air' && Math.abs(p.x - ship.x - 130) > 400) G.park = 'fwd';   // 멀리 나간 사이 앞쪽으로 옮겨 둔다
-  (G.park === 'fwd' ? [205, 228] : [38, 62]).forEach(x => world(ship.x + x, DECK_Y + WH, () => drawPlane({ gear: true, thr: 0 })));
 }
 
 function drawGuide() {   // 접근 안내선과 U턴 지점
@@ -453,7 +437,7 @@ function drawWorld() {
     const r = ((x / 45) % 5 + 5) % 5, X = sx(x), Y = seaY + 8 + r * 9;
     if (Y < H) { c.beginPath(); c.moveTo(X, Y); c.quadraticCurveTo(X + 9, Y - 4, X + 18, Y); c.stroke(); }
   }
-  drawShip(); drawGuide();
+  drawShip();
   // 플레이어 기체
   if (p.mode !== 'down' || G.result.kind === 'ditch') {
     world(p.x, p.y, () => {
@@ -513,13 +497,11 @@ function hint() {
     return kts() > 74 ? '▲ 기수를 든다!' : '달리는 중… 꼬리가 들리면 ▲';
   }
   if (p.mode === 'deck') return '';
-  if (p.turn > 0) return '선회 중';
+  if (p.turn > 0) return '선회 중 — 속도와 고도가 조금 줄어든다';
   if (G.lso) return '';
-  if (p.s > 0 && xr > 150) return p.y < 70 ? '▲ 로 상승한다' : '◀ 를 누르면 선회. 항모 뒤쪽으로 돌아간다';
-  if (p.s < 0 && xr > UTURN_XR) return '▲▼ 로 노란 원 높이에 맞춘다';
-  if (p.s < 0) return '지금 ▶ 로 선회!';
-  if (p.s > 0 && xr < UTURN_XR - 400) return '항모 쪽으로 다가간다';
-  return '';
+  if (G.t - p.liftT < 5) return '▲ 로 상승한다';
+  if (Math.abs(xr - 130) > 900) return '반대 방향 키로 선회해 항모로 돌아간다';
+  return '손을 떼면 천천히 내려간다. 갑판 위에 수평으로 내려앉으면 착함';
 }
 
 function drawHUD() {
@@ -527,7 +509,7 @@ function drawHUD() {
   // 속도, 고도
   panel(360, 10, 240, 44);
   c.fillStyle = '#fff'; c.textAlign = 'center'; c.font = '800 20px system-ui,sans-serif';
-  const stall = (p.mode === 'air') && kt < stallKt() * 1.12;
+  const stall = (p.mode === 'air') && kt < stallKt() * 1.04;
   c.fillStyle = stall ? '#ff8a73' : '#fff'; c.fillText(Math.round(kt) + ' 노트', 420, 39);
   c.fillStyle = '#fff'; c.fillText(Math.round(Math.max(0, p.y - WH)) + ' m', 540, 39);
   if (stall && Math.sin(G.t * 12) > 0) { c.fillStyle = '#ff5a3c'; c.font = '800 22px system-ui,sans-serif'; c.fillText('실속!', 480, 84); }

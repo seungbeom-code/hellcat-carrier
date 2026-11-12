@@ -495,10 +495,11 @@ function startMission(i) {
   reset();
   G.toast = { text: (i + 1) + '. ' + M.name + ' — ' + M.brief, grade: 'green', until: G.t + 7 };
 }
-function goMenu() { G.scene = 'menu'; G.sel = G.mi || 0; G.menuMsg = ''; }
+function goMenu() { const fromTitle = G.scene === 'title'; G.scene = 'menu'; G.sel = fromTitle ? 0 : (G.mi || 0); G.menuMsg = ''; G.demoFire = false; for (const k in keys) keys[k] = false; }
 function tryStart(i) { if (unlocked(i)) startMission(i); else G.menuMsg = '이전 작전을 먼저 완료해야 한다'; }
 function afterCrash() { if (G.lives <= 0) endMission(false, '항공기를 모두 잃었다'); else reset(); }
 function endMission(win, why) {
+  if (G.scene === 'title') return;
   const m = G.m; if (!m || m.done) return; m.done = true;
   let stars = 0;
   if (win) { stars = 1 + (G.lives >= 2 ? 1 : 0) + (G.lives === 3 && MISSIONS[G.mi].bonus(m) ? 1 : 0); G.save.stars[G.mi] = Math.max(G.save.stars[G.mi] || 0, stars); saveProg(); }
@@ -676,7 +677,7 @@ function explode(x, y, r, kind, sea) {
 function fireStep(dt) {
   const ok = p.mode === 'air' && p.turn <= 0 && !p.off;
   if (!ok) { p.gunT = 0; return; }
-  if ((keys.Space || keys.KeyZ || touch.on.gun > 0) && p.ammo.gun > 0) {   // 기관총: 연속 약 30초
+  if ((keys.Space || keys.KeyZ || touch.on.gun > 0 || G.demoFire) && p.ammo.gun > 0) {   // 기관총: 연속 약 30초
     p.gunT -= dt;
     while (p.gunT <= 0 && p.ammo.gun > 0) {
       p.gunT += 1 / 16; p.ammo.gun = Math.max(0, p.ammo.gun - 5);
@@ -850,10 +851,51 @@ function drawProj(c) {
 const FIRE = [{ k: 'gun', x: 300, y: 456, w: 110, h: 60, label: '기관총', key: 'Space' }, { k: 'rocket', x: 420, y: 456, w: 110, h: 60, label: '로켓', key: 'X' }, { k: 'bomb', x: 540, y: 456, w: 110, h: 60, label: '폭탄', key: 'C' }];
 const LANDBTN = { x: 330, y: 392, w: 300, h: 50 };
 
+// 첫 화면: 2번 작전 섬 위에서 자동으로 날아다니며 싸우는 데모
+function startDemo() { startMission(1); G.scene = 'title'; G.toast = null; G.lives = 99; G.demo = { t: 0, ct: 0, z: 0 }; }
+function demoBot(dt) {
+  const D = G.demo; D.t += dt;
+  const K = (u, l, r, f) => { keys.ArrowUp = u > 0; keys.ArrowDown = u < 0; keys.ArrowLeft = !!l; keys.ArrowRight = !!r; G.demoFire = !!f; };
+  if (G.result) { K(0); D.ct += dt; if (D.ct > 2.5) startDemo(); return; }
+  if (D.t > 110) { startDemo(); return; }
+  p.hp = 100; p.fuel = p.fuelMax; if (p.ammo.rk < 3) p.ammo.rk = 15; if (p.ammo.gun < 300) p.ammo.gun = 2400;
+  if (D.t > 16 && !D.z) { D.z = 1; spawnEnemy('zero', p.x + 1400, 260); spawnEnemy('zero', p.x + 1700, 200); }
+  if (p.mode === 'taxi' || p.mode === 'deck') { K(p.mode === 'deck' && kts() >= TAKEOFF_KT ? 1 : 0, 0, 1); return; }
+  if (p.mode !== 'air') { K(0); return; }
+  const s0 = ISLANDS[0], s1 = ISLANDS[ISLANDS.length - 1], dir = p.s > 0 ? 1 : -1;
+  let l = 0, r = 0;
+  if (p.turn <= 0 && kts() > TURN_KT + 5) { if (dir > 0 && p.x > s1.b + 250) l = 1; else if (dir < 0 && p.x < s0.a - 500) r = 1; }   // 섬 끝에서 돌아선다
+  let tgt = null; for (const t of TARGETS) if (t.alive && (t.x - p.x) * dir > 80 && (t.x - p.x) * dir < 900 && (!tgt || Math.abs(t.x - p.x) < Math.abs(tgt.x - p.x))) tgt = t;
+  let en = null; for (const e of ENE) if (!e.dead && Math.hypot(e.x - p.x, e.y - p.y) < 600) en = e;
+  const ground = gh(p.x); let alt = en ? en.y : tgt ? tgt.y + 70 : 150; alt = Math.max(alt, ground + 55);
+  let u = p.y < alt - 6 ? 1 : p.y > alt + 10 ? -1 : 0;
+  if (tgt && !en && Math.abs(tgt.x - p.x) < 450 && p.y - tgt.y > 35) u = -1;   // 표적으로 얕게 내려간다
+  if (p.y - ground < 40 || (p.vy < -12 && p.y - ground < 90)) u = 1;           // 땅이 가까우면 올라간다
+  const aim = (x, y) => Math.abs(angd(Math.atan2(y - p.y, x - p.x), p.th)) < 0.12;
+  let fire = false;
+  if (en && aim(en.x, en.y)) fire = true;
+  if (tgt && aim(tgt.x, tgt.y + 2)) { fire = true; if (Math.random() < 0.02) fireRocket(); }
+  K(u, l, r, fire);
+}
+function drawTitle() {
+  const c = ctx, top = c.createLinearGradient(0, 0, 0, 210), bot = c.createLinearGradient(0, H - 110, 0, H);
+  top.addColorStop(0, 'rgba(6,14,26,0.8)'); top.addColorStop(1, 'rgba(6,14,26,0)'); c.fillStyle = top; c.fillRect(0, 0, W, 210);
+  bot.addColorStop(0, 'rgba(6,14,26,0)'); bot.addColorStop(1, 'rgba(6,14,26,0.85)'); c.fillStyle = bot; c.fillRect(0, H - 110, W, 110);
+  c.textAlign = 'center'; c.lineJoin = 'round';
+  c.font = '900 54px system-ui,sans-serif'; c.lineWidth = 7; c.strokeStyle = 'rgba(10,20,34,0.9)'; c.strokeText('헬캣 착함 대작전', 480, 88); c.fillStyle = '#ffd23f'; c.fillText('헬캣 착함 대작전', 480, 88);
+  c.font = '800 24px system-ui,sans-serif'; c.lineWidth = 5; c.strokeText('1944 · 태평양', 480, 126); c.fillStyle = '#fff'; c.fillText('1944 · 태평양', 480, 126);
+  c.font = '600 15px system-ui,sans-serif'; c.fillStyle = '#dbe4ee'; c.fillText('항공모함에서 날아올라 섬을 하나씩 되찾아라', 480, 154);
+  if (Math.sin(performance.now() / 260) > -0.4) { c.font = '800 20px system-ui,sans-serif'; c.lineWidth = 5; c.strokeText('화면을 누르거나 아무 키나 누르면 시작', 480, H - 46); c.fillStyle = '#fff'; c.fillText('화면을 누르거나 아무 키나 누르면 시작', 480, H - 46); }
+  c.font = '600 12px system-ui,sans-serif'; c.fillStyle = '#9fb0c4'; c.fillText('데모 비행 중', 480, H - 18);
+  c.textAlign = 'left';
+}
+
 // 작전 선택 화면과 결과 화면
 const MENU_CARDS = MISSIONS.map((_, i) => ({ x: 60 + (i % 2) * 430, y: 112 + Math.floor(i / 2) * 68, w: 410, h: 60 }));
 const RES_BTN = [{ x: 240, y: 380, w: 230, h: 50 }, { x: 490, y: 380, w: 230, h: 50 }];
 function sceneKey(e) {
+  if (G.scene === 'title') { goMenu(); return; }
+  if (G.scene === 'menu' && e.code === 'Escape') { startDemo(); return; }
   if (G.scene === 'menu') {
     G.menuMsg = '';
     if (e.code === 'ArrowRight') G.sel = Math.min(9, G.sel + 1); else if (e.code === 'ArrowLeft') G.sel = Math.max(0, G.sel - 1);
@@ -865,10 +907,12 @@ function sceneKey(e) {
   }
 }
 function sceneTap(m) {
+  if (G.scene === 'title') { goMenu(); return; }
   if (G.scene === 'menu') { MENU_CARDS.forEach((r, i) => { if (inR(m, r)) { G.sel = i; tryStart(i); } }); }
   else if (G.scene === 'result') { if (inR(m, RES_BTN[0])) goMenu(); else if (inR(m, RES_BTN[1])) { if (G.res.win && G.mi < 9) tryStart(G.mi + 1); else startMission(G.mi); } }
 }
 function drawScene() {
+  if (G.scene === 'title') return drawTitle();
   const c = ctx; c.fillStyle = 'rgba(6,14,26,0.88)'; c.fillRect(0, 0, W, H); c.textAlign = 'left';
   if (G.scene === 'menu') {
     const tot = G.save.stars.reduce((a, b) => a + (b || 0), 0);
@@ -901,7 +945,8 @@ function drawScene() {
 
 // ───────── 한 걸음 ─────────
 function update(dt) {
-  if (G.scene !== 'play') return;
+  if (G.scene !== 'play' && G.scene !== 'title') return;
+  if (G.scene === 'title') demoBot(dt);   // 첫 화면: 자동 조종 데모
   G.t += dt; if (ship.x < G.holdX) ship.x += ship.v * dt;   // 섬에 너무 가까워지면 항모는 그 자리에 머문다
   if (!G.manual) autoFly(dt); p.flaps = p.gear;
   if (p.mode === 'deck') deckStep(dt);
@@ -1418,7 +1463,7 @@ function frame(ts) {
   drawWorld(); ctx.restore(); if (G.scene === 'play') drawHUD(); else drawScene();
   requestAnimationFrame(frame);
 }
-reset(); cam.x = p.x; cam.y = 60;
+reset(); startDemo(); cam.x = p.x; cam.y = 60;
 requestAnimationFrame(frame);
 </script>
 </body>

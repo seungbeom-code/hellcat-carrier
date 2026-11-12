@@ -25,13 +25,20 @@ const GRAV = 9.8, KL = 0.004375, KD0 = 0.000212, AMAX = 7.2, PWR = 1000;   // �
 const CL_MAX = 1.7, CL_BASE = 0.5;
 const SHIP_V = 15.4;                 // 갑판 맞바람 30노트
 const DECK_Y = 20, DECK_L = 260, WH = 3.2;   // 갑판 높이, 길이, 바퀴 밑까지 거리
-const ZONE_L = DECK_L * 0.3, ZONE_A = (DECK_L - ZONE_L) / 2, ZONE_B = ZONE_A + ZONE_L;   // 어레스팅 와이어 구역 (갑판의 30%, 가운데)
+const ZONE_L = DECK_L * 0.3, ZONE_A = 20, ZONE_B = ZONE_A + ZONE_L;   // 어레스팅 와이어 구역 (갑판의 30%, 가운데)
 const WIRES = [0, 1, 2, 3].map(i => ZONE_A + 10 + i * (ZONE_L - 20) / 3);
 const HOOK_BACK = 7.5, CRUISE_KT = 215, SLOW_KT = 98;   // 후크 끝 위치, 손을 뗐을 때 순항 속도, 항모 근처 접근 속도
 const TAKEOFF_KT = 90, TURN_KT = 80;   // 이륙과 선회에 필요한 최소 속도
 const LAND_KT = 118, LAND_SINK = 8, LAND_PITCH = 0.22;   // 착함 허용 한계: 속도, 가라앉는 속도, 기울기
 const TD = 53, SLOPE = 0.065, CUT_X = -4;    // 접지 목표, 활공 기울기, 컷 신호 위치
-const START_XR = 122, UTURN_XR = -650;
+const START_XR = 156, LAUNCH_XR = 156, UTURN_XR = -650;   // 발진선
+const ELEV_A = 118, ELEV_W = 24, ELEV_C = ELEV_A + ELEV_W / 2, ELEV_DEPTH = 14, TAXI_V = 13;   // 가운데 엘리베이터
+const LOADS = [   // 기획서의 출격 장비 네 가지
+  { name: '제공', fuel: 160, accel: 1.0, ammo: '기관총 2,400발 + 보조 연료탱크', hud: '기관총 2400 · 보조탱크', lines: ['기관총 + 보조 탱크', '가벼움 · 연료 +60%', '공중전 · 함대 방어'] },
+  { name: '로켓', fuel: 100, accel: 0.93, ammo: '기관총 2,400발 + 로켓 6발', hud: '기관총 2400 · 로켓 6', lines: ['기관총 + 로켓 6발', '무게 보통', '대공포 · 벙커 제거'] },
+  { name: '폭격', fuel: 100, accel: 0.85, ammo: '기관총 2,400발 + 1,000파운드 폭탄 1발', hud: '기관총 2400 · 폭탄 1000', lines: ['기관총 + 1,000파운드', '폭탄 1발 · 무거움', '활주로 · 대형 군함'] },
+  { name: '혼합', fuel: 100, accel: 0.78, ammo: '기관총 2,400발 + 500파운드 폭탄 2발 + 로켓 4발', hud: '기관총 · 폭탄 500×2 · 로켓 4', lines: ['500파운드 2 + 로켓 4', '매우 무거움', '여러 표적 동시에'] }
+];
 
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -40,15 +47,15 @@ const lerp = (a, b, t) => a + (b - a) * t;
 // ───────── 상태 ─────────
 const ship = { x: 0, v: SHIP_V };
 const cam = { x: 0, y: 60, z: 3 };
-const G = { t: 0, stickers: [], result: null, assist: true, lso: null, lsoT: 0, flag: 0 };
+const G = { t: 0, stickers: [], result: null, assist: true, lso: null, lsoT: 0, flag: 0, loadout: 1, toast: null };
 let p;
 function reset() {
-  p = { mode: 'deck', x: 0, y: DECK_Y + WH, vx: SHIP_V, vy: 0, th: 0, a: 0.035, s: 1, in: 0, thr: 0,
-        gear: true, flaps: true, hook: false, fuel: 100, xr: START_XR, vr: 0, held: true, flagT: 0,
+  p = { mode: 'taxi', x: 0, y: DECK_Y + WH, vx: SHIP_V, vy: 0, th: 0, a: 0.035, s: 1, in: 0, thr: 0,
+        gear: true, flaps: true, hook: false, fuel: LOADS[G.loadout].fuel, fuelMax: LOADS[G.loadout].fuel, hp: 100, lock: 0, flip: 0, flipFrom: 1, pushT: 0, el: null, xr: START_XR, vr: 0, held: true, flagT: 0,
         landing: false, wire: -1, turn: 0, go: false, off: false, liftT: 0, wx: null, eng: false, ld: 1, relT: 0, engT: 0, tookOff: false, prevY: DECK_Y + WH,
         ap: { maxErr: 0, maxSpd: 0, on: false }, td: null };
   p.x = ship.x + p.xr;
-  G.result = null; G.lso = null; G.msg = null; G.burn = null; FX.length = 0;
+  G.result = null; G.lso = null; G.msg = null; G.burn = null; G.toast = null; FX.length = 0;
 }
 const kts = () => Math.hypot(p.vx, p.vy) * KT;
 
@@ -132,7 +139,7 @@ function deckStep(dt) {
   } else {
     const alpha = 0.035 + Math.max(0, p.in) * 0.19;
     const f = aero(V, alpha);
-    let acc = f.aT * 1.55 - f.aD - 0.4;
+    let acc = f.aT * 1.55 * LOADS[G.loadout].accel - f.aD - 0.4;
     if (p.thr < 0.1) acc -= 4;
     p.vr = Math.max(0, p.vr + acc * dt);
     p.th = tailSit(V) + Math.max(0, p.in) * 0.12;
@@ -247,9 +254,10 @@ function finish() {
   else if (td.sink < 5.6 && td.kt < 105 && Math.abs(td.pitch) < 0.12) { grade = 'green'; note = wn + '번 와이어. 부드럽고 반듯하게 내렸다. 완벽하다!'; }
   else if (td.sink < 7) { grade = 'yellow'; note = td.kt >= 105 ? '조금 빨랐다.' : Math.abs(td.pitch) >= 0.12 ? '조금 기울었다.' : '조금 세게 내렸다.'; }
   else { grade = 'brown'; note = wn + '번 와이어. 쿵! 그래도 안전하게는 내렸다.'; }
-  p.mode = 'done'; p.vr = 0; sfx(grade); p.relT = G.t + 0.8;
+  p.mode = 'taxi'; p.landing = false; p.vr = 0; p.flip = 0; p.pushT = 0; p.lock = G.t + 1.6; sfx(grade); p.relT = G.t + 0.8;
+  p.hp = Math.max(30, p.hp - ({ green: 0, yellow: 8, brown: 22 }[grade] || 0));   // 거칠게 내리면 기체가 상한다. 격납고에서 수리
   G.stickers.push(grade); if (G.stickers.length > 12) G.stickers.shift();
-  G.result = { kind: 'land', grade, note, kt: Math.round(td.kt) };
+  G.toast = { text: note, grade, until: G.t + 4.5 };
 }
 
 // ───────── 소리 (파일 없이 합성) ─────────
@@ -306,11 +314,12 @@ function sfx(n) {
   else if (n === 'flag') { burst(1200, 0.25, 0.15); }
   else if (n === 'stall') { tone(880, 0.09, 'square', 0.14); }
   else if (n === 'turn') { burst(500, 0.9, 0.18); }
+  else if (n === 'lift') { tone(120, 1.8, 'triangle', 0.1, 70); burst(260, 1.8, 0.05); }
 }
 function updateSound(dt) {
   const a = sound.ctx; if (!a) return;
-  const t = a.currentTime, alive = (p.mode === 'air' || p.mode === 'deck' || p.mode === 'done') && p.fuel > 0;
-  const thr = p.mode === 'done' ? 0 : p.thr, V = Math.hypot(p.vx, p.vy);
+  const t = a.currentTime, alive = (p.mode === 'air' || p.mode === 'deck' || p.mode === 'taxi' || p.mode === 'lift') && p.fuel > 0;
+  const thr = p.mode === 'taxi' || p.mode === 'lift' ? 0 : p.thr, V = Math.hypot(p.vx, p.vy);
   sound.master.gain.setTargetAtTime(sound.muted || G.paused ? 0 : 0.55, t, 0.05);
   const ef = 92 + thr * 30 + (p.mode === 'air' ? Math.min(8, V * 0.04) : 0);
   sound.eo[0].frequency.setTargetAtTime(ef, t, 0.3); sound.eo[1].frequency.setTargetAtTime(ef * 1.5, t, 0.3);
@@ -323,12 +332,78 @@ function updateSound(dt) {
   if (p.mode === 'air' && p.turn <= 0 && kts() < stallKt() * 1.04 && sound.stallT <= 0) { sfx('stall'); sound.stallT = 0.28; }
 }
 
+// ───────── 갑판 위 이동과 엘리베이터 ─────────
+function startFlip(dir) { p.flipFrom = p.s; p.flipTo = dir; p.flip = 0.6; p.vr = 0; }
+function startTakeoff() { p.mode = 'deck'; p.landing = false; p.held = true; p.go = true; p.flagT = 0; p.vr = 0; p.pushT = 0; }
+function taxiStep(dt) {
+  p.y = DECK_Y + WH; p.vy = 0;
+  if (G.t < p.lock) p.vr = 0;
+  else if (p.flip > 0) { p.flip -= dt; p.vr = 0; if (p.flip <= 0) { p.flip = 0; p.s = p.flipTo; } }
+  else {
+    const dir = ctl.right ? 1 : ctl.left ? -1 : 0, x0 = p.xr;
+    if (dir && dir !== p.s) startFlip(dir);   // 반대 방향 키: 먼저 몸을 돌린다
+    else {
+      p.vr += (dir * TAXI_V - p.vr) * Math.min(1, dt * 3); p.xr += p.vr * dt;
+      const maxX = Math.max(LAUNCH_XR, x0);
+      if (p.xr < 6) { p.xr = 6; p.vr = 0; } if (p.xr > maxX) { p.xr = maxX; p.vr = 0; }
+      if (dir > 0 && p.s > 0 && p.xr >= LAUNCH_XR - 0.01) { p.pushT += dt; if (p.pushT > 0.45) startTakeoff(); } else p.pushT = 0;   // 발진선에서 ▶ 꾹: 발진
+    }
+  }
+  const tail = tailSit(Math.abs(p.vr + ship.v)); p.th = p.s > 0 ? tail : Math.PI - tail;
+  p.x = ship.x + p.xr; p.vx = p.vr + ship.v;
+}
+const ELEV_BTN = { x: 330, y: 452, w: 300, h: 56 };
+const HG_CARDS = [0, 1, 2, 3].map(i => ({ x: 440 + (i % 2) * 230, y: 112 + Math.floor(i / 2) * 150, w: 215, h: 136 })), HG_GO = { x: 340, y: 446, w: 280, h: 46 };
+const SV = e => { const d1 = 2.2, d2 = 1.8, d3 = 0.4 + (100 - e.hp0) * 0.03; return { d1, d2, d3, tot: d1 + d2 + d3 }; };
+const smooth = k => k * k * (3 - 2 * k);
+function overElev() { return p.mode === 'taxi' && p.flip <= 0 && G.t >= p.lock && Math.abs(p.xr - ELEV_C) <= 9; }
+function hangarOpen() { return p.mode === 'lift' && !!p.el && p.el.st === 'svc'; }
+function startLift() { if (!overElev()) return; p.mode = 'lift'; p.vr = 0; p.el = { st: 'slide', t: 0, y: 0, sv: 0, fuel0: p.fuel, hp0: p.hp }; sfx('clunk'); }
+function liftUp() {
+  const e = p.el; if (!e || e.st !== 'svc') return;
+  if (e.sv < SV(e).tot) { G.msg = { text: '작업이 끝날 때까지 기다린다', until: G.t + 1.2 }; return; }
+  p.fuelMax = LOADS[G.loadout].fuel; p.fuel = p.fuelMax; p.hp = 100; e.st = 'up'; e.t = 0; sfx('lift');
+}
+function liftStep(dt) {
+  const e = p.el; if (!e) { p.mode = 'taxi'; return; }
+  e.t += dt; p.vx = ship.v; p.vy = 0; p.th = p.s > 0 ? 0.2 : Math.PI - 0.2;
+  if (e.st === 'slide') { p.xr += clamp(ELEV_C - p.xr, -8 * dt, 8 * dt); if (Math.abs(ELEV_C - p.xr) < 0.05) { p.xr = ELEV_C; e.st = 'down'; e.t = 0; sfx('lift'); } }
+  else if (e.st === 'down') { const k = clamp(e.t / 2.4, 0, 1); e.y = -ELEV_DEPTH * smooth(k); if (k >= 1) { e.st = 'svc'; e.t = 0; sfx('clunk'); } }
+  else if (e.st === 'svc') {   // 급유 → 무기 장전 → 수리
+    e.sv += dt; const sv = SV(e); p.fuelMax = LOADS[G.loadout].fuel;
+    p.fuel = lerp(e.fuel0, p.fuelMax, clamp(e.sv / sv.d1, 0, 1)); p.hp = lerp(e.hp0, 100, clamp((e.sv - sv.d1 - sv.d2) / sv.d3, 0, 1));
+  } else if (e.st === 'up') { const k = clamp(e.t / 2.4, 0, 1); e.y = -ELEV_DEPTH * (1 - smooth(k)); if (k >= 1) { p.mode = 'taxi'; p.el = null; p.lock = G.t + 0.3; p.pushT = 0; } }
+  p.x = ship.x + p.xr; p.y = DECK_Y + WH + (p.el ? p.el.y : 0);
+}
+function drawHangar(c) {
+  const e = p.el, sv = SV(e), L = LOADS[G.loadout];
+  c.fillStyle = 'rgba(6,12,20,0.82)'; c.fillRect(0, 0, W, H);
+  c.fillStyle = 'rgba(30,44,62,0.97)'; c.beginPath(); c.roundRect(40, 36, 880, 470, 16); c.fill(); c.strokeStyle = '#4f647d'; c.lineWidth = 2; c.stroke();
+  c.textAlign = 'left'; c.fillStyle = '#fff'; c.font = '800 24px system-ui,sans-serif'; c.fillText('격납고 — 수리와 재장전', 72, 82);
+  c.fillStyle = '#9fb0c4'; c.font = '600 13px system-ui,sans-serif'; c.fillText('◀ ▶ ▲ ▼ 또는 터치로 출격 장비를 고른다', 72, 106);
+  const row = (y, name, prog, txt) => { c.fillStyle = '#cfd8e3'; c.font = '700 15px system-ui,sans-serif'; c.fillText(name, 72, y); c.fillStyle = '#243447'; c.fillRect(72, y + 10, 330, 14); c.fillStyle = prog >= 1 ? '#59d37a' : '#ffd23f'; c.fillRect(72, y + 10, 330 * prog, 14); c.fillStyle = '#fff'; c.font = '600 13px system-ui,sans-serif'; c.fillText(txt, 72, y + 46); };
+  row(150, '급유', clamp(e.sv / sv.d1, 0, 1), '연료 ' + Math.round(p.fuel / p.fuelMax * 100) + '%  (탱크 용량 ' + L.fuel + ')');
+  row(236, '무기 장전', clamp((e.sv - sv.d1) / sv.d2, 0, 1), L.ammo);
+  row(322, '수리', clamp((e.sv - sv.d1 - sv.d2) / sv.d3, 0, 1), '기체 내구도 ' + Math.round(p.hp) + '%');
+  LOADS.forEach((ld, i) => {
+    const r = HG_CARDS[i], sel = i === G.loadout;
+    c.fillStyle = sel ? 'rgba(255,210,63,0.16)' : 'rgba(10,20,32,0.7)'; c.beginPath(); c.roundRect(r.x, r.y, r.w, r.h, 12); c.fill();
+    c.strokeStyle = sel ? '#ffd23f' : '#4a5d75'; c.lineWidth = sel ? 3 : 1.5; c.stroke();
+    c.fillStyle = sel ? '#ffd23f' : '#fff'; c.font = '800 19px system-ui,sans-serif'; c.fillText(ld.name, r.x + 16, r.y + 32);
+    c.fillStyle = '#dbe4ee'; c.font = '600 14px system-ui,sans-serif'; ld.lines.forEach((t, k) => c.fillText(t, r.x + 16, r.y + 62 + k * 24));
+  });
+  const ok = e.sv >= sv.tot, g = HG_GO;
+  c.fillStyle = ok ? 'rgba(52,150,84,0.95)' : 'rgba(70,82,98,0.9)'; c.beginPath(); c.roundRect(g.x, g.y, g.w, g.h, 12); c.fill();
+  c.fillStyle = '#fff'; c.font = '800 18px system-ui,sans-serif'; c.textAlign = 'center'; c.fillText(ok ? '올라가기 (Space)' : '작업 중…', g.x + g.w / 2, g.y + 29); c.textAlign = 'left';
+}
+
 // ───────── 한 걸음 ─────────
 function update(dt) {
   G.t += dt; ship.x += ship.v * dt; if (!G.manual) autoFly(dt); p.flaps = p.gear;
   if (p.mode === 'deck') deckStep(dt);
   else if (p.mode === 'air') { airStep(dt); checkContact(); }
-  else if (p.mode === 'done') { p.x = ship.x + p.xr; }
+  else if (p.mode === 'taxi') taxiStep(dt);
+  else if (p.mode === 'lift') liftStep(dt);
   else if (p.mode === 'down') { p.y = Math.max(1, p.y - 6 * dt); p.x += p.vx * dt; p.vx *= 1 - Math.min(1, 2 * dt); }
   if (p.mode === 'air' || (p.mode === 'deck' && !p.held)) p.fuel = Math.max(0, p.fuel - (0.03 + 0.25 * p.thr) * dt);
   G.lso = lsoSignal(); stepFx(dt);
@@ -348,6 +423,11 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyR') reset();
   if (e.code === 'KeyA') G.assist = !G.assist;
   if (e.code === 'Enter' && G.result) reset();
+  if (hangarOpen()) {
+    if (e.code === 'ArrowRight') G.loadout = (G.loadout + 1) % 4; if (e.code === 'ArrowLeft') G.loadout = (G.loadout + 3) % 4;
+    if (e.code === 'ArrowUp' || e.code === 'ArrowDown') G.loadout = (G.loadout + 2) % 4;
+    if (e.code === 'Space' || e.code === 'Enter') liftUp();
+  } else if (e.code === 'Space') startLift();
   if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault();
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
@@ -372,6 +452,8 @@ function pos(e) { const r = cv.getBoundingClientRect(); return { x: (e.clientX -
 const inR = (m, r) => m.x >= r.x - 6 && m.x <= r.x + r.w + 6 && m.y >= r.y - 6 && m.y <= r.y + r.h + 6;
 cv.addEventListener('pointerdown', e => {
   const m = pos(e); e.preventDefault(); initAudio();
+  if (hangarOpen()) { HG_CARDS.forEach((r, i) => { if (inR(m, r)) G.loadout = i; }); if (inR(m, HG_GO)) liftUp(); return; }
+  if (overElev() && inR(m, ELEV_BTN)) { startLift(); return; }
   for (const d of DPAD) if (inR(m, d)) { touch.ids[e.pointerId] = d.k; touch.on[d.k]++; try { cv.setPointerCapture(e.pointerId); } catch (_) {} return; }
   for (const b of BTN) if (inR(m, b)) { b.id === 'reset' ? reset() : setMuted(!sound.muted); return; }
   if (G.result && m.y > 150 && m.y < 400 && m.x > 250 && m.x < 710) reset();
@@ -400,6 +482,7 @@ function autoFly(dt) {
   if (p.mode !== 'air') p.neutral = false;
   p.thr += (tgt - p.thr) * Math.min(1, dt * 4);
   p.hook = p.gear && p.tookOff;
+  if (p.mode === 'taxi' || p.mode === 'lift' || (p.mode === 'deck' && !p.landing)) p.hook = G.t < p.relT;   // 착함 뒤에는 후크를 들어 올린다
 }
 
 // ───────── 그리기 ─────────
@@ -535,12 +618,28 @@ function drawShip() {
     c.fillStyle = '#6b7a90'; c.fillRect(-3, DECK_Y - 0.16, 266, 0.16);   // 갑판 가장자리
     c.strokeStyle = 'rgba(36,44,56,0.9)'; c.lineWidth = 0.18;
     for (let x = 2; x < 262; x += 9) { if (x > ZONE_A - 1 && x < ZONE_B + 1) continue; c.beginPath(); c.moveTo(x, DECK_Y); c.lineTo(x, DECK_Y + 1); c.stroke(); }   // 안전망 지지대
+    {   // 가운데 엘리베이터와 발진선
+      const ey = p.mode === 'lift' && p.el ? p.el.y : 0;
+      if (ey < -0.05) {   // 내려가는 중: 승강기 통로 단면을 보여 준다
+        c.fillStyle = 'rgba(8,12,20,0.96)'; c.fillRect(ELEV_A, 4.5, ELEV_W, DECK_Y - 4.5);
+        c.strokeStyle = '#59667a'; c.lineWidth = 0.35;
+        [ELEV_A + 1, ELEV_A + ELEV_W - 1].forEach(x => { c.beginPath(); c.moveTo(x, 4.5); c.lineTo(x, DECK_Y); c.stroke(); });
+        c.fillStyle = '#5b6a80'; c.fillRect(ELEV_A + 0.6, DECK_Y + ey - 1.1, ELEV_W - 1.2, 1.1);
+        c.fillStyle = '#f2b705'; c.fillRect(ELEV_A + 0.6, DECK_Y + ey - 1.1, ELEV_W - 1.2, 0.25);
+      } else {
+        c.fillStyle = '#56647b'; c.fillRect(ELEV_A, DECK_Y - 1.6, ELEV_W, 1.6);
+        c.fillStyle = '#f2b705'; c.fillRect(ELEV_A, DECK_Y - 0.3, ELEV_W, 0.3);
+        c.fillStyle = '#1b1b1b'; c.fillRect(ELEV_A - 0.2, DECK_Y - 1.6, 0.4, 1.6); c.fillRect(ELEV_A + ELEV_W - 0.2, DECK_Y - 1.6, 0.4, 1.6);
+      }
+      c.fillStyle = '#f4f6f8'; c.fillRect(LAUNCH_XR - 0.25, DECK_Y - 1.6, 0.5, 1.6);
+      c.beginPath(); c.moveTo(LAUNCH_XR + 1, DECK_Y - 0.4); c.lineTo(LAUNCH_XR + 3.4, DECK_Y - 0.8); c.lineTo(LAUNCH_XR + 1, DECK_Y - 1.2); c.closePath(); c.fill();   // 발진선
+    }
     // 와이어와 방벽
     c.strokeStyle = '#f4d35e'; c.lineWidth = 0.35;
-    const pulled = p.wx !== null && p.eng && p.relT !== undefined && !(p.mode === 'done' && G.t - p.relT >= 0.55);
+    const pulled = p.wx !== null && p.eng && p.relT !== undefined && !(!p.landing && G.t - p.relT >= 0.55);
     WIRES.forEach(w => { if (pulled && w === p.wx) return; c.beginPath(); c.moveTo(w - 0.8, DECK_Y); c.quadraticCurveTo(w, DECK_Y + 1.3, w + 0.8, DECK_Y); c.stroke(); });
     if (pulled) {
-      const hx = p.xr - p.ld * HOOK_BACK, tE = G.t - p.engT, rel = p.mode === 'done' ? clamp((G.t - p.relT) / 0.55, 0, 1) : 0;
+      const hx = p.xr - p.ld * HOOK_BACK, tE = G.t - p.engT, rel = !p.landing ? clamp((G.t - p.relT) / 0.55, 0, 1) : 0;
       let ex = hx, sag = 0;
       if (rel > 0) { ex = lerp(hx, p.wx, 1 - Math.pow(1 - rel, 3)); sag = Math.sin(rel * 20) * (1 - rel) * 1.8; }
       else if (tE < 0.5) sag = Math.sin(tE * 40) * (0.5 - tE) * 2.4;   // 걸리는 순간의 떨림
@@ -567,6 +666,11 @@ function drawShip() {
     const lx = sx(ship.x + (ZONE_A + ZONE_B) / 2), ly = sy(DECK_Y - 5.5);
     c.font = '800 13px system-ui,sans-serif'; c.textAlign = 'center'; c.lineJoin = 'round'; c.lineWidth = 4; c.strokeStyle = 'rgba(20,30,45,0.85)';
     c.strokeText('어레스팅 구역', lx, ly); c.fillStyle = '#ffd23f'; c.fillText('어레스팅 구역', lx, ly);
+  }
+  {
+    const lx = sx(ship.x + ELEV_C), ly = sy(DECK_Y - 5.5);
+    c.font = '800 13px system-ui,sans-serif'; c.textAlign = 'center'; c.lineJoin = 'round'; c.lineWidth = 4; c.strokeStyle = 'rgba(20,30,45,0.85)';
+    c.strokeText('엘리베이터', lx, ly); c.fillStyle = '#e8ecf0'; c.fillText('엘리베이터', lx, ly);
   }
   {   // 선체 번호 (CV-6)
     c.font = '800 ' + Math.round(8 * cam.z) + 'px Arial, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = 'rgba(240,244,248,0.92)';
@@ -624,7 +728,8 @@ function drawWorld() {
   // 플레이어 기체
   if (p.mode !== 'down' || G.result.kind === 'ditch') {
     world(p.x, p.y, () => {
-      if (p.turn > 0) {
+      if (p.flip > 0) { const f = clamp(1 - p.flip / 0.6, 0, 1); drawPlane3D((p.flipFrom > 0 ? 0 : Math.PI) + Math.PI * f, 0, true); }
+      else if (p.turn > 0) {
         const f = clamp(1 - p.turn / 2.2, 0, 1);
         drawPlane3D((p.v0 > 0 ? 0 : Math.PI) + Math.PI * f, Math.sin(Math.PI * f) * 1.0, p.gear);
       } else {
@@ -675,6 +780,13 @@ function drawLSO() {   // 신호장교 확대창
 function hint() {
   if (G.result) return '';
   if (G.msg && G.t < G.msg.until) return G.msg.text;
+  if (p.mode === 'taxi') {
+    if (G.t < p.lock) return '';
+    if (overElev()) return '스페이스바: 엘리베이터로 내려가기 (수리·재장전)';
+    if (p.s > 0 && p.xr >= LAUNCH_XR - 0.5) return '▶ 를 꾹 누르면 발진';
+    return '◀ ▶ 로 갑판 위를 움직인다 · 가운데 엘리베이터에서 수리와 재장전 · 오른쪽 끝에서 발진';
+  }
+  if (p.mode === 'lift') return p.el && p.el.st === 'svc' ? '' : '엘리베이터 이동 중';
   const xr = p.x - ship.x;
   if (p.mode === 'deck' && !p.landing) {
     if (!p.go) return '▶ 를 누르면 발진';
@@ -700,7 +812,9 @@ function drawHUD() {
   if (stall && Math.sin(G.t * 12) > 0) { c.fillStyle = '#ff5a3c'; c.font = '800 22px system-ui,sans-serif'; c.fillText('실속!', 480, 84); }
   // 연료
   panel(92, 10, 150, 36); c.fillStyle = '#243447'; c.fillRect(140, 22, 92, 12);
-  c.fillStyle = p.fuel < 20 ? '#ff5a3c' : '#59d37a'; c.fillRect(140, 22, 92 * p.fuel / 100, 12);
+  const ff = p.fuel / p.fuelMax; c.fillStyle = ff < 0.2 ? '#ff5a3c' : '#59d37a'; c.fillRect(140, 22, 92 * ff, 12);
+  panel(92, 50, 236, 40); c.fillStyle = '#fff'; c.textAlign = 'left'; c.font = '700 12px system-ui,sans-serif';
+  c.fillText(LOADS[G.loadout].name + ' 장비 · 내구도 ' + Math.round(p.hp) + '%', 102, 67); c.font = '600 12px system-ui,sans-serif'; c.fillStyle = '#c9d4de'; c.fillText(LOADS[G.loadout].hud, 102, 83);
   c.fillStyle = '#fff'; c.font = '700 13px system-ui,sans-serif'; c.textAlign = 'left'; c.fillText('연료', 104, 33);
   // 항모 방향
   if (p.mode === 'air') {
@@ -724,7 +838,18 @@ function drawHUD() {
     c.fillStyle = '#fff'; c.font = '800 13px system-ui,sans-serif'; c.textAlign = 'center';
     c.fillText(b.id === 'snd' ? (sound.muted ? '소리 끔' : '소리 켬') : b.label, b.x + b.w / 2, b.y + b.h / 2 + 5);
   }
+  if (overElev()) {   // 엘리베이터 버튼
+    const b = ELEV_BTN; c.fillStyle = 'rgba(26,90,150,0.92)'; c.beginPath(); c.roundRect(b.x, b.y, b.w, b.h, 12); c.fill(); c.strokeStyle = '#9fd0ff'; c.lineWidth = 2; c.stroke();
+    c.fillStyle = '#fff'; c.font = '800 17px system-ui,sans-serif'; c.textAlign = 'center'; c.fillText('엘리베이터로 내려가기 (Space)', b.x + b.w / 2, b.y + 34);
+  }
+  if (G.toast && G.t < G.toast.until) {   // 착함 결과
+    const col = { green: '#59d37a', yellow: '#ffd23f', brown: '#a9793f' }[G.toast.grade] || '#fff';
+    c.font = '800 16px system-ui,sans-serif'; const tw = c.measureText(G.toast.text).width;
+    panel(480 - tw / 2 - 34, 62, tw + 68, 32, 0.8); c.fillStyle = col; c.beginPath(); c.arc(480 - tw / 2 - 14, 78, 8, 0, 7); c.fill();
+    c.fillStyle = '#fff'; c.textAlign = 'center'; c.fillText(G.toast.text, 488, 84);
+  }
   drawLSO();
+  if (hangarOpen()) drawHangar(c);
   const hm = hint();
   if (hm) { c.font = '700 16px system-ui,sans-serif'; const tw = c.measureText(hm).width; panel(480 - tw / 2 - 14, 96, tw + 28, 34, 0.7); c.fillStyle = '#fff'; c.textAlign = 'center'; c.fillText(hm, 480, 119); }
   // 결과
@@ -747,7 +872,7 @@ function drawHUD() {
 
 function updateCam(dt) {
   const xr = p.x - ship.x, near = Math.abs(xr - 130) < 900 && p.y < 260;
-  const zt = p.mode === 'deck' || p.mode === 'done' || (p.mode === 'down' && !G.result.sea) ? 2.9 : near ? 2.1 : 1.45;
+  const zt = p.mode === 'deck' || p.mode === 'taxi' || p.mode === 'lift' || (p.mode === 'down' && !G.result.sea) ? 2.9 : near ? 2.1 : 1.45;
   cam.z = lerp(cam.z, zt, Math.min(1, dt * 1.5));
   const dir = p.vx >= 0 ? 1 : -1;
   const tx = p.x + dir * (0.2 + clamp((kts() - 120) / 900, 0, 0.12)) * W / cam.z, ty = Math.max(p.y * 0.92, H * 0.27 / cam.z);

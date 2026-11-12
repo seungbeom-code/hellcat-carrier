@@ -760,6 +760,24 @@ function carrierBody(c) {
   c.fillStyle = '#3c3b6e'; c.beginPath(); c.moveTo(-1.4, DY + 8.6); c.lineTo(-3.2, DY + 8.6 + Math.sin(G.t * 6 - 4.2) * 0.22); c.lineTo(-3.2, DY + 6.1 + Math.sin(G.t * 6 - 4.2) * 0.22); c.lineTo(-1.4, DY + 6.1); c.closePath(); c.fill();
 }
 
+// 함교 날개 위의 신호장교: 신호에 따라 패들을 든다 (작게)
+function lsoSmall(c) {
+  const x = 160, y = DECK_Y + 12.65, sig = G.lso, t = G.t, PI = Math.PI;
+  let L = PI * 1.42, R = -PI * 0.42;   // 신호가 없을 때는 팔을 내린다
+  if (sig === 'ROGER') { L = PI; R = 0; }
+  else if (sig === 'HIGH') { L = PI * 0.75; R = PI * 0.25; }
+  else if (sig === 'LOW') { L = PI * 1.25; R = -PI * 0.25; }
+  else if (sig === 'FAST') { L = PI * 1.4; R = -PI * 0.4 + Math.sin(t * 9) * 0.25; }
+  c.fillStyle = '#e8ecf0'; c.fillRect(x - 0.55, y, 1.1, 1.9);
+  c.fillStyle = '#f2c9a0'; c.beginPath(); c.arc(x, y + 2.45, 0.55, 0, 7); c.fill();
+  c.fillStyle = '#d9a441'; c.beginPath(); c.arc(x, y + 2.6, 0.58, PI, 0); c.fill();
+  [[L, -1], [R, 1]].forEach(([a, sd]) => {
+    const ax = x + sd * 0.5, ay = y + 1.6, ex = ax + Math.cos(a) * 1.9, ey = ay + Math.sin(a) * 1.9;
+    c.strokeStyle = '#e8ecf0'; c.lineWidth = 0.4; c.lineCap = 'round'; c.beginPath(); c.moveTo(ax, ay); c.lineTo(ex, ey); c.stroke(); c.lineCap = 'butt';
+    c.fillStyle = '#ff5a3c'; c.beginPath(); c.arc(ex, ey, 0.6, 0, 7); c.fill();
+  });
+}
+
 function drawShip() {
   const c = ctx;
   world(ship.x, 0, () => {
@@ -805,9 +823,7 @@ function drawShip() {
       c.fillStyle = '#9aa3ad'; c.beginPath(); c.arc(p.wx, DECK_Y + 0.3, 0.8, 0, 7); c.fill();   // 와이어가 뽑혀 나온 자리
     }
     c.strokeStyle = '#d9dde2'; c.lineWidth = 0.4;
-    // 신호장교(작게)
-    c.fillStyle = '#e8ecf0'; c.fillRect(9.4, DECK_Y, 0.9, 2.2); c.fillStyle = '#f2c9a0'; c.beginPath(); c.arc(9.85, DECK_Y + 2.8, 0.6, 0, 7); c.fill();
-    c.fillStyle = '#ff5a3c'; c.fillRect(7.6, DECK_Y + 1.6, 1.3, 1.0); c.fillRect(10.8, DECK_Y + 1.6, 1.3, 1.0);
+    lsoSmall(c);   // 함교 날개에 선 신호장교
     // 발진 장교와 깃발
     if (p.mode === 'deck' && !p.landing && p.xr < START_XR + 30) {
       const fx = START_XR + 16, dn = !p.held;
@@ -818,6 +834,11 @@ function drawShip() {
       c.restore();
     }
   });
+  if (G.lso) {   // 신호장교 옆의 짧은 글자
+    const lx = sx(ship.x + 160), ly = sy(DECK_Y + 17.2), w = { ROGER: '좋음', FAST: '빠름', LOW: '급강하', HIGH: '수평' }[G.lso] || '';
+    c.font = '800 11px system-ui,sans-serif'; c.textAlign = 'center'; c.lineJoin = 'round'; c.lineWidth = 3; c.strokeStyle = 'rgba(20,30,45,0.85)';
+    c.strokeText(w, lx, ly); c.fillStyle = G.lso === 'ROGER' ? '#8df0a8' : '#ffe27a'; c.fillText(w, lx, ly);
+  }
   {   // 구역 이름표 (선체 쪽)
     const lx = sx(ship.x + (ZONE_A + ZONE_B) / 2), ly = sy(DECK_Y - 5.5);
     c.font = '800 13px system-ui,sans-serif'; c.textAlign = 'center'; c.lineJoin = 'round'; c.lineWidth = 4; c.strokeStyle = 'rgba(20,30,45,0.85)';
@@ -1013,7 +1034,6 @@ function drawHUD() {
     c.fillStyle = held ? 'rgba(230,90,60,0.95)' : n > 0 ? 'rgba(150,40,30,0.88)' : 'rgba(60,66,76,0.8)'; c.beginPath(); c.roundRect(b.x, b.y, b.w, b.h, 12); c.fill();
     c.fillStyle = '#fff'; c.textAlign = 'center'; c.font = '800 15px system-ui,sans-serif'; c.fillText(b.label, b.x + b.w / 2, b.y + 26); c.font = '600 12px system-ui,sans-serif'; c.fillText(n + '  (' + b.key + ')', b.x + b.w / 2, b.y + 46);
   });
-  drawLSO();
   if (hangarOpen()) drawHangar(c);
   const hm = hint();
   if (hm) { c.font = '700 16px system-ui,sans-serif'; const tw = c.measureText(hm).width; panel(480 - tw / 2 - 14, 96, tw + 28, 34, 0.7); c.fillStyle = '#fff'; c.textAlign = 'center'; c.fillText(hm, 480, 119); }

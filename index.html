@@ -36,9 +36,9 @@ const START_XR = 156, LAUNCH_XR = 156, UTURN_XR = -650;   // 발진선
 const ELEV_A = 118, ELEV_W = 24, ELEV_C = ELEV_A + ELEV_W / 2, ELEV_DEPTH = 14, TAXI_V = 13;   // 가운데 엘리베이터
 const LOADS = [   // 기획서의 출격 장비 네 가지
   { name: '제공', fuel: 160, accel: 1.0, ammo: '기관총 2,400발 + 보조 연료탱크', hud: '기관총 2400 · 보조탱크', lines: ['기관총 + 보조 탱크', '가벼움 · 연료 +60%', '공중전 · 함대 방어'] },
-  { name: '로켓', fuel: 100, accel: 0.93, ammo: '기관총 2,400발 + 로켓 6발', hud: '기관총 2400 · 로켓 6', lines: ['기관총 + 로켓 6발', '무게 보통', '대공포 · 벙커 제거'] },
-  { name: '폭격', fuel: 100, accel: 0.85, ammo: '기관총 2,400발 + 1,000파운드 폭탄 1발', hud: '기관총 2400 · 폭탄 1000', lines: ['기관총 + 1,000파운드', '폭탄 1발 · 무거움', '활주로 · 대형 군함'] },
-  { name: '혼합', fuel: 100, accel: 0.78, ammo: '기관총 2,400발 + 500파운드 폭탄 2발 + 로켓 4발', hud: '기관총 · 폭탄 500×2 · 로켓 4', lines: ['500파운드 2 + 로켓 4', '매우 무거움', '여러 표적 동시에'] }
+  { name: '로켓', fuel: 100, accel: 0.93, ammo: '기관총 2,400발 + 로켓 15발', hud: '기관총 2400 · 로켓 15', lines: ['기관총 + 로켓 15발', '무게 보통', '대공포 · 벙커 제거'] },
+  { name: '폭격', fuel: 100, accel: 0.85, ammo: '기관총 2,400발 + 1,000파운드 폭탄 30발', hud: '기관총 2400 · 폭탄 30', lines: ['기관총 + 1,000파운드', '폭탄 30발 · 무거움', '활주로 · 대형 군함'] },
+  { name: '혼합', fuel: 100, accel: 0.78, ammo: '기관총 2,400발 + 500파운드 폭탄 30발 + 로켓 15발', hud: '기관총 · 폭탄 30 · 로켓 15', lines: ['500파운드 30 + 로켓 15', '매우 무거움', '여러 표적 동시에'] }
 ];
 
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
@@ -418,7 +418,7 @@ function drawHangar(c) {
 }
 
 // ───────── 작전, 섬, 표적, 적기, 무기 ─────────
-const LOAD_AMMO = [{ gun: 2400, rk: 0, bm: 0, lb: 0 }, { gun: 2400, rk: 6, bm: 0, lb: 0 }, { gun: 2400, rk: 0, bm: 1, lb: 1000 }, { gun: 2400, rk: 4, bm: 2, lb: 500 }];
+const LOAD_AMMO = [{ gun: 2400, rk: 0, bm: 0, lb: 0 }, { gun: 2400, rk: 15, bm: 0, lb: 0 }, { gun: 2400, rk: 0, bm: 30, lb: 1000 }, { gun: 2400, rk: 15, bm: 30, lb: 500 }];
 let ISLANDS = [];
 function gh(x) { for (const s of ISLANDS) if (x > s.a && x < s.b) { const u = (x - s.a) / (s.b - s.a); return 2 + s.pk * Math.pow(Math.sin(Math.PI * u), 1.5); } return 0; }
 const HP = { aa: 4, bunker: 10, fuel: 3, radar: 4, boat: 8, runway: 14, tank: 6, cave: 14, dd: 16, tr: 10, bb: 60, cv: 40 };
@@ -437,8 +437,8 @@ const TINTS = { day: ['#4f9ad6', '#bfe4f5'], dawn: ['#3b5f99', '#f0b49a'], dusk:
 const ZR = 'zero', OFF = 3000;   // 작전 배치 좌표에서 3km를 빼서 섬을 항모에 가깝게 둔다
 // 기획서의 미션 10개
 const MISSIONS = [
-  { name: '구니버드의 섬', date: '1944년 1월', place: '미드웨이 환초', kind: '훈련', tint: 'day', goal: 'train', brief: '이륙해서 표적 3개를 맞히고, 항모에 4번 착함한다', islands: [[6000, 1300, 24]], waves: [],
-    build: (add, P) => { add('boat', 5300); add('boat', 5550); add('boat', 5800); add('bunker', P(0, 0.5)); }, bonus: m => m.greens >= 4 },
+  { name: '구니버드의 섬', date: '1944년 1월', place: '미드웨이 환초', kind: '훈련', tint: 'day', goal: 'train', brief: '이륙해서 표적 3개를 맞히고, 항모에 1번 착함한다', islands: [[6000, 1300, 24]], waves: [],
+    build: (add, P) => { add('boat', 5300); add('boat', 5550); add('boat', 5800); add('bunker', P(0, 0.5)); }, bonus: m => m.greens >= 1 },
   { name: '첫 번째 깃발', date: '1월 31일', place: '마주로 환초', kind: '섬 점령', tint: 'day', goal: 'capture', cap: 2, brief: '방어 시설을 부수고 상륙을 엄호해 깃발을 올린다', islands: [[6000, 700, 14], [7000, 700, 14], [8000, 1100, 22]],
     waves: [{ t: 45, l: [ZR, ZR] }, { t: 150, l: [ZR, ZR, ZR] }],
     build: (add, P) => { add('aa', P(0, 0.4)); add('aa', P(1, 0.3)); add('aa', P(1, 0.7)); [0.25, 0.5, 0.75].forEach(x => add('aa', P(2, x))); [0.35, 0.65].forEach(x => add('bunker', P(2, x))); add('radar', P(2, 0.5)); add('fuel', P(2, 0.42)); add('fuel', P(2, 0.46)); add('boat', 5600); add('boat', 5900); },
@@ -474,7 +474,7 @@ const MISSIONS = [
     build: add => { add('bb', 7000); [7500, 7950, 8400, 8850].forEach(x => add('cv', x)); [7250, 7700, 8150].forEach(x => add('dd', x)); }, bonus: () => G.carrierHp >= 60 }
 ];
 const GOALS = {
-  train: m => m.landings >= 4 && m.kills >= 3,
+  train: m => m.landings >= 1 && m.kills >= 3,
   capture: m => m.flag > 0,
   air: m => m.zeros >= 12 && !TARGETS.some(t => t.type === 'runway' && t.alive),
   defend: (m, M) => m.wave >= M.waves.length && ENE.length === 0,
@@ -672,8 +672,8 @@ function fireRocket() {
 }
 function dropBomb() {
   if (p.mode !== 'air' || p.off || p.turn > 0 || p.ammo.bm <= 0 || G.t < p.bmT) return;
-  p.ammo.bm--; p.bmT = G.t + 0.4; sfx('bomb');
-  PROJ.push({ k: 'm', x: p.x, y: p.y - 2.5, vx: p.vx, vy: p.vy, life: 30, lb: p.ammo.lb });
+  p.ammo.bm--; p.bmT = G.t + 0.25; sfx('bomb');
+  PROJ.push({ k: 'm', x: p.x, y: p.y - 2.5, vx: p.vx, vy: p.vy - 15, life: 30, lb: p.ammo.lb });
 }
 function stepProj(dt) {
   for (const t of TARGETS) {
@@ -683,7 +683,7 @@ function stepProj(dt) {
   for (let i = PROJ.length - 1; i >= 0; i--) {
     const q = PROJ[i]; q.life -= dt;
     if (q.k === 'r') { const th = Math.atan2(q.vy, q.vx); if (q.life > 3.4) { q.vx += Math.cos(th) * 260 * dt; q.vy += Math.sin(th) * 260 * dt; } q.vy -= 4 * dt; if (Math.random() < dt * 40) FX.push({ k: 'smoke', x: q.x, y: q.y, vx: 0, vy: 0, life: 0.7, t: 0, s: 1.2 }); }
-    else if (q.k === 'm') q.vy -= GRAV * dt;
+    else if (q.k === 'm') q.vy -= GRAV * 2.4 * dt;
     q.x += q.vx * dt; q.y += q.vy * dt;
     const en = (q.k === 'b' || q.k === 'r') ? ENE.find(e => !e.dead && Math.abs(q.x - e.x) < 9 && Math.abs(q.y - e.y) < 4.5) : null;
     if (en) {
@@ -705,7 +705,7 @@ function stepProj(dt) {
 function focusX() { let b = null; for (const t of TARGETS) if (t.alive && (!b || Math.abs(t.x - p.x) < Math.abs(b.x - p.x))) b = t; return b ? b.x : ship.x + 130; }
 function missionLines() {
   const M = MISSIONS[G.mi], m = G.m, out = [], rw = TARGETS.filter(t => t.type === 'runway');
-  if (M.goal === 'train') out.push('착함 ' + m.landings + '/4 · 표적 ' + Math.min(3, m.kills) + '/3');
+  if (M.goal === 'train') out.push('착함 ' + Math.min(1, m.landings) + '/1 · 표적 ' + Math.min(3, m.kills) + '/3');
   else if (M.goal === 'capture') { const d = defPct(); out.push('수비력 ' + Math.round(d) + '%' + (G.land ? ' · 상륙 ' + Math.round(G.land.prog) + '% · 전력 ' + Math.round(G.land.str) + '%' : d <= 40 && !m.flag ? ' · V: 상륙 개시' : '')); }
   else if (M.goal === 'air') out.push('격추 ' + m.zeros + '/12 · 비행장 ' + rw.filter(t => !t.alive).length + '/' + rw.length);
   else if (M.goal === 'defend') out.push('공습 ' + Math.min(m.wave, M.waves.length) + '/' + M.waves.length + ' · 항모 ' + Math.round(G.carrierHp) + '%');

@@ -6,7 +6,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg">
 <meta name="theme-color" content="#0b1622">
-<title>태평양의 푸른날개 1944</title>
+<title>태평양의 푸른날개 1942</title>
 <style>
   html,body{margin:0;height:100%;background:#0b1622;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none}
   canvas{display:block;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:#8fc4e8}
@@ -1116,7 +1116,7 @@ function drawScene() {
   const c = ctx; c.fillStyle = 'rgba(6,14,26,0.88)'; c.fillRect(0, 0, W, H); c.textAlign = 'left';
   if (G.scene === 'menu') {
     const tot = G.save.stars.reduce((a, b) => a + (b || 0), 0);
-    c.fillStyle = '#fff'; c.font = '800 28px system-ui,sans-serif'; c.fillText('태평양의 푸른날개 1944', 60, 58);
+    c.fillStyle = '#fff'; c.font = '800 28px system-ui,sans-serif'; c.fillText('태평양의 푸른날개 1942', 60, 58);
     c.fillStyle = '#ffd23f'; c.font = '700 15px system-ui,sans-serif'; c.fillText('계급 ' + rankOf(tot) + ' · 별 ' + tot + '/30', 62, 84);
     MISSIONS.forEach((M, i) => {
       const r = MENU_CARDS[i], lock = !unlocked(i), sel = i === G.sel, st = G.save.stars[i] || 0;

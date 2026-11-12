@@ -327,13 +327,14 @@ function sfx(n) {
 function updateSound(dt) {
   const a = sound.ctx; if (!a) return;
   const t = a.currentTime, alive = (p.mode === 'air' || p.mode === 'deck' || p.mode === 'taxi' || p.mode === 'lift') && p.fuel > 0;
-  const thr = p.mode === 'taxi' || p.mode === 'lift' ? 0 : p.thr, V = Math.hypot(p.vx, p.vy);
+  const thr = p.mode === 'lift' ? 0 : p.mode === 'taxi' ? Math.min(1, Math.abs(p.vr) / TAXI_V) : p.thr, V = Math.hypot(p.vx, p.vy);
   sound.master.gain.setTargetAtTime(sound.muted || G.paused ? 0 : 0.55, t, 0.05);
   const ef = 92 + thr * 30 + (p.mode === 'air' ? Math.min(8, V * 0.04) : 0);
   sound.eo[0].frequency.setTargetAtTime(ef, t, 0.3); sound.eo[1].frequency.setTargetAtTime(ef * 1.5, t, 0.3);
   sound.lfo.frequency.setTargetAtTime(8 + thr * 7, t, 0.3);
   sound.elp.frequency.setTargetAtTime(240 + thr * 220, t, 0.3);
-  sound.eg.gain.setTargetAtTime(alive ? 0.045 + 0.07 * thr : 0, t, 0.35);
+  const onDeck = p.mode === 'taxi' || p.mode === 'deck' || p.mode === 'lift', moving = (p.mode === 'taxi' || p.mode === 'deck') && Math.abs(p.vr) > 0.5;
+  sound.eg.gain.setTargetAtTime(onDeck ? (moving ? 0.02 + 0.04 * thr : 0) : (alive ? 0.045 + 0.07 * thr : 0), t, 0.35);   // 갑판 위에서는 움직일 때만 살짝
   sound.wg.gain.setTargetAtTime(p.mode === 'air' ? Math.min(0.06, V * V * 0.000007) : 0, t, 0.2);
   if (G.lso !== sound.lastSig) { if (G.lso === 'CUT') sfx('cut'); if (G.lso === 'WAVEOFF') sfx('waveoff'); sound.lastSig = G.lso; }
   sound.stallT -= dt;

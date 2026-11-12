@@ -248,7 +248,6 @@ function checkContact() {
     if (kt > LAND_KT) {   // 너무 빠르면 부서지지 않고 튕겨 오른다
       p.vy = Math.min(12, 5 + (kt - LAND_KT) * 0.15); p.vx *= 0.96; p.y = DECK_Y + WH + 0.4; p.prevY = p.y; p.bounceT = G.t + 0.6; p.hp = Math.max(30, p.hp - 10);
       sfx('thump'); for (let i = 0; i < 10; i++) FX.push({ k: 'spark', x: p.x, y: DECK_Y + 0.3, vx: p.vx * 0.3 + (Math.random() - 0.5) * 20, vy: 3 + Math.random() * 10, life: 0.4, t: 0 });
-      G.toast = { text: '너무 빨라서 튕겨 올랐다. 속도를 줄여 다시 접근한다', grade: 'brown', until: G.t + 3.5 };
       return;
     }
     if (Math.abs(pitch) > LAND_PITCH) return crash('수평이 아니었다. 기수를 너무 ' + (pitch > 0 ? '들었다.' : '숙였다.'));
@@ -270,7 +269,6 @@ function finish() {
   p.mode = 'taxi'; p.landing = false; p.vr = 0; p.flip = 0; p.pushT = 0; p.lock = G.t + 1.6; sfx(grade); p.relT = G.t + 0.8;
   p.hp = Math.max(30, p.hp - ({ green: 0, yellow: 8, brown: 22 }[grade] || 0));   // 거칠게 내리면 기체가 상한다. 격납고에서 수리
   G.stickers.push(grade); if (G.stickers.length > 12) G.stickers.shift();
-  G.toast = { text: note, grade, until: G.t + 4.5 };
   if (G.m) { G.m.landings++; if (grade === 'green') G.m.greens++; }
 }
 
@@ -1345,11 +1343,6 @@ function drawShip() {
       c.restore();
     }
   });
-  if (G.lso) {   // 신호장교 옆의 짧은 글자
-    const lx = sx(ship.x + 160), ly = sy(DECK_Y + 17.2), w = { ROGER: '좋음', FAST: '빠름', LOW: '급강하', HIGH: '수평', UNDER: '너무 낮음 ▲' }[G.lso] || '';
-    c.font = '800 11px system-ui,sans-serif'; c.textAlign = 'center'; c.lineJoin = 'round'; c.lineWidth = 3; c.strokeStyle = 'rgba(20,30,45,0.85)';
-    c.strokeText(w, lx, ly); c.fillStyle = G.lso === 'ROGER' ? '#8df0a8' : '#ffe27a'; c.fillText(w, lx, ly);
-  }
   {   // 구역 이름표 (선체 쪽)
     const lx = sx(ship.x + (ZONE_A + ZONE_B) / 2), ly = sy(DECK_Y - 5.5);
     c.font = '800 13px system-ui,sans-serif'; c.textAlign = 'center'; c.lineJoin = 'round'; c.lineWidth = 4; c.strokeStyle = 'rgba(20,30,45,0.85)';
@@ -1443,7 +1436,7 @@ function hint() {
   if (G.t - p.liftT < 5) return '▲ 로 상승한다';
   if (G.m) { const low = p.fuel / p.fuelMax < 0.3, empty = p.ammo.gun <= 0 && p.ammo.rk <= 0 && p.ammo.bm <= 0; if (low || empty) return (low ? '연료' : '탄약') + '가 부족하다. 항모로 돌아가 엘리베이터에서 재보급한다'; if (Math.abs(xr - 130) > 900) return ''; }
   if (Math.abs(xr - 130) > 900) return '반대 방향 키로 선회해 항모로 돌아간다';
-  return '손을 떼면 천천히 내려간다. 노란 줄무늬 어레스팅 구역에 수평으로 내려앉는다';
+  return '';
 }
 
 // 화면 맨 위의 전체 지도: 항모, 섬, 표적, 적기, 내 비행기

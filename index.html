@@ -575,11 +575,11 @@ function drawSoldiers(c) {
   for (const o of SOLD) {
     if (Math.abs(o.x - cam.x) > span / 2 + 10) continue;
     world(o.x, o.y, () => {
-      c.scale(1.6 * (o.dir < 0 ? -1 : 1), 1.6);
+      c.scale(4 * (o.dir < 0 ? -1 : 1), 4);
       if (!o.alive) { c.fillStyle = '#6b6040'; c.fillRect(-0.9, 0, 1.8, 0.4); return; }
       const lg = o.st === 'enter' ? 0 : Math.sin(o.ph * 2.2) * 0.35;
       c.strokeStyle = '#4e4630'; c.lineWidth = 0.22; c.beginPath(); c.moveTo(0, 0.8); c.lineTo(-lg, 0); c.moveTo(0, 0.8); c.lineTo(lg, 0); c.stroke();
-      c.fillStyle = '#8a7d4a'; c.fillRect(-0.25, 0.8, 0.5, 0.75);
+      c.fillStyle = '#a08f4c'; c.fillRect(-0.25, 0.8, 0.5, 0.75); c.strokeStyle = '#2d2618'; c.lineWidth = 0.08; c.strokeRect(-0.25, 0.8, 0.5, 0.75);   // 테두리로 배경과 구분
       c.fillStyle = '#e0c9a0'; c.beginPath(); c.arc(0, 1.75, 0.2, 0, 7); c.fill();
       c.fillStyle = '#6b6a3a'; c.beginPath(); c.arc(0, 1.82, 0.24, Math.PI, 0); c.fill();
       c.strokeStyle = '#3a2e20'; c.lineWidth = 0.12; c.beginPath(); c.moveTo(-0.1, 1.3); c.lineTo(0.75, 1.75); c.stroke();
@@ -767,14 +767,14 @@ function stepProj(dt) {
       else explode(q.x, q.y, 14, 'rocket', false);
       PROJ.splice(i, 1); continue;
     }
-    if (q.k === 'b') { const sd = SOLD.find(o => o.alive && o.st !== 'enter' && Math.abs(q.x - o.x) < 3 && q.y >= o.y - 0.5 && q.y <= o.y + 4); if (sd) { killSoldier(sd); PROJ.splice(i, 1); continue; } }
+    if (q.k === 'b') { const sd = SOLD.find(o => o.alive && o.st !== 'enter' && Math.abs(q.x - o.x) < 4.5 && q.y >= o.y - 0.5 && q.y <= o.y + 8); if (sd) { killSoldier(sd); PROJ.splice(i, 1); continue; } }
     const hit = hitTest(q.x, q.y, q.k === 'b' ? 2.5 : 1.5), tree = hit ? null : hitTree(q.x, q.y), g = gh(q.x), ground = g > 0 && q.y <= g, sea = !ground && q.y <= 0;
     if (!(hit || tree || ground || sea)) { if (q.life <= 0) PROJ.splice(i, 1); continue; }
     if (q.k === 'b') {
       if (hit) { applyDmg(hit, DMG.gun[hit.type]); for (let j = 0; j < 3; j++) FX.push({ k: 'spark', x: q.x, y: q.y, vx: (Math.random() - 0.5) * 18, vy: 3 + Math.random() * 8, life: 0.3, t: 0 }); }
       else if (tree) treeHit(tree, 1);
       else if (sea) FX.push({ k: 'splash', x: q.x, y: 0, vx: 0, vy: 3, life: 0.4, t: 0 });
-      else { dirtBurst(q.x, g, 1); for (const o of SOLD) if (o.alive && Math.abs(o.x - q.x) < 3) killSoldier(o); }
+      else { dirtBurst(q.x, g, 1); for (const o of SOLD) if (o.alive && Math.abs(o.x - q.x) < 4) killSoldier(o); }
     } else explode(q.x, Math.max(q.y, g), q.k === 'm' ? (q.lb >= 1000 ? 44 : 30) : 14, q.k === 'm' ? 'bomb' : 'rocket', sea);
     PROJ.splice(i, 1);
   }
@@ -1263,6 +1263,7 @@ function lsoSmall(c) {
   else if (sig === 'HIGH') { L = PI * 0.75; R = PI * 0.25; }
   else if (sig === 'LOW' || sig === 'UNDER') { L = PI * 1.25; R = -PI * 0.25 + (sig === 'UNDER' ? Math.sin(t * 10) * 0.3 : 0); }
   else if (sig === 'FAST') { L = PI * 1.4; R = -PI * 0.4 + Math.sin(t * 9) * 0.25; }
+  c.save(); c.translate(x, y); c.scale(2.2, 2.2); c.translate(-x, -y);   // 눈에 띄게 2.2배
   c.fillStyle = '#e8ecf0'; c.fillRect(x - 0.55, y, 1.1, 1.9);
   c.fillStyle = '#f2c9a0'; c.beginPath(); c.arc(x, y + 2.45, 0.55, 0, 7); c.fill();
   c.fillStyle = '#d9a441'; c.beginPath(); c.arc(x, y + 2.6, 0.58, PI, 0); c.fill();
@@ -1271,6 +1272,7 @@ function lsoSmall(c) {
     c.strokeStyle = '#e8ecf0'; c.lineWidth = 0.4; c.lineCap = 'round'; c.beginPath(); c.moveTo(ax, ay); c.lineTo(ex, ey); c.stroke(); c.lineCap = 'butt';
     c.fillStyle = '#ff5a3c'; c.beginPath(); c.arc(ex, ey, 0.6, 0, 7); c.fill();
   });
+  c.restore();
 }
 
 function drawShip() {
@@ -1320,12 +1322,14 @@ function drawShip() {
     c.strokeStyle = '#d9dde2'; c.lineWidth = 0.4;
     lsoSmall(c);   // 함교 날개에 선 신호장교
     // 발진 장교와 깃발
-    if (p.mode === 'deck' && !p.landing && p.xr < START_XR + 30) {
-      const fx = START_XR + 16, dn = !p.held;
+    if (((p.mode === 'deck' && !p.landing) || p.mode === 'taxi') && p.xr < START_XR + 30) {
+      const fx = START_XR + 16, dn = p.mode === 'deck' && !p.held;
+      c.save(); c.translate(fx, DECK_Y); c.scale(2.2, 2.2); c.translate(-fx, -DECK_Y);   // 발진 신호수도 2.2배
       c.fillStyle = '#f4d35e'; c.fillRect(fx, DECK_Y, 0.9, 2.2); c.fillStyle = '#f2c9a0'; c.beginPath(); c.arc(fx + 0.45, DECK_Y + 2.8, 0.6, 0, 7); c.fill();
       c.save(); c.translate(fx + 0.9, DECK_Y + 1.8); c.rotate(dn ? -0.5 : 1.1 + Math.sin(G.t * 14) * (p.thr > 0.8 ? 0.3 : 0));
       c.strokeStyle = '#333'; c.lineWidth = 0.18; c.beginPath(); c.moveTo(0, 0); c.lineTo(3, 0); c.stroke();
       for (let i = 0; i < 4; i++) { c.fillStyle = i % 2 ? '#111' : '#fff'; c.fillRect(1.4 + (i % 2) * 0.8, i < 2 ? 0 : 0.8, 0.8, 0.8); }
+      c.restore();
       c.restore();
     }
   });

@@ -513,7 +513,10 @@ function startMission(i) {
   G.m = { t: 0, kills: 0, zeros: 0, ace: false, landings: 0, greens: 0, crashes: 0, wave: 0, hits: [], done: false, obj: false, flag: 0, runwayFirst: false, revived: 0 };
   ENE.length = 0; EB.length = 0; FLAK.length = 0; FX.length = 0; PROJ.length = 0; SOLD.length = 0; G.tick = [];
   ship.x = -500; G.t = 0;
-  const A0 = M.islands.length ? M.islands[0][0] : 0, SC = 1.5; G.isx = x => (M.islands.length && x > A0 ? A0 + (x - A0) * SC : x);   // 섬을 길게
+  // 섬은 1.5배 길게, 섬과 섬 사이 바다는 4.5배 넓게 (원래 배치 좌표를 새 좌표로 옮기는 구간별 직선)
+  const SC = 1.5, GAP = 4.5, BP = [];
+  M.islands.forEach(([a, w], k) => { const na = k === 0 ? a : BP[BP.length - 1][1] + (a - BP[BP.length - 1][0]) * GAP; BP.push([a, na], [a + w, na + w * SC]); });
+  G.isx = x => { if (!BP.length || x <= BP[0][0]) return x; for (let j = 1; j < BP.length; j++) if (x <= BP[j][0]) { const [r0, n0] = BP[j - 1], [r1, n1] = BP[j]; return n0 + (x - r0) / (r1 - r0) * (n1 - n0); } const [rl, nl] = BP[BP.length - 1]; return nl + (x - rl) * SC; };
   ISLANDS = M.islands.map(([a, w, pk], k) => mkIsland(G.isx(a) - OFF, w * SC, pk * 1.15, i * 10 + k + 1));
   makeTargets(M);
   { let nx = 1e9; ISLANDS.forEach(s => nx = Math.min(nx, s.a)); TARGETS.forEach(t => nx = Math.min(nx, t.x - 50)); G.holdX = nx - 1760; }

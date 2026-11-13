@@ -1928,10 +1928,6 @@ function drawShip() {
     c.font = '800 ' + Math.round(8 * cam.z) + 'px Arial, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = 'rgba(240,244,248,0.92)';
     c.fillText('6', sx(ship.x + 237), sy(9.5)); c.textBaseline = 'alphabetic';
   }
-  if (p.mode === 'deck' && !p.landing && p.thr > 0.5) {
-    c.fillStyle = 'rgba(255,255,255,0.35)';
-    for (let i = 0; i < 6; i++) { const k = (G.t * 2.2 + i / 6) % 1; c.beginPath(); c.arc(sx(p.x - 11 - k * 34), sy(DECK_Y + 1.5 + k * 3 + Math.sin(i * 9) * 1.2), (2 + k * 5) * cam.z * 0.5, 0, 7); c.fill(); }
-  }
 }
 
 function drawWorld() {

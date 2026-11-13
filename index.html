@@ -1035,6 +1035,29 @@ function drawZero(c, type) {
   if (type === 'ace') c.fillRect(-8.6, 1, 2.2, 0.6);
   c.fillStyle = 'rgba(220,220,220,0.4)'; c.beginPath(); c.ellipse(7.3, 0, 0.4, 2.6, 0, 0, 7); c.fill();
 }
+// 적기 표시: 화면 안이면 머리 위에 빨간 화살표, 밖이면 화면 가장자리에 방향 화살표와 거리
+function drawEnemyMarks(c) {
+  if (G.scene !== 'play' && G.scene !== 'title') return;
+  c.save(); c.font = '800 12px system-ui,sans-serif'; c.textAlign = 'center';
+  for (const e of ENE) {
+    if (e.dead) continue;
+    const X = sx(e.x), Y = sy(e.y), bomber = e.type === 'd4y' || e.type === 'b6n', col = bomber ? '#ffb020' : '#ff3b30';
+    const m = 26, on = X > m && X < W - m && Y > 70 && Y < H - m;
+    if (on) {
+      const bob = Math.sin(G.t * 6) * 2.5, top = Y - Math.max(16, 10 * cam.z) - 8 + bob;
+      c.fillStyle = col; c.strokeStyle = 'rgba(0,0,0,0.65)'; c.lineWidth = 2;
+      c.beginPath(); c.moveTo(X, top + 10); c.lineTo(X - 8, top); c.lineTo(X - 3, top); c.lineTo(X - 3, top - 7); c.lineTo(X + 3, top - 7); c.lineTo(X + 3, top); c.lineTo(X + 8, top); c.closePath(); c.stroke(); c.fill();
+    } else {
+      const cx = W / 2, cy = H / 2 + 20, a = Math.atan2(Y - cy, X - cx), ca = Math.cos(a), sa = Math.sin(a);
+      const k = Math.min((W / 2 - m) / Math.max(1e-6, Math.abs(ca)), (H / 2 - 60) / Math.max(1e-6, Math.abs(sa))), ex = cx + ca * k, ey = cy + sa * k;
+      c.save(); c.translate(ex, ey); c.rotate(a); c.fillStyle = col; c.strokeStyle = 'rgba(0,0,0,0.65)'; c.lineWidth = 2;
+      c.beginPath(); c.moveTo(12, 0); c.lineTo(-6, -9); c.lineTo(-2, 0); c.lineTo(-6, 9); c.closePath(); c.stroke(); c.fill(); c.restore();
+      const d = Math.hypot(e.x - p.x, e.y - p.y); c.fillStyle = '#fff'; c.lineWidth = 3; c.strokeStyle = 'rgba(0,0,0,0.7)';
+      const tx = ex - ca * 22, ty = ey - sa * 22 + 4, txt = d >= 1000 ? (d / 1000).toFixed(1) + 'km' : Math.round(d) + 'm'; c.strokeText(txt, tx, ty); c.fillText(txt, tx, ty);
+    }
+  }
+  c.restore();
+}
 function drawEnemies(c) {
   const span = W / cam.z;
   for (const e of ENE) {
@@ -1639,6 +1662,7 @@ function drawMiniMap(c) {
 function drawHUD() {
   const c = ctx, kt = p.turn > 0 ? Math.abs(p.v0) * KT : kts(), xr = p.x - ship.x;
   if (G.dark > 0) { c.fillStyle = 'rgba(3,7,18,' + G.dark + ')'; c.fillRect(0, 0, W, H); }
+  drawEnemyMarks(c);
   drawMiniMap(c);
   c.save(); c.translate(0, 24);   // 위쪽 표시판은 지도 아래로
   // 속도, 고도

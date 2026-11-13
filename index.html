@@ -1060,7 +1060,7 @@ function fireRocket() {
   const dx = Math.cos(p.th), dy = Math.sin(p.th); p.ammo.rk--; p.rkT = G.t + 0.25; sfx('rocket');
   PROJ.push({ k: 'r', x: p.x + dx * 8, y: p.y + dy * 8 - 1, vx: p.vx + dx * 130, vy: p.vy + dy * 130, life: 4 });
 }
-const TORP_H = 60, TORP_ANG = 0.17;   // 어뢰를 떨어뜨릴 수 있는 높이(m)와 기울기(약 10도)
+const TORP_H = 40, TORP_ANG = 0.17;   // 어뢰를 떨어뜨릴 수 있는 높이(m)와 기울기(약 10도)
 function fireTorpedo() {   // 어뢰: 물에 떨어진 뒤 수면 아래로 곧게 달려 배 옆구리에 맞는다. 너무 높거나 빠르게 떨어뜨리면 부서진다
   if (gunOn() || p.mode !== 'air' || p.off || p.turn > 0 || !(p.ammo.tp > 0) || G.t < (p.tpT || 0)) return;
   p.ammo.tp--; p.tpT = G.t + 0.8; sfx('bomb');

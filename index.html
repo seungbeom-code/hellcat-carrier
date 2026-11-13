@@ -31,7 +31,7 @@ const TURN_T = 1.6;   // 선회에 걸리는 시간(초)
 const HOOK_BACK = 7.5, CRUISE_KT = 270, SLOW_KT = 105;   // 후크 끝 위치, 손을 뗐을 때 순항 속도, 항모 근처 접근 속도
 const TAKEOFF_KT = 100, TURN_KT = 100;   // 이륙과 선회에 필요한 최소 속도
 const LAND_KT = 125, LAND_SINK = 8, LAND_PITCH = 0.22;   // 착함 허용 한계: 속도, 가라앉는 속도, 기울기
-const CEIL = 500;   // 최고 고도(m)
+const CEIL = 500;   // 지도에서 고도를 그리는 기준(m). 실제 고도 제한은 없고 높이 올라가면 실속한다
 const START_XR = 156, LAUNCH_XR = 156;   // 발진선
 const ELEV_A = 118, ELEV_W = 24, ELEV_C = ELEV_A + ELEV_W / 2, ELEV_DEPTH = 14, TAXI_V = 13;   // 가운데 엘리베이터
 const LOADS = [{ name: '기본', fuel: 100, accel: 1.0, ammo: '기관총 3,000발 + 로켓 30발 + 폭탄 30발', hud: '기관총 3000 · 로켓 30 · 폭탄 30', lines: [] }];   // 무장은 하나로 통일
@@ -61,10 +61,11 @@ function aero(V, alpha) {
   CL = clamp(CL, -CL_MAX, CL_MAX);
   const q = KL * V * V;
   const kd = KD0;
-  const thr = p.fuel > 0 ? p.thr : 0;
-  return { aL: q * CL, aD: kd * V * V + q * CL * CL * 0.06, aT: thr * Math.min(AMAX, PWR / Math.max(V, 1)) };
+  const thr = p.fuel > 0 ? p.thr : 0, dn = airDen();   // 높이 올라갈수록 공기가 희박해 엔진 힘과 날개 양력이 줄어든다
+  return { aL: q * CL * (0.25 + 0.75 * dn), aD: kd * V * V + q * CL * CL * 0.06, aT: thr * dn * Math.min(AMAX, PWR / Math.max(V, 1)) };
 }
-function stallKt() { return Math.sqrt(GRAV / (KL * CL_MAX)) * KT; }
+function airDen() { return clamp(1 - Math.max(0, p.y - 250) / 400, 0.1, 1); }
+function stallKt() { return Math.sqrt(GRAV / (KL * CL_MAX * (0.25 + 0.75 * airDen()))) * KT; }   // 높이 올라갈수록 실속 속도가 올라간다
 
 function airStep(dt) {
   p.prevY = p.y;
@@ -88,8 +89,9 @@ function airStep(dt) {
   if (p.s * Math.cos(g) < -0.3 && Math.abs(p.in) < 0.2) { p.s = -p.s; p.a = -p.a; }   // 뒤집힌 채 놓으면 바로 선다
   const aTrim = clamp((GRAV * 0.985 / (KL * V * V) - CL_BASE) / 5, -0.25, 0.25);   // 키를 안 눌러도 속도에 맞춰 수평에 가깝게 맞춰 준다
   const pg = clamp(Math.pow(60 / V, 1.6), 0.3, 2.0);                                  // 빠를수록 같은 입력에 덜 꺾이게 해서 조작감을 같게 한다
-  const aCmd = p.s * (aTrim + p.in * (p.in > 0 ? 0.3 : 0.24) * pg);
-  p.a += (aCmd - p.a) * Math.min(1, dt * 28);
+  let aCmd = p.s * (aTrim + p.in * (p.in > 0 ? 0.3 : 0.24) * pg);
+  if (V * KT < stallKt()) { aCmd = p.s * -0.12; p.vy -= 6 * dt; }   // 실속: 조종이 듣지 않고 기수가 떨어진다
+  p.a += (aCmd - p.a) * Math.min(1, dt * 9);
   p.th = g + p.a;
   const f = aero(V, p.a), ux = p.vx / V, uy = p.vy / V;
   p.vx += (f.aT * Math.cos(p.th) - f.aD * ux - f.aL * uy) * dt;
@@ -98,17 +100,18 @@ function airStep(dt) {
     const xr = p.x - ship.x, over = xr > 0 && xr < DECK_L && p.y - WH - DECK_Y < 22;   // 갑판 위에 들어서면 조금 더 빨리 내려앉는다
     const app = (p.s > 0 && xr < 0 && xr > -900) || (p.s < 0 && xr > DECK_L && xr < DECK_L + 900), fy = DECK_Y + WH + 5;   // 갑판 쪽으로 다가오는 중
     const hold = p.holdG !== null && p.holdG !== undefined && G.t - p.liftT >= 5;
-    if (hold && p.holdG > 0 && V * KT < stallKt() * 1.15) p.holdG = Math.max(0, p.holdG - 0.3 * dt);   // 너무 느려지면 기수가 서서히 내려간다
+    if (hold && p.holdG > 0 && V * KT < stallKt() * 1.15) { p.holdG -= 0.3 * dt; if (p.holdG <= 0) p.holdG = null; }   // 너무 느려지면 기수가 서서히 내려간다
     let vt = G.t - p.liftT < 5 ? 3 : hold ? Math.tan(p.holdG) * Math.abs(p.vx) : over ? -5 : -2.5;   // 오르거나 내려가던 중에 손을 떼면 그 방향 그대로 부드럽게 난다
     if (hold && (app || over)) vt = Math.max(vt, -(2.5 + Math.max(0, p.y - fy) * 0.25));   // 항모로 내려가던 중 손을 떼면 갑판에 가까울수록 천천히 내려앉는다
     if (app && G.t - p.liftT >= 5 && p.y < fy + 10) vt = clamp((fy - p.y) * 0.8, -2.5, 6);   // 손을 떼고 낮게 다가오면 갑판 높이 바로 위에서 수평을 지켜 선미에 부딪히지 않는다
+    if (V * KT < stallKt()) vt = Math.min(vt, -8);   // 실속: 가라앉는다
     p.vy += (vt - p.vy) * Math.min(1, (over ? 6 : 4) * dt);
     const farC = Math.abs(p.x - ship.x - DECK_L / 2), kV = Math.max(clamp((p.y - 45) / 90, 0, 1), clamp((farC - 500) / 700, 0, 1));   // 항모에서 멀거나 높으면 빠르게, 항모 근처에서 낮게 날 때만 천천히
     const Vt = lerp(SLOW_KT, CRUISE_KT, kV) / KT;   // 손을 떼면 낮을수록 천천히 난다 (바퀴와는 무관)
-    p.vx += Math.sign(p.vx) * clamp((Vt - V) * 1.6, -12, 9) * dt;
+    p.vx += Math.sign(p.vx) * clamp((Vt - V) * 1.6, -12, 9 * airDen()) * dt;
   }
   if (G.t - p.liftT < 4) p.vy = Math.min(p.vy, 1 + (G.t - p.liftT) * 3);
-  if (p.y > CEIL - 120 && p.vy > 0) { p.vy = Math.min(p.vy, Math.max(0, CEIL - p.y) * 0.25); if (p.y > CEIL - 20 && (!G.toast || G.toast.until < G.t)) G.toast = { text: '최고 고도 ' + CEIL + 'm — 더 올라갈 수 없다', grade: 'yellow', until: G.t + 2 }; }   // 최고 고도 제한   // 막 떠오른 뒤에는 서서히 오른다
+  if (p.y > 250 && kts() < stallKt() * 1.08 && (!G.toast || G.toast.until < G.t)) G.toast = { text: '공기가 희박해 실속한다! 기수를 내려 속도를 붙여라', grade: 'yellow', until: G.t + 2.5 };   // 고도 제한 대신 실속
   p.x += p.vx * dt; p.y += p.vy * dt;
 }
 // 수평선에 대한 기수 각도 (어느 쪽을 보고 날든 같은 기준)
@@ -547,19 +550,74 @@ const MISSIONS = [
 ];
 // 별 3개 특별 조건 설명 (작전 순서대로)
 const BONUS_TXT = ['완벽(초록) 착함 1번', '일본군이 부서진 벙커·대공포를 되살리지 못하게', '일본군이 부서진 벙커·대공포를 되살리지 못하게', '에이스 격추', '일본군이 부서진 벙커·대공포를 되살리지 못하게', '항모 내구도 80% 이상', '연료 10% 이상 남기고 귀환', '일본군이 부서진 벙커·대공포를 되살리지 못하게', '일본군이 부서진 벙커·대공포를 되살리지 못하게', '항모 내구도 60% 이상'];
+// ───────── 끝없는 작전: 레벨마다 무작위로 새로 만들고, 레벨이 오를수록 어려워진다 ─────────
+const PLACES = ['마주로', '콰잘레인', '에니웨톡', '트럭', '사이판', '티니안', '괌', '펠렐리우', '앙가우르', '이오', '부겐빌', '타라와', '마킨', '라바울', '팔라우', '야프', '웨이크', '미드웨이', '솔로몬', '길버트', '마셜', '캐롤라인', '마리아나', '보닌', '로타', '울리시'];
+const OPS = ['폭풍', '번개', '망치', '창', '파도', '독수리', '매', '불꽃', '새벽', '천둥', '방패', '화살', '바람', '별', '닻', '갈매기', '산호', '태풍'];
+const TINT_KO = { day: '낮', dawn: '새벽', dusk: '저녁', night: '밤' };
+const mLabel = M => M.gen ? '작전 ' + M.lvl + ' — ' + M.name : (G.mi + 1) + '. ' + M.name;
+function rngOf(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+function genMission(L, seed) {
+  const R = rngOf(seed), pick = a => a[Math.floor(R() * a.length)], ri = (a, b) => a + Math.floor(R() * (b - a + 1));
+  let goal = 'capture';
+  if (L >= 2) { const r = R(); goal = r < 0.55 ? 'capture' : r < 0.7 ? 'air' : r < 0.85 ? 'fleet' : L >= 3 ? 'defend' : 'capture'; }
+  const tint = L < 3 ? 'day' : pick(L >= 5 ? ['day', 'day', 'dawn', 'dusk', 'night'] : ['day', 'day', 'dawn', 'dusk']);
+  const place = pick(PLACES), M = { gen: true, lvl: L, seed, name: place + ' ' + pick(OPS) + ' 작전', place, tint, goal, islands: [], waves: [] };
+  const fighters = () => { const l = []; for (let k = 0, n = Math.min(7, 2 + Math.floor(L / 3) + ri(0, 1)); k < n; k++) l.push(L >= 7 && R() < 0.2 ? 'n1k' : L >= 4 && R() < 0.15 ? 'ace' : ZR); return l; };
+  const nW = goal === 'defend' ? Math.min(6, 2 + Math.floor(L / 3)) : L === 1 ? 0 : Math.min(6, 1 + Math.floor(L / 2));
+  for (let k = 0; k < nW; k++) {
+    if (goal === 'defend') { const l = []; for (let j = 0, nb = Math.min(8, 2 + Math.floor(L / 2) + ri(0, 1)); j < nb; j++) l.push(R() < 0.5 ? 'd4y' : 'b6n'); M.waves.push({ t: 25 + k * 70, l: l.concat(fighters().slice(0, ri(1, 3))) }); }
+    else M.waves.push({ t: 40 + k * 95 + ri(0, 20), l: fighters() });
+  }
+  if (goal === 'capture' || goal === 'air') {
+    const n = goal === 'air' ? ri(2, Math.min(4, 2 + Math.floor(L / 3))) : ri(1, Math.min(4, 1 + Math.floor(L / 3))), pBig = clamp(0.15 + L * 0.05, 0.15, 0.6);
+    let x = 6000; for (let k = 0; k < n; k++) { const big = goal === 'air' ? k % 2 === 0 : L >= 3 && R() < pBig; M.islands.push([x, big ? 1700 : 1000, 20]); x += (big ? 1700 : 1000) + 300; }
+    const extra = [];
+    M.islands.forEach(([a, w], k) => {
+      const big = w >= 1500;
+      for (let j = 0, na = Math.min(big ? 7 : 4, (big ? 2 : 1) + Math.floor(L / (big ? 2.5 : 3.5)) + ri(0, 1)); j < na; j++) extra.push(['aa', k, 0.2 + R() * 0.6]);
+      if (R() < 0.5) extra.push(['radar', k, 0.3 + R() * 0.4]);
+      if (R() < 0.6) extra.push(['fuel', k, 0.3 + R() * 0.4]);
+      if (big && L >= 4) for (let j = 0, nt = ri(0, Math.min(4, Math.floor(L / 3))); j < nt; j++) extra.push(['tank', k, 0.2 + R() * 0.6]);
+      if (big && L >= 6 && R() < 0.5) for (let j = 0, nc = ri(2, 4); j < nc; j++) extra.push(['cave', k, 0.15 + R() * 0.7]);
+    });
+    const boats = []; for (let j = 0, nb = ri(0, 2 + Math.floor(L / 4)); j < nb; j++) boats.push(5300 + R() * 600);
+    M.build = (add, P) => { extra.forEach(([ty, k, f]) => add(ty, P(k, f))); boats.forEach(bx => add('boat', bx)); };
+    const nBig = M.islands.filter(q => q[1] >= 1500).length;
+    M.isl = '작은 섬 ' + (n - nBig) + ' · 큰 섬 ' + nBig;
+    if (goal === 'air') { M.kind = '기지 무력화'; M.zeroN = 5 + L; M.brief = '제로센 ' + M.zeroN + '기를 격추하고 큰 섬의 비행장을 모두 부순다'; }
+    else { M.kind = '섬 점령'; M.brief = (n > 1 ? '섬 ' + n + '곳의' : '섬의') + ' 건물과 일본군을 모두 없애 항복을 받는다'; }
+    M.bonus = m => !m.revived; M.bonusTxt = '일본군이 부서진 벙커·대공포를 되살리지 못하게';
+  } else if (goal === 'fleet') {
+    const main = []; if (L >= 3 && R() < 0.7) main.push('cv'); if (L >= 5 && R() < 0.6) main.push('bb'); if (!main.length) main.push('tr');
+    const ships = []; let x = 6900;
+    for (let j = 0, nm = main[0] === 'tr' && main.length === 1 ? ri(2, 3) : ri(1, Math.min(4, 1 + Math.floor(L / 4))); j < nm; j++) { ships.push([pick(main), x]); x += 700; }
+    for (let j = 0, nd = ri(1, Math.min(4, 1 + Math.floor(L / 3))); j < nd; j++) ships.push(['dd', 7250 + j * 700]);
+    M.fleet = [...new Set(ships.filter(q => q[0] !== 'dd').map(q => q[0]))]; M.landAfter = true;
+    M.build = add => ships.forEach(([ty, sx]) => add(ty, sx));
+    M.kind = '함대 공격'; M.isl = '적 함정 ' + ships.length + '척'; M.brief = '적 ' + M.fleet.map(t => ({ cv: '항모', bb: '전함', tr: '수송선' })[t]).join('·') + '을 모두 침몰시킨다';
+    M.bonus = () => p.fuel >= 10; M.bonusTxt = '연료 10% 이상 남기고 귀환';
+  } else {
+    M.build = () => {}; M.kind = '함대 방어'; M.isl = '공습 ' + nW + '번'; M.brief = '날아오는 폭격기와 뇌격기를 막아 항모를 지킨다';
+    M.bonus = () => G.carrierHp >= 70; M.bonusTxt = '항모 내구도 70% 이상';
+  }
+  return M;
+}
+const newSeed = () => (Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0;
+function nextMission() { if (!G.next || G.next.lvl !== G.save.lvl) G.next = genMission(G.save.lvl, newSeed()); return G.next; }
+function launchLevel(L) { G.save.lvl = L; G.next = genMission(L, newSeed()); startMission(G.next); }
 const GOALS = {
   train: m => m.landings >= 1 && m.kills >= 3,
   capture: () => ISLANDS.length > 0 && ISLANDS.every(s => s.cleared) && G.t - Math.max(...ISLANDS.map(s => s.clearT)) > 3 && !(G.tick && G.tick.length),   // 속보가 다 지나간 뒤 끝낸다
-  air: m => m.zeros >= 12 && !TARGETS.some(t => t.type === 'runway' && t.alive),
+  air: (m, M) => m.zeros >= (M.zeroN || 12) && !TARGETS.some(t => t.type === 'runway' && t.alive),
   defend: (m, M) => m.wave >= M.waves.length && !(m.queue && m.queue.length) && !ENE.some(e => !e.dead && (e.type === 'd4y' || e.type === 'b6n')),
   fleet: (m, M) => !TARGETS.some(t => M.fleet.includes(t.type) && t.alive)
 };
-function loadSave() { try { const v = JSON.parse(localStorage.getItem('hellcat-save')); if (v && Array.isArray(v.stars)) return v; } catch (_) {} return { stars: Array(10).fill(0) }; }
+function loadSave() { let v = null; try { v = JSON.parse(localStorage.getItem('hellcat-save')); } catch (_) {} if (!v || !Array.isArray(v.stars)) v = { stars: Array(10).fill(0) }; v.lvl = v.lvl || 1; v.best = v.best || 0; v.sum = v.sum || 0; return v; }
 function saveProg() { try { localStorage.setItem('hellcat-save', JSON.stringify(G.save)); } catch (_) {} }
 const unlocked = i => i === 0 || (G.save.stars[i - 1] || 0) > 0;
-const rankOf = n => n < 3 ? '소위' : n < 8 ? '중위' : n < 15 ? '대위' : '소령';
+const rankOf = n => n < 3 ? '소위' : n < 6 ? '중위' : n < 10 ? '대위' : n < 15 ? '소령' : n < 20 ? '중령' : n < 30 ? '대령' : '제독';   // 깬 최고 레벨로 정하는 계급
 function startMission(i) {
-  const M = MISSIONS[i]; G.mi = i; G.scene = 'play'; G.res = null; G.lives = 3; G.carrierHp = 100; G.land = null; G.dark = 0;
+  const M = typeof i === 'number' ? MISSIONS[i] : i; G.cur = M; G.mi = typeof i === 'number' ? i : -1; G.scene = 'play'; G.res = null; G.lives = 3; G.carrierHp = 100; G.land = null; G.dark = 0;
   G.m = { t: 0, kills: 0, zeros: 0, ace: false, landings: 0, greens: 0, crashes: 0, wave: 0, hits: [], done: false, obj: false, flag: 0, runwayFirst: false, revived: 0 };
   ENE.length = 0; EB.length = 0; FLAK.length = 0; FX.length = 0; PROJ.length = 0; SOLD.length = 0; SHELL.length = 0; G.tick = [];
   ship.x = -500; G.t = 0;
@@ -568,7 +626,7 @@ function startMission(i) {
   const ISW = w => (w >= 1500 ? BIG_W : SMALL_W);   // 섬 크기는 두 가지뿐
   M.islands.forEach(([a, w], k) => { const na = k === 0 ? a : BP[BP.length - 1][1] + (a - BP[BP.length - 1][0]) * GAP; BP.push([a, na], [a + w, na + ISW(w)]); });
   G.isx = x => { if (!BP.length || x <= BP[0][0]) return x; for (let j = 1; j < BP.length; j++) if (x <= BP[j][0]) { const [r0, n0] = BP[j - 1], [r1, n1] = BP[j]; return n0 + (x - r0) / (r1 - r0) * (n1 - n0); } const [rl, nl] = BP[BP.length - 1]; return nl + (x - rl) * SC; };
-  ISLANDS = M.islands.map(([a, w, pk], k) => { const big = w >= 1500, q = mkIsland(G.isx(a) - OFF, ISW(w), (big ? 38 : 20) * 1.15, i * 10 + k + 1); q.big = big; return q; });
+  ISLANDS = M.islands.map(([a, w, pk], k) => { const big = w >= 1500, q = mkIsland(G.isx(a) - OFF, ISW(w), (big ? 38 : 20) * 1.15, (M.seed ? M.seed % 9973 : i * 10) + k + 1); q.big = big; return q; });
   makeTargets(M);
   { let nx = 1e9; ISLANDS.forEach(s => nx = Math.min(nx, s.a)); TARGETS.forEach(t => nx = Math.min(nx, t.x - 50)); G.holdX = nx - 880; if (nx < 1e8) ship.x = Math.min(G.holdX, nx - (nx + 500) / 2); }   // 항모와 섬(첫 표적) 사이를 전의 반으로
   {   // 전체 지도의 범위: 작전 동안 항모가 갈 수 있는 곳, 섬, 배, 적기가 나타나는 곳까지 모두 (작전 중에는 바뀌지 않는다)
@@ -578,7 +636,7 @@ function startMission(i) {
     G.map = { a: a - 200, b: b + 300 };
   }
   reset();
-  G.toast = { text: (i + 1) + '. ' + M.name + ' — ' + M.brief, grade: 'green', until: G.t + 7 };
+  G.toast = { text: mLabel(M) + ' — ' + M.brief, grade: 'green', until: G.t + 7 };
 }
 function goMenu() { const fromTitle = G.scene === 'title'; G.scene = 'menu'; G.sel = fromTitle ? 0 : (G.mi || 0); G.menuMsg = ''; G.demoFire = false; for (const k in keys) keys[k] = false; }
 function tryStart(i) { if (unlocked(i)) startMission(i); else G.menuMsg = '이전 작전을 먼저 완료해야 한다'; }
@@ -587,7 +645,7 @@ function endMission(win, why) {
   if (G.scene === 'title') return;
   const m = G.m; if (!m || m.done) return; m.done = true;
   let stars = 0;
-  if (win) { stars = 1 + (G.lives >= 2 ? 1 : 0) + (G.lives === 3 && MISSIONS[G.mi].bonus(m) ? 1 : 0); G.save.stars[G.mi] = Math.max(G.save.stars[G.mi] || 0, stars); saveProg(); }
+  if (win) { stars = 1 + (G.lives >= 2 ? 1 : 0) + (G.lives === 3 && G.cur.bonus(m) ? 1 : 0); if (G.cur.gen) { G.save.lvl = Math.max(G.save.lvl, G.cur.lvl + 1); G.save.best = Math.max(G.save.best, G.cur.lvl); G.save.sum += stars; G.next = null; } else G.save.stars[G.mi] = Math.max(G.save.stars[G.mi] || 0, stars); saveProg(); }
   G.res = { win, why: why || '', stars }; G.scene = 'result';
 }
 function makeTargets(M) {
@@ -620,11 +678,11 @@ function makeTargets(M) {
   ISLANDS.forEach(s => { for (let x = s.a + 50; x < s.b - 50; x += 34) { const h = Math.abs(Math.sin(x * 12.9898) * 43758.5453) % 1, r = 3 + h * 2.5, tx = x + h * 10; if (s.flat && tx > s.flat.a - 8 && tx < s.flat.b + 8) continue; TREES.push({ x: tx, y: gh(tx), r, hp: 3, hp0: 3, alive: true, kind: h < 0.55 ? 'palm' : 'broad', H: h < 0.55 ? 10 + r * 1.6 : 7 + r * 1.3, lean: h < 0.55 ? (Math.abs(Math.sin(x * 78.233) * 12345.678) % 1 - 0.5) * 0.45 : 0 }); } });
 }
 const isOpen = t => ((G.t + t.x * 0.37) % 9) < 4;   // 동굴 포대 문이 열린 때
-function defPct() { const M = MISSIONS[G.mi]; let tot = 0, al = 0; for (const t of TARGETS) if (DEF_W[t.type] && t.isl === M.cap) { tot += DEF_W[t.type]; if (t.alive) al += DEF_W[t.type]; } return tot ? al / tot * 100 : 0; }
+function defPct() { const M = G.cur; let tot = 0, al = 0; for (const t of TARGETS) if (DEF_W[t.type] && t.isl === M.cap) { tot += DEF_W[t.type]; if (t.alive) al += DEF_W[t.type]; } return tot ? al / tot * 100 : 0; }
 function landBtnOn() { return false; }   // 상륙 단계 대신 섬의 일본군을 모두 소탕하면 탈환
 function startLanding() {
   if (!landBtnOn()) return;
-  const M = MISSIONS[G.mi]; G.land = { prog: 0, str: 100, tk: 3, tn: 0 }; G.m.runwayFirst = !TARGETS.some(t => t.type === 'runway' && t.alive);
+  const M = G.cur; G.land = { prog: 0, str: 100, tk: 3, tn: 0 }; G.m.runwayFirst = !TARGETS.some(t => t.type === 'runway' && t.alive);
   if (M.landWaves) spawnWave(M.landWaves);
   sfx('flag'); G.toast = { text: '상륙 개시! 해병이 해안으로 향한다', grade: 'green', until: G.t + 4 };
 }
@@ -684,7 +742,7 @@ function islandStep() {   // 섬의 모든 건물과 일본군이 없어져야 �
     if (s.cleared) return;
     if (TARGETS.some(t => t.isl === k && (t.alive || t.inside > 0) && !SHIPS[t.type]) || SOLD.some(o => o.alive && o.isl === k)) return;
     s.cleared = true; s.clearT = G.t;
-    const nm = MISSIONS[G.mi].place + (ISLANDS.length > 1 ? ' 제' + (k + 1) + '섬' : '');
+    const nm = G.cur.place + (ISLANDS.length > 1 ? ' 제' + (k + 1) + '섬' : '');
     (G.tick = G.tick || []).push({ text: nm + ' 탈환 — 일본군이 항복하고 백기를 올렸다' });
     sfx('green');
   });
@@ -706,7 +764,7 @@ function drawSoldiers(c) {
   }
 }
 function missionStep(dt) {
-  const M = MISSIONS[G.mi], m = G.m; if (!m || m.done) return;
+  const M = G.cur, m = G.m; if (!m || m.done) return;
   m.t += dt;
   while (m.wave < M.waves.length && m.t >= M.waves[m.wave].t) spawnWave(M.waves[m.wave++].l);
   if (m.queue && m.queue.length) {
@@ -951,10 +1009,10 @@ function stepProj(dt) {
 }
 function focusX() { let b = null; for (const t of TARGETS) if (t.alive && (!b || Math.abs(t.x - p.x) < Math.abs(b.x - p.x))) b = t; return b ? b.x : ship.x + 130; }
 function missionLines() {
-  const M = MISSIONS[G.mi], m = G.m, out = [], rw = TARGETS.filter(t => t.type === 'runway');
+  const M = G.cur, m = G.m, out = [], rw = TARGETS.filter(t => t.type === 'runway');
   if (M.goal === 'train') out.push('착함 ' + Math.min(1, m.landings) + '/1 · 표적 ' + Math.min(3, m.kills) + '/3');
   else if (M.goal === 'capture') out.push('탈환 ' + ISLANDS.filter(q => q.cleared).length + '/' + ISLANDS.length + '섬 · 일본군 ' + SOLD.filter(o => o.alive).length + '명 · 시설 ' + TARGETS.filter(t => t.alive && t.isl >= 0 && !SHIPS[t.type]).length + '곳');
-  else if (M.goal === 'air') out.push('격추 ' + m.zeros + '/12 · 비행장 ' + rw.filter(t => !t.alive).length + '/' + rw.length);
+  else if (M.goal === 'air') out.push('격추 ' + m.zeros + '/' + (M.zeroN || 12) + ' · 비행장 ' + rw.filter(t => !t.alive).length + '/' + rw.length);
   else if (M.goal === 'defend') out.push('공습 ' + Math.min(m.wave, M.waves.length) + '/' + M.waves.length + ' · 항모 ' + Math.round(G.carrierHp) + '%');
   else { const fl = TARGETS.filter(t => M.fleet.includes(t.type)); out.push('적 주력함 ' + fl.filter(t => !t.alive).length + '/' + fl.length); }
   if (m.obj) out.push('임무 달성 — 항모로 귀환해 엘리베이터로 내려가라');
@@ -1169,7 +1227,7 @@ function drawTargets(c) {
   }
 }
 function drawLanding(c) {
-  const M = G.m && MISSIONS[G.mi]; if (!M || M.goal !== 'capture' || !(G.land || G.m.flag)) return;
+  const M = G.m && G.cur; if (!M || M.goal !== 'capture' || !(G.land || G.m.flag)) return;
   const s = ISLANDS[M.cap], cx = (s.a + s.b) / 2;
   world(0, 0, () => {
     const L = G.land;
@@ -1294,54 +1352,60 @@ function drawTitle() {
 }
 
 // 작전 선택 화면과 결과 화면
-const MENU_CARDS = MISSIONS.map((_, i) => ({ x: 60 + (i % 2) * 430, y: 112 + Math.floor(i / 2) * 68, w: 410, h: 60 }));
+const MENU_GO = { x: 300, y: 372, w: 360, h: 58 }, MENU_RE = { x: 300, y: 442, w: 175, h: 44 }, MENU_R1 = { x: 485, y: 442, w: 175, h: 44 };
 const RES_BTN = [{ x: 240, y: 380, w: 230, h: 50 }, { x: 490, y: 380, w: 230, h: 50 }];
 function sceneKey(e) {
   if (G.scene === 'title') { goMenu(); return; }
   if (G.scene === 'menu' && e.code === 'Escape') { startDemo(); return; }
   if (G.scene === 'menu') {
     G.menuMsg = '';
-    if (e.code === 'ArrowRight') G.sel = Math.min(9, G.sel + 1); else if (e.code === 'ArrowLeft') G.sel = Math.max(0, G.sel - 1);
-    else if (e.code === 'ArrowDown') G.sel = Math.min(9, G.sel + 2); else if (e.code === 'ArrowUp') G.sel = Math.max(0, G.sel - 2);
-    else if (e.code === 'Enter' || e.code === 'Space') tryStart(G.sel);
+    if (e.code === 'Enter' || e.code === 'Space') startMission(nextMission());
+    else if (e.code === 'KeyR') G.next = genMission(G.save.lvl, newSeed());   // 같은 레벨, 다른 작전
+    else if (e.code === 'Digit1') { G.save.lvl = 1; G.next = null; saveProg(); }
   } else if (G.scene === 'result') {
     if (e.code === 'Enter' || e.code === 'Escape') goMenu();
-    else if (e.code === 'KeyN' && G.res.win && G.mi < 9) tryStart(G.mi + 1);
+    else if (e.code === 'KeyN' || e.code === 'Space') resultGo();
   }
+}
+function resultGo() {   // 이기면 다음 레벨, 지면 같은 레벨을 새 지도로
+  if (!G.cur.gen) { startMission(G.mi); return; }
+  launchLevel(G.res.win ? G.cur.lvl + 1 : G.cur.lvl);
 }
 function sceneTap(m) {
   if (G.scene === 'title') { goMenu(); return; }
-  if (G.scene === 'menu') { MENU_CARDS.forEach((r, i) => { if (inR(m, r)) { G.sel = i; tryStart(i); } }); }
-  else if (G.scene === 'result') { if (inR(m, RES_BTN[0])) goMenu(); else if (inR(m, RES_BTN[1])) { if (G.res.win && G.mi < 9) tryStart(G.mi + 1); else startMission(G.mi); } }
+  if (G.scene === 'menu') { if (inR(m, MENU_GO)) startMission(nextMission()); else if (inR(m, MENU_RE)) G.next = genMission(G.save.lvl, newSeed()); else if (inR(m, MENU_R1)) { G.save.lvl = 1; G.next = null; saveProg(); } }
+  else if (G.scene === 'result') { if (inR(m, RES_BTN[0])) goMenu(); else if (inR(m, RES_BTN[1])) resultGo(); }
 }
 function drawScene() {
   if (G.scene === 'title') return drawTitle();
   const c = ctx; c.fillStyle = 'rgba(6,14,26,0.88)'; c.fillRect(0, 0, W, H); c.textAlign = 'left';
   if (G.scene === 'menu') {
-    const tot = G.save.stars.reduce((a, b) => a + (b || 0), 0);
+    const N = nextMission(), card = (r, fill, line) => { c.fillStyle = fill; c.beginPath(); c.roundRect(r.x, r.y, r.w, r.h, 12); c.fill(); if (line) { c.strokeStyle = line; c.lineWidth = 2; c.stroke(); } };
+    const tip = G.menuMsg || '임무를 마치면 항모로 돌아와 엘리베이터로 내려가야 끝난다 · 이기면 다음 레벨, 지면 같은 레벨을 새 지도로 · Esc: 첫 화면';
     c.fillStyle = '#fff'; c.font = '800 28px system-ui,sans-serif'; c.fillText('태평양의 푸른날개 1942', 60, 58);
-    c.fillStyle = '#ffd23f'; c.font = '700 15px system-ui,sans-serif'; c.fillText('계급 ' + rankOf(tot) + ' · 별 ' + tot + '/30', 62, 84);
-    MISSIONS.forEach((M, i) => {
-      const r = MENU_CARDS[i], lock = !unlocked(i), sel = i === G.sel, st = G.save.stars[i] || 0;
-      c.fillStyle = sel ? 'rgba(255,210,63,0.16)' : 'rgba(30,44,62,0.85)'; c.beginPath(); c.roundRect(r.x, r.y, r.w, r.h, 10); c.fill();
-      c.strokeStyle = sel ? '#ffd23f' : '#3e5068'; c.lineWidth = sel ? 3 : 1.5; c.stroke();
-      c.textAlign = 'left'; c.fillStyle = lock ? '#6b7a8c' : '#fff'; c.font = '800 17px system-ui,sans-serif'; c.fillText((i + 1) + '. ' + M.name, r.x + 14, r.y + 25);
-      c.fillStyle = lock ? '#56657a' : '#b9c7d8'; c.font = '600 12px system-ui,sans-serif'; c.fillText(M.date + ' · ' + M.place + ' · ' + M.kind, r.x + 14, r.y + 46);
-      c.textAlign = 'right'; c.fillStyle = lock ? '#6b7a8c' : '#ffd23f'; c.font = '800 16px system-ui,sans-serif'; c.fillText(lock ? '잠김' : '★'.repeat(st) + '☆'.repeat(3 - st), r.x + r.w - 14, r.y + 36);
-    });
-    c.textAlign = 'left'; c.fillStyle = '#dbe4ee'; { const mt = (G.sel + 1) + '번 임무: ' + MISSIONS[G.sel].brief + '  (★3: ' + BONUS_TXT[G.sel] + ')'; fitFont(c, mt, 14, '600', 840); } c.fillText((G.sel + 1) + '번 임무: ' + MISSIONS[G.sel].brief + '  (★3: ' + BONUS_TXT[G.sel] + ')', 60, 490);
-    c.fillStyle = G.menuMsg ? '#ff9a7a' : '#9fb0c4'; fitFont(c, G.menuMsg || '방향키로 고르고 Enter, 또는 카드를 눌러 출격 · 임무를 마치면 항모로 돌아와 엘리베이터로 내려가야 끝난다 · Esc: 작전 선택', 12, '600', 840); c.fillText(G.menuMsg || '방향키로 고르고 Enter, 또는 카드를 눌러 출격 · 임무를 마치면 항모로 돌아와 엘리베이터로 내려가야 끝난다 · Esc: 작전 선택', 60, 514);
+    c.fillStyle = '#ffd23f'; c.font = '700 15px system-ui,sans-serif'; c.fillText('계급 ' + rankOf(G.save.best) + ' · 최고 기록 작전 ' + G.save.best + ' · 모은 별 ' + G.save.sum, 62, 84);
+    card({ x: 160, y: 108, w: 640, h: 248 }, 'rgba(30,44,62,0.92)', '#ffd23f');
+    c.textAlign = 'center'; c.fillStyle = '#ffd23f'; c.font = '900 34px system-ui,sans-serif'; c.fillText('작전 ' + N.lvl, 480, 154);
+    c.fillStyle = '#fff'; c.font = '800 22px system-ui,sans-serif'; c.fillText(N.name, 480, 190);
+    c.fillStyle = '#b9c7d8'; c.font = '600 15px system-ui,sans-serif'; c.fillText(N.kind + ' · ' + TINT_KO[N.tint] + ' · ' + N.isl + ' · 적기 ' + N.waves.reduce((q, w) => q + w.l.length, 0) + '기', 480, 222);
+    c.fillStyle = '#e6edf5'; fitFont(c, N.brief, 17, '700', 600); c.fillText(N.brief, 480, 262);
+    c.fillStyle = '#ffd23f'; fitFont(c, '★3 조건: 항공기를 잃지 않고 ' + N.bonusTxt, 14, '600', 600); c.fillText('★3 조건: 항공기를 잃지 않고 ' + N.bonusTxt, 480, 292);
+    c.fillStyle = '#9fb0c4'; c.font = '600 13px system-ui,sans-serif'; c.fillText('레벨이 오를수록 섬·대공포·적기가 늘어난다 · 매번 새로 만들어지는 작전', 480, 330);
+    card(MENU_GO, 'rgba(52,150,84,0.95)'); c.fillStyle = '#fff'; c.font = '800 20px system-ui,sans-serif'; c.fillText('출격 (Enter)', 480, MENU_GO.y + 37);
+    card(MENU_RE, 'rgba(70,82,98,0.95)'); c.font = '700 15px system-ui,sans-serif'; c.fillStyle = '#fff'; c.fillText('다른 작전 (R)', MENU_RE.x + MENU_RE.w / 2, MENU_RE.y + 28);
+    card(MENU_R1, 'rgba(70,82,98,0.95)'); c.fillStyle = '#fff'; c.fillText('작전 1부터 (1)', MENU_R1.x + MENU_R1.w / 2, MENU_R1.y + 28);
+    c.textAlign = 'left'; c.fillStyle = G.menuMsg ? '#ff9a7a' : '#9fb0c4'; fitFont(c, tip, 12, '600', 840); c.fillText(tip, 60, 514);
   } else if (G.scene === 'result') {
-    const R = G.res, m = G.m, M = MISSIONS[G.mi];
+    const R = G.res, m = G.m, M = G.cur;
     c.fillStyle = 'rgba(30,44,62,0.98)'; c.beginPath(); c.roundRect(200, 90, 560, 360, 16); c.fill(); c.strokeStyle = R.win ? '#59d37a' : '#ff5a3c'; c.lineWidth = 3; c.stroke();
     c.textAlign = 'center'; c.fillStyle = R.win ? '#8df0a8' : '#ff8a73'; c.font = '800 30px system-ui,sans-serif'; c.fillText(R.win ? '작전 성공' : '작전 실패', 480, 140);
-    c.fillStyle = '#fff'; c.font = '700 18px system-ui,sans-serif'; c.fillText((G.mi + 1) + '. ' + M.name, 480, 174);
+    c.fillStyle = '#fff'; c.font = '700 18px system-ui,sans-serif'; c.fillText(mLabel(M), 480, 174);
     if (!R.win) { c.fillStyle = '#ffb4a2'; c.font = '600 15px system-ui,sans-serif'; c.fillText(R.why, 480, 208); }
     else { c.fillStyle = '#ffd23f'; c.font = '800 34px system-ui,sans-serif'; c.fillText('★'.repeat(R.stars) + '☆'.repeat(3 - R.stars), 480, 226); }
     c.fillStyle = '#c9d4de'; c.font = '600 14px system-ui,sans-serif';
     c.fillText('격추 ' + m.zeros + ' · 표적 격파 ' + m.kills + ' · 착함 ' + m.landings + '회 · 잃은 항공기 ' + (3 - G.lives), 480, 280);
-    fitFont(c, '별 1개: 완료 · 별 2개: 항공기 1대 이하로 잃음 · 별 3개: 잃지 않고 ' + BONUS_TXT[G.mi], 12, '600', 440); c.fillText('별 1개: 완료 · 별 2개: 항공기 1대 이하로 잃음 · 별 3개: 잃지 않고 ' + BONUS_TXT[G.mi], 480, 308);
-    RES_BTN.forEach((r, i) => { c.fillStyle = i ? 'rgba(52,150,84,0.95)' : 'rgba(70,82,98,0.95)'; c.beginPath(); c.roundRect(r.x, r.y, r.w, r.h, 12); c.fill(); c.fillStyle = '#fff'; c.font = '800 16px system-ui,sans-serif'; c.fillText(i ? (R.win && G.mi < 9 ? '다음 작전 (N)' : '다시 도전') : '작전 선택 (Enter)', r.x + r.w / 2, r.y + 31); });
+    fitFont(c, '별 1개: 완료 · 별 2개: 항공기 1대 이하로 잃음 · 별 3개: 잃지 않고 ' + (G.cur.bonusTxt || BONUS_TXT[G.mi]), 12, '600', 440); c.fillText('별 1개: 완료 · 별 2개: 항공기 1대 이하로 잃음 · 별 3개: 잃지 않고 ' + (G.cur.bonusTxt || BONUS_TXT[G.mi]), 480, 308);
+    RES_BTN.forEach((r, i) => { c.fillStyle = i ? 'rgba(52,150,84,0.95)' : 'rgba(70,82,98,0.95)'; c.beginPath(); c.roundRect(r.x, r.y, r.w, r.h, 12); c.fill(); c.fillStyle = '#fff'; c.font = '800 16px system-ui,sans-serif'; c.fillText(i ? (R.win ? '다음 작전 ' + (M.gen ? M.lvl + 1 : '') + ' (N)' : '다시 도전 (새 지도)') : '작전 선택 (Enter)', r.x + r.w / 2, r.y + 31); });
   }
   c.textAlign = 'left';
 }
@@ -1397,7 +1461,7 @@ function readKeys(dt) {
   ctl.up = !!keys.ArrowUp || touch.on.up > 0; ctl.down = !!keys.ArrowDown || touch.on.down > 0;
   ctl.left = !!keys.ArrowLeft || touch.on.left > 0; ctl.right = !!keys.ArrowRight || touch.on.right > 0;
   const tgt = ctl.up ? 1 : ctl.down ? -1 : 0;
-  keyIn += (tgt - keyIn) * Math.min(1, dt * 40);
+  keyIn += (tgt - keyIn) * Math.min(1, dt * 9);   // 키 입력을 부드럽게 (기수가 덜컥거리지 않게)
   p.in = keyIn;
   const rev = p.s > 0 ? ctl.left : ctl.right;
   if (rev && !prevRev) startTurn();
@@ -1737,10 +1801,10 @@ function drawShip() {
 
 function drawWorld() {
   const c = ctx, seaY = sy(0);
-  const sky = c.createLinearGradient(0, 0, 0, H); const tn = TINTS[G.m ? MISSIONS[G.mi].tint : 'day']; sky.addColorStop(0, tn[0]); sky.addColorStop(1, tn[1]);
+  const sky = c.createLinearGradient(0, 0, 0, H); const tn = TINTS[G.m ? G.cur.tint : 'day']; sky.addColorStop(0, tn[0]); sky.addColorStop(1, tn[1]);
   c.fillStyle = sky; c.fillRect(0, 0, W, H);
   // 구름은 없앴다
-  const SEA = { day: ['#1f8fa8', '#0e4f73'], dawn: ['#3a6f93', '#173d5c'], dusk: ['#2f6386', '#14324f'], night: ['#123352', '#06172a'] }[G.m ? MISSIONS[G.mi].tint : 'day'] || ['#1f8fa8', '#0e4f73'];   // 시간대에 맞는 바다 색
+  const SEA = { day: ['#1f8fa8', '#0e4f73'], dawn: ['#3a6f93', '#173d5c'], dusk: ['#2f6386', '#14324f'], night: ['#123352', '#06172a'] }[G.m ? G.cur.tint : 'day'] || ['#1f8fa8', '#0e4f73'];   // 시간대에 맞는 바다 색
   const sea = c.createLinearGradient(0, seaY, 0, H); sea.addColorStop(0, SEA[0]); sea.addColorStop(1, SEA[1]);
   c.fillStyle = sea; c.fillRect(0, seaY, W, Math.max(0, H - seaY));
   c.strokeStyle = 'rgba(255,255,255,0.35)'; c.lineWidth = 2;   // 물결
@@ -1828,6 +1892,7 @@ function drawMiniMap(c) {
   ISLANDS.forEach(s => { c.fillStyle = s.cleared ? '#ffffff' : '#e03030'; c.fillRect(mx(s.fx) - 1.5, base - gh(s.fx) * vf - 8, 3, 4); });   // 섬의 깃발
   TARGETS.forEach(t => { if (t.alive) { c.fillStyle = '#ff5a3c'; c.fillRect(mx(t.x) - 1, SHIPS[t.type] ? base - 3 : base - gh(t.x) * vf - 3, 2, 2); } });
   c.fillStyle = '#ff8a5c'; ENE.forEach(e => { if (!e.dead) c.fillRect(mx(e.x) - 1, base - clamp(e.y / CEIL, 0, 1) * (h - 7) - 3, 2, 2); });
+  PROJ.forEach(q => { if (q.k !== 'r' && q.k !== 'm') return; c.fillStyle = q.k === 'r' ? '#ffb347' : '#f2f2f2'; c.beginPath(); c.arc(mx(q.x), base - clamp(q.y / CEIL, 0, 1) * (h - 7) - 2, 1.6, 0, 7); c.fill(); });   // 내가 쏜 로켓(주황)과 폭탄(흰색)
   c.fillStyle = '#c3ccd6'; c.fillRect(mx(ship.x), base - 3, Math.max(8, mx(ship.x + 260) - mx(ship.x)), 3); c.fillRect(mx(ship.x + 130), base - 6, 3, 3);
   c.fillStyle = '#fff'; c.font = '700 10px system-ui,sans-serif'; c.textAlign = 'center'; c.fillText('항모', mx(ship.x + 130), y0 + 9);
   ISLANDS.forEach((s, k) => { if (s.b - s.a > 600 || ISLANDS.length === 1) c.fillText('섬', mx((s.a + s.b) / 2), y0 + 9); });

@@ -42,8 +42,8 @@ const FM_X = 304;   // 신호수의 고정 자리: 관제탑(함교) 오른쪽
 const ELEV_A = 236, ELEV_W = 24, ELEV_C = ELEV_A + ELEV_W / 2, ELEV_DEPTH = 14, TAXI_V = 13, ELEV_R = 16;
 const APP_R = DECK_L / 2 + 370;   // 항모 가운데에서 이 거리 안이면 '항모 근처' (갑판 끝에서 370m)   // 가운데 엘리베이터
 const LOADS = [   // 무장: 기관총 2400발에 로켓·폭탄·어뢰 중 하나 (엘리베이터 아래에서 고른다)
-  { name: 'Rockets', fuel: 100, accel: 1.0, ammo: '15 rockets', use: 'Bunkers, AA guns, ship guns', key: 'C' },
-  { name: 'Bombs', fuel: 100, accel: 0.92, ammo: '30 bombs', use: 'Buildings, barracks, airfields', key: 'C' },
+  { name: 'Rockets', fuel: 100, accel: 1.0, ammo: '15 heavy rockets', use: 'Bunkers, AA guns, ship guns', key: 'C' },
+  { name: 'Bombs', fuel: 100, accel: 0.92, ammo: '30 small bombs (250 kg)', use: 'Buildings, barracks, parked aircraft', key: 'C' },
   { name: 'Torpedoes', fuel: 100, accel: 0.9, ammo: '2 torpedoes', use: 'Sinking ships', key: 'C' }
 ];
 
@@ -634,7 +634,7 @@ function drawHangar(c) {
 // ───────── 작전, 섬, 표적, 적기, 무기 ─────────
 const RUNWAY_L = 520;   // 적 비행장 활주로 길이(m): 항모 갑판과 비슷하다
 const SMALL_W = 1500, BIG_W = 3600;   // 작은 섬, 큰 섬 길이(m)
-const LOAD_AMMO = [{ gun: 2400, rk: 15, bm: 0, tp: 0, lb: 1000 }, { gun: 2400, rk: 0, bm: 30, tp: 0, lb: 1000 }, { gun: 2400, rk: 0, bm: 0, tp: 2, lb: 1000 }];
+const LOAD_AMMO = [{ gun: 2400, rk: 15, bm: 0, tp: 0, lb: 550 }, { gun: 2400, rk: 0, bm: 30, tp: 0, lb: 550 }, { gun: 2400, rk: 0, bm: 0, tp: 2, lb: 550 }];   // 폭탄은 250kg(550파운드) 소형탄
 let ISLANDS = [];
 function mkIsland(a, w, pk, seed) {   // 섬마다 언덕의 위치·폭·높이를 다르게 만든다
   let r = seed * 7.13 + 1; const R = () => { r = Math.sin(r * 12.9898 + 78.233) * 43758.5453; return r - Math.floor(r); };
@@ -661,11 +661,11 @@ const SK = { boat: 1.5, dd: 2.6, tr: 3.2, bm: 2.6, bb: 2.6, cv: 2.4 }, SP = { bo
 Object.assign(BOX, { runway: { w: RUNWAY_L, h: 6 }, boat: { w: 40, h: 11 }, dd: { w: 115, h: 36 }, tr: { w: 115, h: 32 }, bm: { w: 260, h: 52 }, bb: { w: 390, h: 52 }, cv: { w: 230, h: 34 } });   // 전함 길이: 우리 항모(520m)의 1/2과 3/4
 const DMG = {
   gun: { aa: 0.35, bunker: 0.08, fuel: 0.5, radar: 0.35, boat: 0.3, runway: 0.03, tank: 0.15, cave: 0.05, dd: 0.06, tr: 0.12, bm: 0.02, bb: 0.02, cv: 0.03 },
-  rocket: { aa: 5, bunker: 7, fuel: 6, radar: 5, boat: 6, runway: 4, tank: 6, cave: 5, dd: 6, tr: 6, bm: 3.5, bb: 3.5, cv: 5 },
+  rocket: { aa: 6, bunker: 13, fuel: 6, radar: 6, boat: 6, runway: 4, tank: 8, cave: 16, dd: 6, tr: 6, bm: 3.5, bb: 3.5, cv: 5 },   // 로켓: 강력한 탄두 — 직격 한 발로 대부분의 시설이 부서진다
   bomb: { aa: 10, bunker: 14, fuel: 10, radar: 10, boat: 12, runway: 10, tank: 10, cave: 8, dd: 14, tr: 14, bm: 12, bb: 12, cv: 16 }
 };
-Object.assign(HP, { barracks: 12, pill: 14 }); BOX.pill = { w: 28, h: 13 }; DMG.gun.pill = 0.05; DMG.rocket.pill = 5; DMG.bomb.pill = 0; DMG.gun.bunker = 0.12;
-Object.assign(HP, { barracks: 12 }); Object.assign(BOX, { barracks: { w: 40, h: 7 }, aa: { w: 11, h: 9 } }); DMG.gun.barracks = 0.15; DMG.rocket.barracks = 4; DMG.bomb.barracks = 10;
+Object.assign(HP, { barracks: 12, pill: 14 }); BOX.pill = { w: 28, h: 13 }; DMG.gun.pill = 0.05; DMG.rocket.pill = 15; DMG.bomb.pill = 0; DMG.gun.bunker = 0.12;
+Object.assign(HP, { barracks: 12 }); Object.assign(BOX, { barracks: { w: 40, h: 7 }, aa: { w: 11, h: 9 } }); DMG.gun.barracks = 0.15; DMG.rocket.barracks = 14; DMG.bomb.barracks = 10;
 const JP = { pill: 1, aa: 1, bunker: 1, cave: 1, radar: 1, barracks: 1, tank: 1 };   // 일본군이 있는 시설
 const SHIPS = { boat: 1, dd: 1, tr: 1, bm: 1, bb: 1, cv: 1 }, DEF_W = { pill: 2, aa: 1, bunker: 1.5, cave: 2, radar: 1 }, AA_N = { pill: 1, aa: 1, dd: 2, bm: 3, bb: 5, cv: 3, tr: 1, cave: 1 }, AA_R = { pill: 500, aa: 500, cave: 500, dd: 500, bm: 500, bb: 500, cv: 500, tr: 500 };
 const HULL_H = { boat: 4.5, dd: 6.5, tr: 16, bm: 7.8, bb: 7.8, cv: 14.5 };   // 적 함정 선체(갑판) 높이(m)
@@ -1299,11 +1299,11 @@ function damageAt(x, y, r, kind) {
     if (d <= r && SHIPS[t.type]) {   // 함정: 로켓은 함포만 부수고, 선체는 어뢰로만 가라앉는다
       if (kind === 'rocket' && t.guns) { const G2 = SHIP_GUNS[t.type], dr = t.dir < 0 ? -1 : 1; let best = null, bd = 1e9;
         for (const gun of t.guns) { if (!gun.alive) continue; const gd = Math.hypot(x - (t.x + gun.lx * SK[t.type] * dr), (y - (t.y + G2.gy * SK[t.type])) * 0.4); if (gd < bd) { bd = gd; best = gun; } }
-        if (best) { best.hp--; if (best.hp <= 0) { best.alive = false; FX.push({ k: 'flash', x: t.x + best.lx * SK[t.type] * dr, y: t.y + G2.gy * SK[t.type], vx: 0, vy: 0, life: 0.25, t: 0 }); } continue; } }
+        if (best) { best.hp -= 2; if (best.hp <= 0) { best.alive = false; FX.push({ k: 'flash', x: t.x + best.lx * SK[t.type] * dr, y: t.y + G2.gy * SK[t.type], vx: 0, vy: 0, life: 0.25, t: 0 }); } continue; } }
       if (!G.toast || G.toast.until < G.t) G.toast = { text: 'Ships sink only to torpedoes · rockets knock out their guns', grade: 'yellow', until: G.t + 3 };
       continue;
     }
-    if (d <= r) { applyDmg(t, DMG[kind][t.type] * (1 - 0.6 * d / r)); if (t.type === 'pill' && kind === 'bomb' && (!G.toast || G.toast.until < G.t)) G.toast = { text: 'Bombs do not hurt concrete bunkers — use rockets!', grade: 'yellow', until: G.t + 2.5 }; }
+    if (d <= r) { applyDmg(t, DMG[kind][t.type] * (kind === 'rocket' && d <= 2.5 ? 1 : 1 - 0.6 * d / r)); if (t.type === 'pill' && kind === 'bomb' && (!G.toast || G.toast.until < G.t)) G.toast = { text: 'Bombs do not hurt concrete bunkers — use rockets!', grade: 'yellow', until: G.t + 2.5 }; }
   }
 }
 function explode(x, y, r, kind, sea) {
@@ -1370,7 +1370,7 @@ function dropBomb() {
   PROJ.push({ k: 'm', x: p.x, y: p.y - 2.5, vx: p.vx, vy: p.vy - 15, life: 30, lb: p.ammo.lb });
 }
 function bombImpact(q, hit, g, sea) {   // 폭탄은 표적에 직격했을 때만 피해를 준다. 조금이라도 빗나가 옆 땅에 떨어지면 작은 파편만 튀고 파괴에 실패한다
-  const R = q.lb >= 1000 ? 44 : 30;
+  const R = q.lb >= 1000 ? 44 : 18;
   if (sea) { explode(q.x, 0, R, 'none', true); return; }
   if (!hit) {
     const y = Math.max(q.y, g); chips(q.x, y + 0.5, 14, ['#6e4e2c', '#8a6b43', '#a8885a', '#4d3720'], 1.5); dirtBurst(q.x, y, 1.5); FX.push({ k: 'flash', x: q.x, y: y + 1, vx: 0, vy: 0, life: 0.12, t: 0 });
@@ -1384,7 +1384,7 @@ function bombImpact(q, hit, g, sea) {   // 폭탄은 표적에 직격했을 때�
   for (const e of ENE) if (!e.dead && Math.hypot(e.x - q.x, e.y - q.y) <= 14) { e.hp -= 8; if (e.hp <= 0) killEnemy(e); }
   if (SHIPS[hit.type]) { if (!G.toast || G.toast.until < G.t) G.toast = { text: 'Ships sink only to torpedoes · rockets knock out their guns', grade: 'yellow', until: G.t + 3 }; return; }
   if (hit.type === 'runway') { killParkedNear(hit, q.x, q.y, 14); return; }
-  applyDmg(hit, DMG.bomb[hit.type] || 0);
+  applyDmg(hit, (DMG.bomb[hit.type] || 0) * (q.lb >= 1000 ? 1 : 0.5));   // 250kg 소형탄은 폭발력이 절반
   if (hit.type === 'pill' && (!G.toast || G.toast.until < G.t)) G.toast = { text: 'Bombs do not hurt concrete bunkers — use rockets!', grade: 'yellow', until: G.t + 2.5 };
 }
 function gunHitTarget(t, q) {   // 기관총탄이 맞았다: 건물은 조금씩 깎이고, 군함은 선체가 아니라 갑판의 대공포·기관총이 상한다
@@ -2251,8 +2251,8 @@ const HELP = [
   ['LAND', 'Come in low, slow and level and touch down on the yellow zone. The hook catches a wire.'],
   ['GUN', 'Space — machine gun: hurts planes, soldiers, buildings, trees and ship AA guns (rockets and bombs hit far harder)'],
   ['WEAPON', 'C — fires the one weapon you loaded in the hangar'],
-  ['ROCKETS', 'Bunkers, AA guns, buildings and ship guns; the only weapon that breaks concrete bunkers. Range 2,000 m, then the motor cuts out'],
-  ['BOMBS', 'Buildings and parked aircraft, but only on a direct hit: a near miss just throws up small debris. No effect on concrete bunkers or ships'],
+  ['ROCKETS', '15 heavy rockets: one direct hit wrecks almost any building, AA gun or ship gun, and only rockets break concrete bunkers. Range 2,000 m, then the motor cuts out'],
+  ['BOMBS', '30 small 250 kg bombs: weak blast, direct hits only (a near miss just throws up debris), several needed per building. No effect on concrete bunkers or ships'],
   ['TORPEDOES', 'The only way to sink a ship. Release level, below 40 m. Range 1,100 m'],
   ['ISLANDS', 'An island surrenders when every building and soldier is gone.'],
   ['', 'A destroyed barracks releases soldiers who repair wrecked bunkers and guns. Shoot them first.'],

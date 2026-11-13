@@ -605,10 +605,10 @@ function soldierStep(dt) {   // 일본군: 섬 끝에서 끝까지 왔다 갔다
     for (const t of TARGETS) if (t.type === 'aa' && !t.alive && !t.claim && t.isl === o.isl && Math.abs(t.x - o.x) < 3) { o.st = 'enter'; o.t = 0; o.gun = t; t.claim = true; break; }
   }
 }
-function islandStep() {   // 섬에 일본군이 하나도 없으면 탈환: 항복 깃발과 전광판 속보
+function islandStep() {   // 섬의 모든 건물과 일본군이 없어져야 탈환: 항복 깃발과 전광판 속보
   ISLANDS.forEach((s, k) => {
     if (s.cleared) return;
-    if (TARGETS.some(t => t.isl === k && t.alive && JP[t.type]) || SOLD.some(o => o.alive && o.isl === k)) return;
+    if (TARGETS.some(t => t.isl === k && t.alive && !SHIPS[t.type]) || SOLD.some(o => o.alive && o.isl === k)) return;
     s.cleared = true; s.clearT = G.t;
     const nm = MISSIONS[G.mi].place + (ISLANDS.length > 1 ? ' 제' + (k + 1) + '섬' : '');
     (G.tick = G.tick || []).push({ text: nm + ' 탈환 — 일본군이 항복하고 백기를 올렸다' });
@@ -834,7 +834,7 @@ function focusX() { let b = null; for (const t of TARGETS) if (t.alive && (!b ||
 function missionLines() {
   const M = MISSIONS[G.mi], m = G.m, out = [], rw = TARGETS.filter(t => t.type === 'runway');
   if (M.goal === 'train') out.push('착함 ' + Math.min(1, m.landings) + '/1 · 표적 ' + Math.min(3, m.kills) + '/3');
-  else if (M.goal === 'capture') out.push('탈환 ' + ISLANDS.filter(q => q.cleared).length + '/' + ISLANDS.length + '섬 · 일본군 ' + SOLD.filter(o => o.alive).length + '명 · 시설 ' + TARGETS.filter(t => t.alive && JP[t.type]).length + '곳');
+  else if (M.goal === 'capture') out.push('탈환 ' + ISLANDS.filter(q => q.cleared).length + '/' + ISLANDS.length + '섬 · 일본군 ' + SOLD.filter(o => o.alive).length + '명 · 시설 ' + TARGETS.filter(t => t.alive && t.isl >= 0 && !SHIPS[t.type]).length + '곳');
   else if (M.goal === 'air') out.push('격추 ' + m.zeros + '/12 · 비행장 ' + rw.filter(t => !t.alive).length + '/' + rw.length);
   else if (M.goal === 'defend') out.push('공습 ' + Math.min(m.wave, M.waves.length) + '/' + M.waves.length + ' · 항모 ' + Math.round(G.carrierHp) + '%');
   else { const fl = TARGETS.filter(t => M.fleet.includes(t.type)); out.push('적 주력함 ' + fl.filter(t => !t.alive).length + '/' + fl.length); }

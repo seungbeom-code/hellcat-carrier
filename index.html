@@ -209,7 +209,10 @@ function crash(why, ditch) {
   const xr = p.x - ship.x, onShip = xr > -12 && xr < DECK_L + 12 && p.y < DECK_Y + 30;
   if (!ditch && p.mode === 'air' && !onShip && p.y > 3) {   // 바로 터지지 않는다: 떨어지거나(공중) 땅에 닿으면 관성으로 미끄러진다
     G.lives--; if (G.m) G.m.crashes++; p.crashWhy = why; p.slT = 0; p.slHit = new Set(); p.gear = false; p.hook = false;
-    const g = gh(p.x); p.mode = g > 0 && p.y - g < 5 ? 'slide' : 'fall'; if (p.mode === 'slide') { p.vx *= 0.75; sfx('thump'); } else sfx('hit');
+    const snag = p.turn > 0 || why.includes('나무');   // 선회 중이거나 나무에 걸리면 그 자세로 미끄러지지 않고 걸려서 떨어진다
+    if (p.turn > 0) { p.turn = 0; p.th = Math.atan2(p.vy, p.vx || p.s); }
+    if (snag) { p.vx *= 0.5; p.vy = Math.min(p.vy, -3); }
+    const g = gh(p.x); p.mode = !snag && g > 0 && p.y - g < 5 ? 'slide' : 'fall'; if (p.mode === 'slide') { p.vx *= 0.75; sfx('thump'); } else sfx('hit');
     return;
   }
   G.lives--; if (G.m) G.m.crashes++;

@@ -2145,6 +2145,7 @@ function drawMiniMap(c) {
   c.fillStyle = '#4f8a45';
   ISLANDS.forEach(s => { c.fillStyle = s.cleared ? '#ffffff' : '#4f8a45'; c.fillRect(mx(s.a), base - 4, mx(s.b) - mx(s.a), 6); });   // 섬 전체 띠: 항복한 섬은 하얗게
   ISLANDS.forEach(s => { c.fillStyle = s.cleared ? '#ffffff' : '#4f8a45'; c.beginPath(); c.moveTo(mx(s.a), base + 1); for (let x = s.a; x <= s.b; x += Math.max(20, (s.b - s.a) / 12)) c.lineTo(mx(x), base - gh(x) * vf); c.lineTo(mx(s.b), base + 1); c.closePath(); c.fill(); });
+  c.fillStyle = '#2f8f3c'; TREES.forEach(t => { if (t.alive) c.fillRect(mx(t.x) - 0.5, base - gh(t.x) * vf - 2.6, 1, 2.6); });   // 나무: 땅 위로 살짝 솟은 아주 작은 초록 눈금
   ISLANDS.forEach(s => { c.fillStyle = s.cleared ? '#ffffff' : '#e03030'; c.fillRect(mx(s.fx) - 1.5, base - gh(s.fx) * vf - 8, 3, 4); });   // 섬의 깃발
   TARGETS.forEach(t => { if (t.alive) { c.fillStyle = '#ff5a3c'; c.fillRect(mx(t.x) - 1, SHIPS[t.type] ? base - 3 : base - gh(t.x) * vf - 3, 2, 2); } });
   c.fillStyle = '#ffe14a'; SOLD.forEach(o => { if (o.alive && o.st !== 'enter') c.fillRect(mx(o.x) - 0.75, base - gh(o.x) * vf - 4.5, 1.5, 2.5); });   // 일본군 병사: 노란 작은 점

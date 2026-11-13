@@ -505,6 +505,12 @@ function startMission(i) {
   ISLANDS = M.islands.map(([a, w, pk], k) => mkIsland(G.isx(a) - OFF, w * SC, pk * 1.15, i * 10 + k + 1));
   makeTargets(M);
   { let nx = 1e9; ISLANDS.forEach(s => nx = Math.min(nx, s.a)); TARGETS.forEach(t => nx = Math.min(nx, t.x - 50)); G.holdX = nx - 1760; }
+  {   // 전체 지도의 범위: 작전 동안 항모가 갈 수 있는 곳, 섬, 배, 적기가 나타나는 곳까지 모두 (작전 중에는 바뀌지 않는다)
+    const last = M.waves.length ? M.waves[M.waves.length - 1].t + 150 : 300, shipEnd = Math.min(G.holdX, ship.x + ship.v * last);
+    let a = ship.x - 400, b = shipEnd + 260 + (M.waves.length ? 2800 : 0);
+    ISLANDS.forEach(q => { a = Math.min(a, q.a); b = Math.max(b, q.b); }); TARGETS.forEach(t => { a = Math.min(a, t.x - BOX[t.type].w); b = Math.max(b, t.x + BOX[t.type].w); });
+    G.map = { a: a - 200, b: b + 300 };
+  }
   reset();
   G.toast = { text: (i + 1) + '. ' + M.name + ' — ' + M.brief, grade: 'green', until: G.t + 7 };
 }
@@ -1611,15 +1617,14 @@ function hint() {
 
 // 화면 맨 위의 전체 지도: 항모, 섬, 표적, 적기, 내 비행기
 function drawMiniMap(c) {
-  const x0 = 100, x1 = 860, y0 = 3, h = 22, far = ISLANDS.length ? ISLANDS[ISLANDS.length - 1].b : 0, fleet = TARGETS.reduce((a, t) => Math.max(a, t.x), 0);
-  const wmin = Math.min(-900, ship.x - 300, p.x - 200), wmax = Math.max(far, fleet, ship.x + 600, p.x + 200) + 400;
-  const mx = x => x0 + (x - wmin) / (wmax - wmin) * (x1 - x0), base = y0 + h - 3;
+  const x0 = 100, x1 = 860, y0 = 3, h = 22, wmin = G.map ? G.map.a : -1000, wmax = G.map ? G.map.b : 8000;   // 작전마다 고정된 축척
+  const mx = x => x0 + clamp((x - wmin) / (wmax - wmin), 0, 1) * (x1 - x0), base = y0 + h - 3, vf = (x1 - x0) / (wmax - wmin) * 1.2;   // 섬 높이도 같은 축척
   c.fillStyle = 'rgba(8,20,34,0.72)'; c.beginPath(); c.roundRect(x0 - 8, y0 - 1, x1 - x0 + 16, h + 2, 8); c.fill();
   c.fillStyle = 'rgba(40,120,160,0.6)'; c.fillRect(x0, base, x1 - x0, 2);
   c.fillStyle = '#4f8a45';
-  ISLANDS.forEach(s => { c.beginPath(); c.moveTo(mx(s.a), base + 1); for (let x = s.a; x <= s.b; x += Math.max(20, (s.b - s.a) / 12)) c.lineTo(mx(x), base - gh(x) * 0.22); c.lineTo(mx(s.b), base + 1); c.closePath(); c.fill(); });
-  ISLANDS.forEach(s => { c.fillStyle = s.cleared ? '#ffffff' : '#e03030'; c.fillRect(mx(s.fx) - 1.5, base - gh(s.fx) * 0.22 - 8, 3, 4); });   // 섬의 깃발
-  TARGETS.forEach(t => { if (t.alive) { c.fillStyle = '#ff5a3c'; c.fillRect(mx(t.x) - 1, SHIPS[t.type] ? base - 3 : base - gh(t.x) * 0.22 - 3, 2, 2); } });
+  ISLANDS.forEach(s => { c.beginPath(); c.moveTo(mx(s.a), base + 1); for (let x = s.a; x <= s.b; x += Math.max(20, (s.b - s.a) / 12)) c.lineTo(mx(x), base - gh(x) * vf); c.lineTo(mx(s.b), base + 1); c.closePath(); c.fill(); });
+  ISLANDS.forEach(s => { c.fillStyle = s.cleared ? '#ffffff' : '#e03030'; c.fillRect(mx(s.fx) - 1.5, base - gh(s.fx) * vf - 8, 3, 4); });   // 섬의 깃발
+  TARGETS.forEach(t => { if (t.alive) { c.fillStyle = '#ff5a3c'; c.fillRect(mx(t.x) - 1, SHIPS[t.type] ? base - 3 : base - gh(t.x) * vf - 3, 2, 2); } });
   c.fillStyle = '#ff8a5c'; ENE.forEach(e => { if (!e.dead) c.fillRect(mx(e.x) - 1, base - clamp(e.y / 400, 0, 1) * (h - 7) - 3, 2, 2); });
   c.fillStyle = '#c3ccd6'; c.fillRect(mx(ship.x), base - 3, Math.max(8, mx(ship.x + 260) - mx(ship.x)), 3); c.fillRect(mx(ship.x + 130), base - 6, 3, 3);
   c.fillStyle = '#fff'; c.font = '700 10px system-ui,sans-serif'; c.textAlign = 'center'; c.fillText('항모', mx(ship.x + 130), y0 + 9);

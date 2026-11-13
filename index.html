@@ -47,7 +47,7 @@ const G = { t: 0, stickers: [], result: null, assist: true, lso: null, lsoT: 0, 
 let p;
 function reset() {
   p = { mode: 'taxi', x: 0, y: DECK_Y + WH, vx: SHIP_V, vy: 0, th: 0, a: 0.035, s: 1, in: 0, thr: 0,
-        gear: true, flaps: true, hook: false, turnPend: false, gunT: 0, rkT: 0, bmT: 0, ammo: { ...LOAD_AMMO[G.loadout] }, fuel: LOADS[G.loadout].fuel, fuelMax: LOADS[G.loadout].fuel, hp: 100, lock: 0, flip: 0, flipFrom: 1, pushT: 0, el: null, xr: START_XR, vr: 0, held: true, flagT: 0,
+        gear: true, flaps: true, hook: false, turnPend: false, stalled: false, slowTurn: false, gunT: 0, rkT: 0, bmT: 0, ammo: { ...LOAD_AMMO[G.loadout] }, fuel: LOADS[G.loadout].fuel, fuelMax: LOADS[G.loadout].fuel, hp: 100, lock: 0, flip: 0, flipFrom: 1, pushT: 0, el: null, xr: START_XR, vr: 0, held: true, flagT: 0,
         landing: false, wire: -1, turn: 0, go: false, off: false, liftT: 0, wx: null, eng: false, ld: 1, relT: 0, engT: 0, tookOff: false, prevY: DECK_Y + WH,
         ap: { maxErr: 0, maxSpd: 0, on: false }, td: null };
   p.x = ship.x + p.xr;
@@ -83,7 +83,7 @@ function airStep(dt) {
     p.vy += (-6 - p.vy) * Math.min(1, 2.5 * dt);
     if (f >= 0.5 && !p.flipped) { p.s = -p.s; p.a = -p.a; p.flipped = true; }
     p.th = p.s > 0 ? -0.06 : Math.PI + 0.06;
-    if (p.turn <= 0) { p.vx = -p.v0 * 0.85; p.turn = 0; }
+    if (p.turn <= 0) { p.vx = -p.v0 * 0.85; p.turn = 0; p.turnEndT = G.t; p.holdG = null; if (p.slowTurn) { p.stalled = true; p.slowTurn = false; G.msg = { text: '느린 속도로 선회해 실속! 속도가 붙을 때까지 떨어진다', until: G.t + 2.5 }; sfx('stall'); } }
     p.x += p.vx * dt; p.y += p.vy * dt;
     return;
   }
@@ -92,7 +92,11 @@ function airStep(dt) {
   const aTrim = clamp((GRAV * 0.985 / (KL * V * V) - CL_BASE) / 5, -0.25, 0.25);   // 키를 안 눌러도 속도에 맞춰 수평에 가깝게 맞춰 준다
   const pg = clamp(Math.pow(60 / V, 1.6), 0.3, 2.0);                                  // 빠를수록 같은 입력에 덜 꺾이게 해서 조작감을 같게 한다
   let aCmd = p.s * (aTrim + p.in * (p.in > 0 ? 0.3 : 0.24) * pg);
-  if (V * KT < stallKt()) { aCmd = p.s * -0.12; p.vy -= 6 * dt; }   // 실속: 조종이 듣지 않고 기수가 떨어진다
+  const recov = Math.max(TURN_KT + 20, stallKt() * 1.35);   // 이만큼 속도가 붙어야 실속에서 벗어난다
+  const climbA = Math.atan2(p.vy, Math.abs(p.vx));
+  if (!p.stalled && climbA > Math.PI / 3) { p.stalled = true; G.msg = { text: '너무 가파르게 올라 실속! 기수가 떨어진다', until: G.t + 2.5 }; sfx('stall'); }   // 60도 넘게 오르면 실속
+  if (p.stalled && V * KT >= recov && climbA < 0.35) { p.stalled = false; G.msg = { text: '속도가 붙어 실속에서 벗어났다', until: G.t + 1.8 }; }
+  if (p.stalled || V * KT < stallKt()) { aCmd = p.s * -0.12; p.vy -= 6 * dt; }   // 실속: 조종이 듣지 않고 기수가 떨어진다
   p.a += (aCmd - p.a) * Math.min(1, dt * 9);
   p.th = g + p.a;
   const f = aero(V, p.a), ux = p.vx / V, uy = p.vy / V;
@@ -106,7 +110,7 @@ function airStep(dt) {
     let vt = G.t - p.liftT < 5 ? 3 : hold ? Math.tan(p.holdG) * Math.abs(p.vx) : over ? -5 : -2.5;   // 오르거나 내려가던 중에 손을 떼면 그 방향 그대로 부드럽게 난다
     if (hold && (app || over)) vt = Math.max(vt, -(2.5 + Math.max(0, p.y - fy) * 0.25));   // 항모로 내려가던 중 손을 떼면 갑판에 가까울수록 천천히 내려앉는다
     if (app && G.t - p.liftT >= 5 && p.y < fy + 10) vt = clamp((fy - p.y) * 0.8, -2.5, 6);   // 손을 떼고 낮게 다가오면 갑판 높이 바로 위에서 수평을 지켜 선미에 부딪히지 않는다
-    if (V * KT < stallKt()) vt = Math.min(vt, -8);   // 실속: 가라앉는다
+    if (p.stalled || V * KT < stallKt()) vt = Math.min(vt, -8);   // 실속: 가라앉는다
     p.vy += (vt - p.vy) * Math.min(1, (over ? 6 : 4) * dt);
     const farC = Math.abs(p.x - ship.x - DECK_L / 2), kV = Math.max(clamp((p.y - 45) / 90, 0, 1), clamp((farC - 500) / 700, 0, 1));   // 항모에서 멀거나 높으면 빠르게, 항모 근처에서 낮게 날 때만 천천히
     const Vt = lerp(SLOW_KT, CRUISE_KT, kV) / KT;   // 손을 떼면 낮을수록 천천히 난다 (바퀴와는 무관)
@@ -1489,7 +1493,7 @@ function update(dt) {
 const keys = {}, ctl = { up: false, down: false, left: false, right: false };
 function startTurn() {
   if (p.mode !== 'air' || p.turn > 0 || p.off || p.y <= 12) return;
-  if (kts() < TURN_KT) { G.msg = { text: '속도가 모자라 선회할 수 없다 (' + TURN_KT + '노트 이상)', until: G.t + 1.6 }; sfx('stall'); return; }
+  p.slowTurn = kts() < TURN_KT;   // 느릴 때도 돌 수는 있지만, 다 돌고 나면 실속한다
   if (Math.abs(Math.atan2(p.vy, Math.abs(p.vx))) > 0.14) { if (!p.turnPend) G.msg = { text: '기체를 수평으로 세운 뒤 선회한다', until: G.t + 1.5 }; p.turnPend = true; return; }   // 급상승·급강하 중이면 먼저 수평으로
   p.turnPend = false; p.turn = TURN_T; p.v0 = p.vx; p.flipped = false; sfx('turn');
 }
@@ -1555,7 +1559,7 @@ function autoFly(dt) {
     else if (ctl.down) tgt = 0.1;
     else tgt = 0.25;
     const nn = p.turn <= 0 && !fwd && !ctl.up && !ctl.down;
-    if (nn && !p.neutral && p.mode === 'air') { const gm = Math.atan2(p.vy, Math.abs(p.vx)); p.holdG = Math.abs(gm) > 0.05 ? gm : null; }   // 손을 뗀 순간의 비행 방향을 기억한다 (수평에 가까우면 예전처럼 천천히 내려간다)
+    if (nn && !p.neutral && p.mode === 'air') { const gm = Math.atan2(p.vy, Math.abs(p.vx)); p.holdG = Math.abs(gm) > 0.05 && G.t - (p.turnEndT || -9) > 0.6 ? gm : null; }   // 선회 직후에는 기억하지 않는다   // 손을 뗀 순간의 비행 방향을 기억한다 (수평에 가까우면 예전처럼 천천히 내려간다)
     p.neutral = nn;
     const far = Math.abs(p.x - ship.x - DECK_L / 2);   // 바퀴는 항모 가까이에서 낮게 날 때만 내린다
     const since = G.t - p.liftT;   // 이륙한 지 몇 초째인가

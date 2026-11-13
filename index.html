@@ -29,9 +29,10 @@ const DECK_Y = 20, DECK_L = 520, WH = 3.2, CS = DECK_L / 260, ISL_DX = 136;   //
 const ZONE_L = DECK_L * 0.3, ZONE_A = 40, ZONE_B = ZONE_A + ZONE_L;   // 어레스팅 와이어 구역 (갑판의 30%, 가운데)
 const WIRES = [0, 1, 2, 3].map(i => ZONE_A + 10 + i * (ZONE_L - 20) / 3);
 const TURN_T = 1.6;   // 선회에 걸리는 시간(초)
-const HOOK_BACK = 7.5, CRUISE_KT = 270, SLOW_KT = 105;   // 후크 끝 위치, 손을 뗐을 때 순항 속도, 항모 근처 접근 속도
+const HOOK_BACK = 7.5, CRUISE_KT = 270, SLOW_KT = 150;   // 후크 끝 위치, 손을 뗐을 때 순항 속도, 항모 근처 접근 속도
+const MIN_KT = 150;   // 날고 있을 때(바퀴를 올린 상태) 속도는 이 아래로 떨어지지 않는다. 방향 전환 중에도 마찬가지
 const TAKEOFF_KT = 100, TURN_KT = 100;   // 이륙과 선회에 필요한 최소 속도
-const LAND_KT = 125, LAND_SINK = 8, LAND_PITCH = 0.22;   // 착함 허용 한계: 속도, 가라앉는 속도, 기울기
+const LAND_KT = 165, LAND_SINK = 8, LAND_PITCH = 0.22;   // 착함 허용 한계: 속도, 가라앉는 속도, 기울기
 const MAX_ALT = 600;   // 최고 고도: 나도 적기도 이 위로는 못 올라간다
 const CEIL = 500;   // 지도에서 고도를 그리는 기준(m). 실제 고도 제한은 없고 높이 올라가면 실속한다
 const MAX_LVL = 20;   // 마지막 레벨
@@ -63,7 +64,7 @@ function reset() {
   p.x = ship.x + p.xr;
   G.result = null; G.lso = null; G.msg = null; G.burn = null; G.toast = null; FX.length = 0; PROJ.length = 0; EB.length = 0;
 }
-const kts = () => Math.hypot(p.vx, p.vy) * KT;
+const kts = () => (p.turn > 0 ? Math.max(Math.hypot(p.vx, p.vy), Math.abs(p.v0 || 0) * lerp(1, 0.85, clamp(1 - p.turn / TURN_T, 0, 1)), p.gear ? 0 : MIN_KT / KT) : Math.hypot(p.vx, p.vy)) * KT;   // 선회 중에는 경로를 따라 나는 속도
 
 // ───────── 비행 물리 ─────────
 function aero(V, alpha) {
@@ -92,11 +93,11 @@ function airStep(dt) {
   if (p.turn > 0) {                       // 선회: 출력이 줄어 속도와 고도를 조금 잃는다
     p.turn -= dt;
     const f = clamp(1 - p.turn / TURN_T, 0, 1);
-    p.vx = p.v0 * Math.cos(Math.PI * f) * lerp(1, 0.85, f);
+    p.vx = Math.sign(p.v0) * Math.max(Math.abs(p.v0) * lerp(1, 0.85, f), p.gear ? 0 : MIN_KT / KT) * Math.cos(Math.PI * f);
     p.vy += (-6 - p.vy) * Math.min(1, 2.5 * dt);
     if (f >= 0.5 && !p.flipped) { p.s = -p.s; p.a = -p.a; p.flipped = true; }
     p.th = p.s > 0 ? -0.06 : Math.PI + 0.06;
-    if (p.turn <= 0) { p.vx = -p.v0 * 0.85; p.turn = 0; p.turnEndT = G.t; p.holdG = null; if (p.slowTurn) { p.stalled = true; p.slowTurn = false; G.msg = { text: 'Stalled by turning too slowly! Falling until you gain speed', until: G.t + 2.5 }; sfx('stall'); } }
+    if (p.turn <= 0) { p.vx = -Math.sign(p.v0) * Math.max(Math.abs(p.v0) * 0.85, p.gear ? 0 : MIN_KT / KT); p.turn = 0; p.turnEndT = G.t; p.holdG = null; if (p.slowTurn) { p.stalled = true; p.slowTurn = false; G.msg = { text: 'Stalled by turning too slowly! Falling until you gain speed', until: G.t + 2.5 }; sfx('stall'); } }
     p.x += p.vx * dt; p.y = Math.min(MAX_ALT, p.y + p.vy * dt);
     return;
   }
@@ -125,9 +126,10 @@ function airStep(dt) {
     if (p.stalled || V * KT < stallKt()) vt = Math.min(vt, -8);   // 실속: 가라앉는다
     p.vy += (vt - p.vy) * Math.min(1, 4 * dt);
     const kV = clamp((p.y - 45) / 90, 0, 1);   // 낮을수록 천천히, 높을수록 빠르게 (위치와는 상관없다)
-    const Vt = lerp(SLOW_KT, CRUISE_KT, kV) / KT;   // 손을 떼면 낮을수록 천천히 난다
+    const Vt = (p.gear ? lerp(SLOW_KT, CRUISE_KT, kV) : Math.max(MIN_KT, lerp(SLOW_KT, CRUISE_KT, kV))) / KT;   // 손을 떼면 낮을수록 천천히 난다
     p.vx += Math.sign(p.vx) * clamp((Vt - V) * 1.6, -12, 9 * airDen()) * dt;
   }
+  if (!p.gear) { const Vm = MIN_KT / KT, V1 = Math.hypot(p.vx, p.vy); if (V1 < Vm && V1 > 0.01) { const kk = 1 + Math.min(1, 12 * dt) * (Vm / V1 - 1); p.vx *= kk; p.vy *= kk; } }   // 바퀴를 올리고 날 때는 150kt 아래로 느려지지 않는다
   if (p.turnPend) {   // 선회 대기: 부드럽게 수평으로 돌아온 다음 선회한다
     p.vy += (0 - p.vy) * Math.min(1, 2.2 * dt);
     if (Math.abs(Math.atan2(p.vy, Math.abs(p.vx))) < 0.1) startTurn();
@@ -860,6 +862,7 @@ function endMission(win, why) {
   let stars = 0;
   if (win) { stars = 1 + (G.lives >= 2 ? 1 : 0) + (G.lives === 3 && G.cur.bonus(m) ? 1 : 0); if (G.cur.gen) { G.save.lvl = Math.min(MAX_LVL, Math.max(G.save.lvl, G.cur.lvl + 1)); G.save.best = Math.max(G.save.best, G.cur.lvl); G.save.st[G.cur.lvl] = Math.max(G.save.st[G.cur.lvl] || 0, stars); G.save.sum = starSum(); G.next = null; G.pick = Math.min(MAX_LVL, G.cur.lvl + 1); } else G.save.stars[G.mi] = Math.max(G.save.stars[G.mi] || 0, stars); saveProg(); }
   G.res = { win, why: why || '', stars }; G.scene = 'result';
+  if (win && G.cur.gen && G.cur.lvl >= MAX_LVL) { G.scene = 'ending'; G.endT0 = performance.now(); }   // 마지막 레벨을 깨면 시상식 엔딩
 }
 function makeTargets(M) {
   TARGETS.length = 0; TREES.length = 0;
@@ -1825,6 +1828,7 @@ const MENU_GO = { x: 300, y: 372, w: 360, h: 58 }, MENU_RE = { x: 300, y: 442, w
 const RES_BTN = [{ x: 240, y: 380, w: 230, h: 50 }, { x: 490, y: 380, w: 230, h: 50 }];
 function sceneKey(e) {
   if (G.scene === 'title') { goMenu(); return; }
+  if (G.scene === 'ending') { if (endClock() > 2) goMenu(); return; }
   if (G.scene === 'menu' && G.help) { G.help = false; return; }   // 도움말은 아무 키나 누르면 닫힌다
   if (G.scene === 'menu' && e.code === 'Escape') { startDemo(); return; }
   if (G.scene === 'menu') {
@@ -1845,6 +1849,7 @@ function resultGo() {   // 이기면 다음 레벨, 지면 같은 레벨을 새 
 }
 function sceneTap(m) {
   if (G.scene === 'title') { goMenu(); return; }
+  if (G.scene === 'ending') { if (endClock() > 2) goMenu(); return; }
   if (G.scene === 'menu') {
     if (G.help) { G.help = false; return; }
     if (inR(m, MENU_GO)) startMission(nextMission()); else if (inR(m, MENU_RE)) G.next = genMission(pickLvl(), newSeed()); else if (inR(m, MENU_HELP)) G.help = true;
@@ -1881,8 +1886,82 @@ function drawHelp(c) {
   });
   c.textAlign = 'center'; c.fillStyle = '#9fb0c4'; c.font = '700 13px system-ui,sans-serif'; c.fillText('Tap or press any key to close', 480, 500); c.textAlign = 'left';
 }
+// ───────── 엔딩: 마지막 레벨을 깨면 연병장 시상식 (도열한 병사들 앞에서 훈장을 받고 경례) ─────────
+const endClock = () => (performance.now() - (G.endT0 || 0)) / 1000;
+function endPerson(c, x, y, s, o) {   // 정면을 보고 선 군인. y 는 발바닥, 키는 약 60*s. o: { top, pants, hat, sal(0~1 경례), hand{x,y} }
+  const k = o.sal || 0, skin = '#f2c9a0';
+  c.lineCap = 'round'; c.lineJoin = 'round';
+  c.fillStyle = o.pants; c.fillRect(x - 6 * s, y - 20 * s, 5.2 * s, 18 * s); c.fillRect(x + 0.8 * s, y - 20 * s, 5.2 * s, 18 * s);
+  c.fillStyle = '#1d1a17'; c.fillRect(x - 7 * s, y - 3 * s, 6.6 * s, 3 * s); c.fillRect(x + 0.4 * s, y - 3 * s, 6.6 * s, 3 * s);
+  c.fillStyle = o.top; c.beginPath(); c.roundRect(x - 9 * s, y - 46 * s, 18 * s, 28 * s, 3 * s); c.fill();
+  c.fillStyle = '#3a2e22'; c.fillRect(x - 9 * s, y - 22 * s, 18 * s, 2.4 * s);
+  if (o.braid) { c.fillStyle = '#e8c04a'; c.fillRect(x - 0.6 * s, y - 44 * s, 1.2 * s, 22 * s); c.fillRect(x - 9 * s, y - 45 * s, 18 * s, 1.4 * s); }
+  c.strokeStyle = o.top; c.lineWidth = 4.4 * s;   // 왼팔(화면 오른쪽)은 내린다
+  c.beginPath(); c.moveTo(x + 9 * s, y - 43 * s); c.lineTo(x + 11 * s, y - 24 * s); c.stroke();
+  const sx = x - 9 * s, sy = y - 43 * s; let ex = lerp(x - 11 * s, x - 17 * s, k), ey = lerp(y - 24 * s, y - 47 * s, k), hx = lerp(x - 11.5 * s, x - 5 * s, k), hy = lerp(y - 22 * s, y - 60.5 * s, k);
+  if (o.hand) { hx = o.hand.x; hy = o.hand.y; ex = (sx + hx) / 2 - 2 * s; ey = (sy + hy) / 2 + 4 * s; }
+  c.beginPath(); c.moveTo(sx, sy); c.lineTo(ex, ey); c.lineTo(hx, hy); c.stroke();
+  c.fillStyle = skin; c.beginPath(); c.arc(hx, hy, 2.3 * s, 0, 7); c.fill(); c.beginPath(); c.arc(x + 11 * s, y - 22.5 * s, 2.3 * s, 0, 7); c.fill();
+  c.beginPath(); c.arc(x, y - 52 * s, 6 * s, 0, 7); c.fill();
+  if (s > 0.85) { c.fillStyle = '#2a2a2a'; c.fillRect(x - 2.8 * s, y - 52.5 * s, 1.1 * s, 1.1 * s); c.fillRect(x + 1.7 * s, y - 52.5 * s, 1.1 * s, 1.1 * s); }
+  const hy0 = y - 52 * s;
+  if (o.hat === 'army') { c.fillStyle = o.cap || '#6d6340'; c.beginPath(); c.roundRect(x - 6.6 * s, hy0 - 8.2 * s, 13.2 * s, 5 * s, 1.6 * s); c.fill(); c.fillStyle = '#3a3220'; c.fillRect(x - 7 * s, hy0 - 3.6 * s, 14 * s, 1.4 * s); }
+  else if (o.hat === 'navy') { c.fillStyle = '#f4f4ee'; c.beginPath(); c.ellipse(x, hy0 - 5.4 * s, 7.4 * s, 3.4 * s, 0, 0, 7); c.fill(); c.fillStyle = '#16233a'; c.fillRect(x - 6.2 * s, hy0 - 3.6 * s, 12.4 * s, 1.6 * s); }
+  else if (o.hat === 'helmet') { c.fillStyle = '#9a6b3c'; c.beginPath(); c.arc(x, hy0 - 0.6 * s, 6.8 * s, Math.PI, 0); c.fill(); c.fillStyle = '#6b6f73'; c.fillRect(x - 6.4 * s, hy0 - 4.6 * s, 12.8 * s, 2.4 * s); c.fillStyle = '#bfe3f2'; c.fillRect(x - 5 * s, hy0 - 4.2 * s, 4 * s, 1.8 * s); c.fillRect(x + 1 * s, hy0 - 4.2 * s, 4 * s, 1.8 * s); }
+  else if (o.hat === 'admiral') { c.fillStyle = '#f4f4ee'; c.beginPath(); c.ellipse(x, hy0 - 5.6 * s, 8 * s, 3.6 * s, 0, 0, 7); c.fill(); c.fillStyle = '#16233a'; c.fillRect(x - 6.4 * s, hy0 - 3.8 * s, 12.8 * s, 1.8 * s); c.fillStyle = '#e8c04a'; c.fillRect(x - 2 * s, hy0 - 6.4 * s, 4 * s, 1.6 * s); }
+}
+function endFlag(c, x, y, w, h, t) {   // 성조기: 깃대 + 펄럭이는 깃발
+  c.fillStyle = '#d8d8d0'; c.fillRect(x - 1.5, y, 3, 235); c.fillStyle = '#e8c04a'; c.beginPath(); c.arc(x, y - 2, 3.6, 0, 7); c.fill();
+  const n = 12, sw = w / n;
+  for (let i = 0; i < n; i++) { const dy = Math.sin(t * 3.2 + i * 0.7) * (1 + i * 0.35); for (let j = 0; j < 7; j++) { c.fillStyle = j % 2 ? '#f4f4ee' : '#c02a2a'; c.fillRect(x + 2 + i * sw, y + 4 + j * (h / 7) + dy, sw + 0.8, h / 7 + 0.5); } }
+  for (let i = 0; i < 5; i++) { const dy = Math.sin(t * 3.2 + i * 0.7) * (1 + i * 0.35); c.fillStyle = '#243f7d'; c.fillRect(x + 2 + i * sw, y + 4 + dy, sw + 0.8, h * 0.54); }
+  c.fillStyle = '#f4f4ee'; for (let a = 0; a < 3; a++) for (let b = 0; b < 2; b++) c.fillRect(x + 7 + a * 7, y + 10 + b * 9 + Math.sin(t * 3.2 + a * 0.7) * 1.5, 2, 2);
+}
+function drawEnding() {
+  const c = ctx, t = endClock(), HZ = 292, hash = n => Math.abs(Math.sin(n * 12.9898) * 43758.5453) % 1;
+  c.save(); c.textAlign = 'left';
+  const sky = c.createLinearGradient(0, 0, 0, HZ); sky.addColorStop(0, '#2f5d96'); sky.addColorStop(0.62, '#e9a56f'); sky.addColorStop(1, '#f6d7a0'); c.fillStyle = sky; c.fillRect(0, 0, W, HZ);
+  c.fillStyle = 'rgba(255,236,170,0.45)'; c.beginPath(); c.arc(190, 262, 62, 0, 7); c.fill(); c.fillStyle = 'rgba(255,240,190,0.95)'; c.beginPath(); c.arc(190, 262, 34, 0, 7); c.fill();
+  c.fillStyle = '#6f94bd'; c.fillRect(0, HZ - 20, W, 20);   // 먼 바다와 항모 실루엣
+  c.fillStyle = '#2c3f5a'; c.fillRect(600, HZ - 32, 230, 12); c.fillRect(700, HZ - 50, 22, 18); c.fillRect(708, HZ - 62, 3, 12); c.fillRect(330, HZ - 28, 110, 8); c.fillRect(372, HZ - 40, 12, 12);
+  c.fillStyle = '#b7aa8a'; c.fillRect(0, HZ, W, H - HZ);   // 연병장
+  for (let i = 0; i < 9; i++) { c.fillStyle = i % 2 ? 'rgba(0,0,0,0.045)' : 'rgba(255,255,255,0.05)'; c.fillRect(0, HZ + i * 28, W, 28); }
+  // 뒤 현수막
+  c.fillStyle = '#d8d8d0'; c.fillRect(326, 130, 4, 170); c.fillRect(630, 130, 4, 170);
+  c.fillStyle = '#17315e'; c.fillRect(330, 130, 300, 96); c.strokeStyle = '#e8c04a'; c.lineWidth = 3; c.strokeRect(335, 135, 290, 86);
+  c.textAlign = 'center'; c.fillStyle = '#f2d36b'; c.font = '800 19px system-ui,sans-serif'; c.fillText('BLUE WINGS', 480, 168); c.fillText('OF THE PACIFIC', 480, 192); c.font = '700 12px system-ui,sans-serif'; c.fillStyle = '#cfd9e8'; c.fillText('★  1 9 4 2  ★', 480, 212);
+  endFlag(c, 150, 62, 118, 70, t); endFlag(c, 810, 62, 118, 70, t);
+  // 도열한 병사들: 뒷줄부터 (앞줄일수록 크다), 가운데는 시상대 자리
+  const sal = (i) => clamp((t - 3.4 - hash(i) * 0.4) / 0.35, 0, 1);
+  let id = 0;
+  for (let r = 0; r < 5; r++) {
+    const s = 0.52 + r * 0.13, y = HZ + 22 + r * 40, step = 25 * s + 6;
+    for (const [x0, x1] of [[26, 392], [568, 934]]) for (let x = x0 + (r % 2) * step / 2; x < x1; x += step) { id++; const army = (Math.floor(x / step) + r) % 2 === 0; endPerson(c, x, y, s, army ? { top: '#8e8458', pants: '#6e6644', hat: 'army', sal: sal(id) } : { top: '#eceff1', pants: '#d4d9de', hat: 'navy', sal: sal(id) }); }
+  }
+  // 시상대
+  c.fillStyle = '#9b947f'; c.fillRect(398, 404, 164, 64); c.fillStyle = '#d9d4c2'; c.fillRect(404, 380, 152, 86); c.fillStyle = '#efe9d6'; c.fillRect(398, 374, 164, 10); c.fillStyle = '#8a8470'; c.fillRect(404, 460, 152, 6);
+  c.fillStyle = '#e8c04a'; c.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? 7 : 16; c.lineTo(480 + Math.cos(a) * rr, 424 + Math.sin(a) * rr); } c.closePath(); c.fill();
+  // 조종사와 제독
+  const k = clamp((t - 1.4) / 1.1, 0, 1), pin = t > 2.6, pr = { top: '#3f72b8', pants: '#2a4d84', hat: 'helmet', sal: sal(9999) };
+  endPerson(c, 452, 376, 1.28, pr);
+  const ax = 528, ay = 376, as = 1.28, handX = lerp(ax - 9 * as - 14, 452 + 3 * as, k), handY = lerp(ay - 36 * as, 376 - 38 * as, k);
+  endPerson(c, ax, ay, as, { top: '#f2f4f6', pants: '#e3e7ea', hat: 'admiral', braid: true, hand: pin ? undefined : { x: handX, y: handY }, sal: pin ? clamp((t - 3.6) / 0.35, 0, 1) : 0 });
+  c.fillStyle = '#e8c04a'; c.fillRect(452 - 4.5 * 1.28, 376 - 56 * 1.28, 9 * 1.28, 1.5);   // 조종사 목도리 대신 헬멧 끈은 생략, 군장 견장
+  c.fillStyle = '#f4f4ee'; c.fillRect(452 - 6 * 1.28, 376 - 46 * 1.28, 12 * 1.28, 2.4 * 1.28);   // 흰 목도리
+  const mx = pin ? 452 + 4.6 * 1.28 : handX, my = pin ? 376 - 36 * 1.28 : handY + 2;   // 훈장: 제독 손에서 가슴으로
+  if (t > 1.3) { c.fillStyle = '#243f7d'; c.fillRect(mx - 2.4, my - 8, 4.8, 8); c.fillStyle = '#c02a2a'; c.fillRect(mx - 0.8, my - 8, 1.6, 8); c.fillStyle = '#e8c04a'; c.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? 2.8 : 6.4; c.lineTo(mx + Math.cos(a) * rr, my + 3 + Math.sin(a) * rr); } c.closePath(); c.fill(); if (pin) { c.fillStyle = 'rgba(255,240,170,' + (0.35 + 0.25 * Math.sin(t * 6)) + ')'; c.beginPath(); c.arc(mx, my + 3, 11, 0, 7); c.fill(); } }
+  // 꽃종이
+  if (t > 3.2) for (let i = 0; i < 80; i++) { const sp = 40 + hash(i + 1) * 50, y = ((t - 3.2) * sp + hash(i + 5) * 600) % 560 - 20, x = (hash(i + 9) * 960 + Math.sin(t * 2 + i) * 20 + 960) % 960; c.fillStyle = ['#f2d36b', '#e04040', '#4f8fe0', '#f4f4ee'][i % 4]; c.save(); c.translate(x, y); c.rotate(t * 3 + i); c.fillRect(-3, -1.5, 6, 3); c.restore(); }
+  // 글자
+  c.textAlign = 'center';
+  if (t > 4.4) { const a = clamp((t - 4.4) / 1, 0, 1); c.fillStyle = 'rgba(0,0,0,' + (0.45 * a) + ')'; c.fillRect(0, 30, W, 74); c.globalAlpha = a; c.fillStyle = '#f2d36b'; c.font = '800 30px system-ui,sans-serif'; c.fillText('DISTINGUISHED FLYING CROSS', 480, 68); c.fillStyle = '#fff'; c.font = '600 15px system-ui,sans-serif'; c.fillText('Awarded to the pilot who freed every island of the Pacific', 480, 94); c.globalAlpha = 1; }
+  if (t > 8.5) { const a = clamp((t - 8.5) / 1.2, 0, 1); c.fillStyle = 'rgba(8,16,30,' + (0.6 * a) + ')'; c.fillRect(0, 478, W, 62); c.globalAlpha = a; c.fillStyle = '#fff'; c.font = '800 22px system-ui,sans-serif'; c.fillText('THE END', 480, 505); c.fillStyle = '#cfd9e8'; c.font = '600 13px system-ui,sans-serif'; c.fillText('Thank you for flying · Stars ' + starSum() + ' · Press any key', 480, 526); c.globalAlpha = 1; }
+  if (t < 1.2) { c.fillStyle = 'rgba(0,0,0,' + (1 - t / 1.2) + ')'; c.fillRect(0, 0, W, H); }
+  c.restore();
+}
 function drawScene() {
   if (G.scene === 'title') return drawTitle();
+  if (G.scene === 'ending') return drawEnding();
   const c = ctx; c.fillStyle = 'rgba(6,14,26,0.88)'; c.fillRect(0, 0, W, H); c.textAlign = 'left';
   if (G.scene === 'menu') {
     const L = pickLvl(), N = nextMission(), top = G.save.lvl, st = (G.save.st || {})[L] || 0;

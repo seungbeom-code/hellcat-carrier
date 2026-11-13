@@ -355,10 +355,10 @@ function initAudio() {
   // 엔진: 낮고 부드러운 웅웅거림. 사인파 둘(완전5도)과 걸러 낸 잡음만 쓰고, 소리는 아주 작게 둔다.
   sound.eg = a.createGain(); sound.eg.gain.value = 0; sound.eg.connect(sound.master);
   const trem = a.createGain(); trem.gain.value = 1; trem.connect(sound.eg);
-  sound.eo = [0, 1].map(i => { const o = a.createOscillator(); o.type = 'sine'; o.frequency.value = i ? 140 : 94; const g = a.createGain(); g.gain.value = i ? 0.35 : 0.6; o.connect(g); g.connect(trem); o.start(); return o; });
+  sound.eo = [0, 1].map(i => { const o = a.createOscillator(); o.type = 'sine'; o.frequency.value = i ? 140 : 94; const g = a.createGain(); g.gain.value = i ? 0.2 : 0.6; o.connect(g); g.connect(trem); o.start(); return o; });
   const es = a.createBufferSource(); es.buffer = nb; es.loop = true; sound.elp = a.createBiquadFilter(); sound.elp.type = 'lowpass'; sound.elp.frequency.value = 280; sound.elp.Q.value = 0.3;
-  const ng = a.createGain(); ng.gain.value = 3.2; es.connect(sound.elp); sound.elp.connect(ng); ng.connect(trem); es.start();
-  sound.lfo = a.createOscillator(); sound.lfo.frequency.value = 9; const lg = a.createGain(); lg.gain.value = 0.14; sound.lfo.connect(lg); lg.connect(trem.gain); sound.lfo.start();
+  const ng = a.createGain(); ng.gain.value = 1.6; es.connect(sound.elp); sound.elp.connect(ng); ng.connect(trem); es.start();
+  sound.lfo = a.createOscillator(); sound.lfo.frequency.value = 9; const lg = a.createGain(); lg.gain.value = 0.06;   // 떨림을 줄여 더 부드럽게 sound.lfo.connect(lg); lg.connect(trem.gain); sound.lfo.start();
   // 바람
   const ws = a.createBufferSource(); ws.buffer = nb; ws.loop = true; const wf = a.createBiquadFilter(); wf.type = 'bandpass'; wf.frequency.value = 700; wf.Q.value = 0.6;
   sound.wg = a.createGain(); sound.wg.gain.value = 0; ws.connect(wf); wf.connect(sound.wg); sound.wg.connect(sound.master); ws.start();
@@ -409,10 +409,9 @@ function updateSound(dt) {
   const ef = 92 + thr * 30 + (p.mode === 'air' ? Math.min(8, V * 0.04) : 0);
   sound.eo[0].frequency.setTargetAtTime(ef, t, 0.3); sound.eo[1].frequency.setTargetAtTime(ef * 1.5, t, 0.3);
   sound.lfo.frequency.setTargetAtTime(8 + thr * 7, t, 0.3);
-  sound.elp.frequency.setTargetAtTime(240 + thr * 220, t, 0.3);
+  sound.elp.frequency.setTargetAtTime(200 + thr * 160, t, 0.3);
   const onDeck = p.mode === 'taxi' || p.mode === 'deck' || p.mode === 'lift', moving = (p.mode === 'taxi' || p.mode === 'deck') && Math.abs(p.vr) > 0.5;
-  const accel = p.fuel > 0 && ((p.mode === 'deck' && !p.landing && ctl.right) || (p.mode === 'air' && p.turn <= 0 && (p.s > 0 ? ctl.right : ctl.left)));
-  sound.eg.gain.setTargetAtTime(accel ? 0.06 + 0.06 * thr : 0, t, accel ? 0.15 : 0.4);   // 엔진은 늘 켜져 있지만 소리는 가속할 때만
+  sound.eg.gain.setTargetAtTime(!alive ? 0 : p.mode === 'air' ? 0.035 + 0.045 * thr : p.mode === 'lift' ? 0.008 : moving ? 0.02 + 0.03 * thr : 0.012, t, 0.35);   // 엔진은 늘 켜져 있고 소리도 늘 난다 (부드럽고 작게, 세게 밀면 조금 커진다)
   sound.wg.gain.setTargetAtTime(p.mode === 'air' ? Math.min(0.06, V * V * 0.000007) : 0, t, 0.2);
   if (G.lso !== sound.lastSig) { if (G.lso === 'CUT') sfx('cut'); if (G.lso === 'WAVEOFF') sfx('waveoff'); sound.lastSig = G.lso; }
   sound.stallT -= dt;

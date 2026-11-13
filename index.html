@@ -2233,7 +2233,7 @@ function drawShip() {
     // 발진 장교와 깃발
     {   // 갑판 신호수: ① 엘리베이터에서 멀면 엘리베이터 쪽으로 깃발을 가리키며 유도 ② 엘리베이터 위에서는 멈춤 ③ 출발할 때는 이륙 신호만
       const t = G.t, side = 30;
-      if (G.fmx === undefined) G.fmx = ELEV_C - side;
+      if (G.fmx === undefined) G.fmx = ELEV_C + 20;
       let tx = G.fmx, dirm = G.fmDir || 1, aR, aL, cr = 0;
       if (p.mode === 'deck' && !p.landing) {   // 출발: 비행기 뒤에서 앞쪽으로 이륙 신호(깃발을 머리 위로 크게 돌린다)만 한다
         tx = G.depX !== undefined ? G.depX : p.xr - p.s * side; dirm = p.s; G.fmDir = dirm;
@@ -2243,7 +2243,7 @@ function drawShip() {
         if (p.mode === 'lift' || Math.abs(dist) <= ELEV_R) {   // 엘리베이터 위: 멈춤 (두 팔을 들어 올린다)
           aR = Math.PI / 2 + Math.sin(t * 3) * 0.08; aL = Math.PI / 2 - 0.25;
         } else {   // 엘리베이터 쪽으로 유도: 비행기가 오른쪽에 있으면 왼쪽으로, 왼쪽에 있으면 오른쪽으로 깃발을 흔든다
-          const sg = dist > 0 ? 1 : -1; dirm = sg; G.fmDir = sg; tx = ELEV_C - sg * side;
+          const sg = dist > 0 ? 1 : -1; dirm = sg; G.fmDir = sg; tx = ELEV_C + 20;
           aR = 0.2 + Math.sin(t * 7) * 0.55; aL = -1.6;
         }
       } else if (p.mode === 'air' || p.mode === 'deck') {   // 비행 중·착함 중: 비행기를 향해 깃발을 흔든다

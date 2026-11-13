@@ -660,11 +660,11 @@ const BOX = { aa: { w: 6, h: 5 }, bunker: { w: 20, h: 9 }, fuel: { w: 6, h: 6 },
 const SK = { boat: 1.5, dd: 2.6, tr: 3.2, bm: 2.6, bb: 2.6, cv: 2.4 }, SP = { boat: 5, dd: 9, tr: 4, bm: 6, bb: 5, cv: 7 };   // 배의 크기 배율, 순항 속도(m/s)
 Object.assign(BOX, { runway: { w: RUNWAY_L, h: 6 }, boat: { w: 40, h: 11 }, dd: { w: 115, h: 36 }, tr: { w: 115, h: 32 }, bm: { w: 260, h: 52 }, bb: { w: 390, h: 52 }, cv: { w: 230, h: 34 } });   // 전함 길이: 우리 항모(520m)의 1/2과 3/4
 const DMG = {
-  gun: { aa: 0.35, bunker: 0.08, fuel: 0.5, radar: 0.35, boat: 0.3, runway: 0.03, tank: 0.15, cave: 0, dd: 0.06, tr: 0.12, bm: 0.02, bb: 0.02, cv: 0.03 },
+  gun: { aa: 0.35, bunker: 0.08, fuel: 0.5, radar: 0.35, boat: 0.3, runway: 0.03, tank: 0.15, cave: 0.05, dd: 0.06, tr: 0.12, bm: 0.02, bb: 0.02, cv: 0.03 },
   rocket: { aa: 5, bunker: 7, fuel: 6, radar: 5, boat: 6, runway: 4, tank: 6, cave: 5, dd: 6, tr: 6, bm: 3.5, bb: 3.5, cv: 5 },
   bomb: { aa: 10, bunker: 14, fuel: 10, radar: 10, boat: 12, runway: 10, tank: 10, cave: 8, dd: 14, tr: 14, bm: 12, bb: 12, cv: 16 }
 };
-Object.assign(HP, { barracks: 12, pill: 14 }); BOX.pill = { w: 28, h: 13 }; DMG.gun.pill = 0; DMG.rocket.pill = 5; DMG.bomb.pill = 0; DMG.gun.bunker = 0;
+Object.assign(HP, { barracks: 12, pill: 14 }); BOX.pill = { w: 28, h: 13 }; DMG.gun.pill = 0.05; DMG.rocket.pill = 5; DMG.bomb.pill = 0; DMG.gun.bunker = 0.12;
 Object.assign(HP, { barracks: 12 }); Object.assign(BOX, { barracks: { w: 40, h: 7 }, aa: { w: 11, h: 9 } }); DMG.gun.barracks = 0.15; DMG.rocket.barracks = 4; DMG.bomb.barracks = 10;
 const JP = { pill: 1, aa: 1, bunker: 1, cave: 1, radar: 1, barracks: 1, tank: 1 };   // 일본군이 있는 시설
 const SHIPS = { boat: 1, dd: 1, tr: 1, bm: 1, bb: 1, cv: 1 }, DEF_W = { pill: 2, aa: 1, bunker: 1.5, cave: 2, radar: 1 }, AA_N = { pill: 1, aa: 1, dd: 2, bm: 3, bb: 5, cv: 3, tr: 1, cave: 1 }, AA_R = { pill: 500, aa: 500, cave: 500, dd: 500, bm: 500, bb: 500, cv: 500, tr: 500 };
@@ -1358,6 +1358,19 @@ function dropBomb() {
   p.ammo.bm--; p.bmT = G.t + 0.25; sfx('bomb'); if (p.ammo.bm === 0) lastShot(1);
   PROJ.push({ k: 'm', x: p.x, y: p.y - 2.5, vx: p.vx, vy: p.vy - 15, life: 30, lb: p.ammo.lb });
 }
+function gunHitTarget(t, q) {   // 기관총탄이 맞았다: 건물은 조금씩 깎이고, 군함은 선체가 아니라 갑판의 대공포·기관총이 상한다
+  for (let j = 0; j < 2; j++) FX.push({ k: 'spark', x: q.x, y: q.y, vx: (Math.random() - 0.5) * 18, vy: 3 + Math.random() * 8, life: 0.3, t: 0 });
+  alarmFauna(q.x, q.y, 90);
+  if (t.type === 'runway') return;
+  if (SHIPS[t.type]) {
+    if (!t.guns) return;
+    const dr = t.dir < 0 ? -1 : 1, sk = SK[t.type], G2 = SHIP_GUNS[t.type]; let best = null, bd = 1e9;
+    for (const g of t.guns) { if (!g.alive) continue; const d = Math.hypot(q.x - (t.x + g.lx * sk * dr), (q.y - (t.y + G2.gy * sk)) * 0.6); if (d < bd) { bd = d; best = g; } }
+    if (best && bd < 10) { best.hp -= 0.25; if (best.hp <= 0) { best.alive = false; FX.push({ k: 'flash', x: t.x + best.lx * sk * dr, y: t.y + G2.gy * sk, vx: 0, vy: 0, life: 0.25, t: 0 }); } }
+    return;
+  }
+  applyDmg(t, DMG.gun[t.type] || 0.1);
+}
 function stepProj(dt) {
   const viewR = W / cam.z + 100;   // 화면에서 먼 곳의 연기는 만들지 않는다
   for (const t of TARGETS) {
@@ -1406,13 +1419,13 @@ function stepProj(dt) {
       PROJ.splice(i, 1); continue;
     }
     if (q.k === 'b') { const sd = SOLD.find(o => o.alive && o.st !== 'enter' && Math.abs(q.x - o.x) < 4.5 && q.y >= o.y - 0.5 && q.y <= o.y + 8); if (sd) { killSoldier(sd); PROJ.splice(i, 1); continue; } }
-    if (q.k === 'b' && G.scene === 'play' && (G.gunHint || 0) < 2 && G.t > (G.gunHintT || 0)) { const ht = hitTest(q.x, q.y, 0); if (ht) { G.gunHint = (G.gunHint || 0) + 1; G.gunHintT = G.t + 25; G.msg = { text: SHIPS[ht.type] ? 'Guns cannot hurt ships — sink them with torpedoes' : 'Guns only hurt planes and soldiers — use rockets or bombs on buildings', until: G.t + 3.5 }; } }
-    const hit = q.k === 'b' ? null : hitTest(q.x, q.y, 1.5),   // 기관총은 건물·벙커·대공포·함선에 피해를 주지 않는다
-      tree = null,   // 나무는 총알·로켓에 걸리지 않는다 (폭발로만 쓰러진다)
+    const hit = hitTest(q.x, q.y, q.k === 'b' ? 0.5 : 1.5),   // 기관총도 건물·벙커·대공포·함선의 포에 피해를 준다
+      tree = q.k === 'b' ? hitTree(q.x, q.y) : null,   // 기관총은 나무도 맞힌다 (로켓은 폭발로만 쓰러뜨린다)
       g = gh(q.x), ground = g > 0 && q.y <= g, sea = !ground && q.y <= 0;
     if (!(hit || tree || ground || sea)) { if (q.life <= 0) PROJ.splice(i, 1); continue; }
     if (q.k === 'b') {
-      if (tree) treeHit(tree, 1);
+      if (tree) treeHit(tree, 0.35);
+      else if (hit) gunHitTarget(hit, q);
       else if (sea) FX.push({ k: 'splash', x: q.x, y: 0, vx: 0, vy: 3, life: 0.4, t: 0 });
       else { dirtBurst(q.x, g, 1); alarmFauna(q.x, g, 110); for (const o of SOLD) if (o.alive && Math.abs(o.x - q.x) < 4) killSoldier(o); }
     } else explode(q.x, Math.max(q.y, g), q.k === 'm' ? (q.lb >= 1000 ? 44 : 30) : 14, q.k === 'm' ? 'bomb' : 'rocket', sea);
@@ -2119,7 +2132,7 @@ const HELP = [
   ['DECK', 'Hold ◀ or ▶ to roll and take off. The opposite arrow brakes, then turns the plane around.'],
   ['', 'Stop on the elevator and press Space (or the button): refuel, repair and choose one weapon load.'],
   ['LAND', 'Come in low, slow and level and touch down on the yellow zone. The hook catches a wire.'],
-  ['GUN', 'Space — hurts planes and soldiers only'],
+  ['GUN', 'Space — machine gun: hurts planes, soldiers, buildings, trees and ship AA guns (rockets and bombs hit far harder)'],
   ['WEAPON', 'C — fires the one weapon you loaded in the hangar'],
   ['ROCKETS', 'Bunkers, AA guns, buildings and ship guns; the only weapon that breaks concrete bunkers. Range 2,000 m, then the motor cuts out'],
   ['BOMBS', 'Buildings and airfields. No effect on concrete bunkers or ships'],

@@ -2395,7 +2395,7 @@ function carrierBody(c) {
 }
 
 // 갑판 승무원: 장화·바지·색 저지·가죽 헬멧과 고글, 팔꿈치가 굽는 두 팔. 오른손에 빨간 깃발(또는 패들)
-function deckCrew(c, x, y, aR, aL, item, cr) {   // cr: 웅크림 0(서 있음) ~ 1(무릎을 굽힘)
+function deckCrew(c, x, y, aR, aL, item, cr, one) {   // cr: 웅크림 0(서 있음) ~ 1(무릎을 굽힘)
   const PI = Math.PI, sh = y + 2.75, k = cr || 0, dy = -0.72 * k;
   c.lineCap = 'round'; c.lineJoin = 'round';
   c.save(); c.translate(0, dy);   // 상체는 웅크린 만큼 내려간다
@@ -2411,8 +2411,13 @@ function deckCrew(c, x, y, aR, aL, item, cr) {   // cr: 웅크림 0(서 있음) 
   // 다리와 장화
   c.save(); c.translate(0, -dy);   // 다리는 땅에 붙어 있고, 웅크리면 무릎이 앞으로 나온다
   c.strokeStyle = '#6f6a52'; c.lineWidth = 0.42;
-  c.beginPath(); c.moveTo(x - 0.1, y + 1.55 + dy); c.lineTo(x - 0.28 + 0.62 * k, y + 0.8 + 0.1 * k); c.lineTo(x - 0.3, y + 0.25); c.stroke();
-  c.beginPath(); c.moveTo(x + 0.12, y + 1.55 + dy); c.lineTo(x + 0.3 + 0.7 * k, y + 0.82 + 0.1 * k); c.lineTo(x + 0.36, y + 0.25); c.stroke();
+  if (one) {   // 한쪽 무릎만 굽힌 자세: 앞다리는 무릎을 굽혀 내딛고 뒷다리는 곧게 뒤로 뻗는다
+    c.beginPath(); c.moveTo(x - 0.1, y + 1.55 + dy); c.lineTo(x - 0.28 - 0.25 * k, y + 0.8 - 0.1 * k); c.lineTo(x - 0.3 - 0.85 * k, y + 0.25); c.stroke();
+    c.beginPath(); c.moveTo(x + 0.12, y + 1.55 + dy); c.lineTo(x + 0.35 + 0.8 * k, y + 0.85 + 0.1 * k); c.lineTo(x + 0.45 + 0.2 * k, y + 0.25); c.stroke();
+  } else {
+    c.beginPath(); c.moveTo(x - 0.1, y + 1.55 + dy); c.lineTo(x - 0.28 + 0.62 * k, y + 0.8 + 0.1 * k); c.lineTo(x - 0.3, y + 0.25); c.stroke();
+    c.beginPath(); c.moveTo(x + 0.12, y + 1.55 + dy); c.lineTo(x + 0.3 + 0.7 * k, y + 0.82 + 0.1 * k); c.lineTo(x + 0.36, y + 0.25); c.stroke();
+  }
   c.fillStyle = '#2b2620'; c.fillRect(x - 0.52, y, 0.5, 0.3); c.fillRect(x + 0.18, y, 0.52, 0.3);
   c.restore();
   // 허리띠와 몸통(노란 저지, 등번호 띠)
@@ -2508,16 +2513,24 @@ function drawShip() {
     {   // 갑판 신호수: ① 엘리베이터에서 멀면 엘리베이터 쪽으로 깃발을 가리키며 유도 ② 엘리베이터 위에서는 멈춤 ③ 출발할 때는 이륙 신호만
       const t = G.t, side = 30;
       if (G.fmx === undefined) G.fmx = FM_X;
-      let tx = G.fmx, dirm = G.fmDir || 1, aR, aL, cr = 0;
+      let tx = G.fmx, dirm = G.fmDir || 1, aR, aL, cr = 0, one = false;
+      const launchSig = () => {   // 출격 신호: 깃발을 위로 번쩍 들었다가 → 쓸어내리며 앉아 오른쪽(이륙 방향)을 가리키고 → 한쪽 무릎을 굽힌 채 버틴 뒤 일어나기를 되풀이한다
+        const ph = (t * 0.42) % 1, sm = u => u * u * (3 - 2 * u);
+        if (ph < 0.3) { const u = ph / 0.3; aR = 0.2 + (1.65 - 0.2) * sm(u) + Math.sin(t * 9) * 0.1 * u; cr = 0; }
+        else if (ph < 0.55) { const u = sm((ph - 0.3) / 0.25); aR = 1.65 + (-0.14 - 1.65) * u; cr = u; }
+        else if (ph < 0.85) { aR = -0.14 + Math.sin(t * 5) * 0.03; cr = 1; }
+        else { const u = sm((ph - 0.85) / 0.15); aR = -0.14 + 0.34 * u; cr = 1 - u; }
+        aL = -1.25 + (ph < 0.3 ? 0.5 * sm(ph / 0.3) : ph < 0.55 ? 0.5 * (1 - sm((ph - 0.3) / 0.25)) : 0); one = true;
+      };
       if (p.mode === 'deck' && !p.landing) {   // 출발: 비행기 뒤에서 앞쪽으로 이륙 신호(깃발을 머리 위로 크게 돌린다)만 한다
         tx = FM_X; dirm = p.s; G.fmDir = dirm;
-        aR = -0.16 + Math.sin(t * 5) * 0.03; aL = -1.25; cr = 1;   // 출발 신호: 무릎을 굽히고 깃발을 앞(이륙 방향)으로 곧게 뻗는다
+        launchSig();
       } else if (p.mode === 'taxi' || p.mode === 'lift') {
         const dist = ELEV_C - p.xr;
         if (p.mode === 'lift' || (Math.abs(dist) <= ELEV_R && G.fmTask === 'elev')) {   // 엘리베이터 위: 멈춤 (두 팔을 들어 올린다)
           aR = Math.PI / 2 + Math.sin(t * 3) * 0.08; aL = Math.PI / 2 - 0.25;
         } else if (G.fmTask !== 'elev') {   // 엘리베이터에서 막 나왔다: 이륙 신호 (무릎을 굽히고 깃발을 앞으로)
-          dirm = p.s; G.fmDir = dirm; aR = -0.16 + Math.sin(t * 5) * 0.03; aL = -1.25; cr = 1;
+          dirm = p.s; G.fmDir = dirm; launchSig();
         } else {   // 엘리베이터 쪽으로 유도: 비행기가 오른쪽에 있으면 왼쪽으로, 왼쪽에 있으면 오른쪽으로 깃발을 흔든다
           const sg = dist > 0 ? 1 : -1; dirm = sg; G.fmDir = sg; tx = FM_X;
           aR = 0.2 + Math.sin(t * 7) * 0.55; aL = -1.6;
@@ -2530,7 +2543,7 @@ function drawShip() {
       const fxc = G.fmx;
       c.save(); c.translate(fxc, DECK_Y); c.scale(2.2 * dirm, 2.2); c.translate(-fxc, -DECK_Y);   // 신호수도 2.2배, 가는 방향을 본다
       G.fmCr = (G.fmCr || 0) + (cr - (G.fmCr || 0)) * 0.12;   // 부드럽게 웅크렸다 일어선다
-      deckCrew(c, fxc, DECK_Y, aR, aL, 'flag', G.fmCr);
+      deckCrew(c, fxc, DECK_Y, aR, aL, 'flag', G.fmCr, one);
       c.restore();
     }
   });

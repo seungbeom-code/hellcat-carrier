@@ -64,7 +64,8 @@ function aero(V, alpha) {
   const thr = p.fuel > 0 ? p.thr : 0, dn = airDen();   // 높이 올라갈수록 공기가 희박해 엔진 힘과 날개 양력이 줄어든다
   return { aL: q * CL * (0.25 + 0.75 * dn), aD: kd * V * V + q * CL * CL * 0.06, aT: thr * dn * Math.min(AMAX, PWR / Math.max(V, 1)) };
 }
-function airDen() { return clamp(1 - Math.max(0, p.y - 250) / 400, 0.1, 1); }
+function airDenAt(y) { return clamp(1 - Math.max(0, y - 250) / 400, 0.1, 1); }
+function airDen() { return airDenAt(p.y); }
 function stallKt() { return Math.sqrt(GRAV / (KL * CL_MAX * (0.25 + 0.75 * airDen()))) * KT; }   // 높이 올라갈수록 실속 속도가 올라간다
 
 function airStep(dt) {
@@ -148,8 +149,10 @@ function deckStep(dt) {
     const alpha = 0.035 + Math.max(0, p.in) * 0.19;
     const f = aero(V, alpha);
     let acc = f.aT * 1.55 * LOADS[G.loadout].accel - f.aD - 0.4;
-    if (p.thr < 0.1) acc -= 4;
+    if (!ctl.right) acc = -4;   // ▶ 를 놓으면 가속을 멈추고 천천히 선다
+    if (ctl.left) acc = -12;    // ◀: 브레이크
     p.vr = Math.max(0, p.vr + acc * dt);
+    if (p.vr < TAXI_V && !ctl.right) { p.mode = 'taxi'; p.go = false; p.lock = 0; }   // 멈출 만큼 느려지면 다시 갑판 이동
     p.th = tailSit(V) + Math.max(0, p.in) * 0.12;
   }
   p.xr += p.vr * dt;
@@ -403,7 +406,8 @@ function updateSound(dt) {
   sound.lfo.frequency.setTargetAtTime(8 + thr * 7, t, 0.3);
   sound.elp.frequency.setTargetAtTime(240 + thr * 220, t, 0.3);
   const onDeck = p.mode === 'taxi' || p.mode === 'deck' || p.mode === 'lift', moving = (p.mode === 'taxi' || p.mode === 'deck') && Math.abs(p.vr) > 0.5;
-  sound.eg.gain.setTargetAtTime(onDeck ? (moving ? 0.02 + 0.04 * thr : 0) : (alive ? 0.045 + 0.07 * thr : 0), t, 0.35);   // 갑판 위에서는 움직일 때만 살짝
+  const accel = p.fuel > 0 && ((p.mode === 'deck' && !p.landing && ctl.right) || (p.mode === 'air' && p.turn <= 0 && (p.s > 0 ? ctl.right : ctl.left)));
+  sound.eg.gain.setTargetAtTime(accel ? 0.06 + 0.06 * thr : 0, t, accel ? 0.15 : 0.4);   // 엔진은 늘 켜져 있지만 소리는 가속할 때만
   sound.wg.gain.setTargetAtTime(p.mode === 'air' ? Math.min(0.06, V * V * 0.000007) : 0, t, 0.2);
   if (G.lso !== sound.lastSig) { if (G.lso === 'CUT') sfx('cut'); if (G.lso === 'WAVEOFF') sfx('waveoff'); sound.lastSig = G.lso; }
   sound.stallT -= dt;
@@ -412,7 +416,7 @@ function updateSound(dt) {
 
 // ───────── 갑판 위 이동과 엘리베이터 ─────────
 function startFlip(dir) { p.flipFrom = p.s; p.flipTo = dir; p.flip = 0.6; p.vr = 0; }
-function startTakeoff() { p.mode = 'deck'; p.landing = false; p.held = true; p.go = true; p.flagT = 0; p.vr = 0; p.pushT = 0; }
+function startTakeoff() { p.mode = 'deck'; p.landing = false; p.held = false; p.go = true; p.flagT = 0; p.vr = Math.max(0, p.vr); p.pushT = 0; }
 function taxiStep(dt) {
   p.y = DECK_Y + WH; p.vy = 0;
   if (G.t < p.lock) p.vr = 0;
@@ -422,9 +426,8 @@ function taxiStep(dt) {
     if (dir && dir !== p.s) startFlip(dir);   // 반대 방향 키: 먼저 몸을 돌린다
     else {
       p.vr += (dir * TAXI_V - p.vr) * Math.min(1, dt * 3); p.xr += p.vr * dt;
-      const maxX = Math.max(LAUNCH_XR, x0);
-      if (p.xr < 6) { p.xr = 6; p.vr = 0; } if (p.xr > maxX) { p.xr = maxX; p.vr = 0; }
-      if (dir > 0 && p.s > 0 && p.xr >= LAUNCH_XR - 0.01) { p.pushT += dt; if (p.pushT > 0.45) startTakeoff(); } else p.pushT = 0;   // 발진선에서 ▶ 꾹: 발진
+      if (p.xr < 6) { p.xr = 6; p.vr = 0; } if (p.xr > DECK_L - 4) { p.xr = DECK_L - 4; p.vr = 0; }
+      if (dir > 0 && p.s > 0 && !overElev()) startTakeoff();   // ▶ 를 누르면 그 자리에서 바로 가속한다 (엘리베이터 위만 빼고)
     }
   }
   const tail = tailSit(Math.abs(p.vr + ship.v)); p.th = p.s > 0 ? tail : Math.PI - tail;
@@ -838,9 +841,13 @@ function enemyStep(dt) {
     if (e.hp <= 0) { killEnemy(e); continue; }
     // 속도가 빠를수록 크게 못 돈다 (g 한계), 너무 느리면 거의 못 돈다
     const wmax = clamp(S.n * 9.8 / Math.max(e.v, 40), 0.15, 1.5) * (e.v < S.v * 0.55 ? 0.35 : 1);
-    const dh = clamp(angd(Math.atan2(ty - e.y, tx - e.x), e.h), -wmax * dt, wmax * dt);
+    if (e.y > 230) ty = Math.min(ty, e.y);   // 높은 곳에서는 더 오르려 하지 않는다
+    const dh = e.stall ? 0 : clamp(angd(Math.atan2(ty - e.y, tx - e.x), e.h), -wmax * dt, wmax * dt);
     e.h += dh; e.bank += (clamp(dh / (wmax * dt), -1, 1) - e.bank) * Math.min(1, 4 * dt);
-    e.v += (-9.8 * Math.sin(e.h) * 0.8 + (S.v - e.v) * 0.45 - Math.abs(dh / dt) * e.v * 0.12) * dt;   // 오르면 느려지고 내려가면 빨라지고, 급선회하면 속도를 잃는다
+    const edn = airDenAt(e.y);   // 적기도 높이 올라가면 공기가 희박해 엔진 힘이 줄고 실속한다
+    e.v += (-9.8 * Math.sin(e.h) * 0.8 + (S.v * (0.6 + 0.4 * edn) - e.v) * 0.45 * edn - Math.abs(dh / dt) * e.v * 0.12) * dt;   // 오르면 느려지고 내려가면 빨라지고, 급선회하면 속도를 잃는다
+    if (!e.stall && e.y > 250 && e.v < S.v * (0.5 + 0.25 * (1 - edn))) e.stall = true; else if (e.stall && (e.v > S.v * 0.85 || e.y < 200)) e.stall = false;
+    if (e.stall) { e.h += clamp(angd(Math.cos(e.h) >= 0 ? -0.7 : Math.PI + 0.7, e.h), -1.5 * dt, 1.5 * dt); }   // 실속: 기수를 떨어뜨려 속도를 되찾는다
     e.v = clamp(e.v, S.v * 0.45, S.v * 1.5);
     e.x += Math.cos(e.h) * e.v * dt; e.y += Math.sin(e.h) * e.v * dt;
     const sink = Math.max(0, -Math.sin(e.h) * e.v), floor = Math.max(bomber ? 12 : 35, gA + 35) + sink * 2.2, nearShip = Math.abs(e.x - cx) < 170 && e.y > DECK_Y - 4;
@@ -1861,14 +1868,13 @@ function hint() {
   if (p.mode === 'taxi') {
     if (G.t < p.lock) return '';
     if (overElev()) return '스페이스바: 엘리베이터로 내려가기 (수리·재장전)';
-    if (p.s > 0 && p.xr >= LAUNCH_XR - 0.5) return '▶ 를 꾹 누르면 발진 · 공중에서 Space 기관총, X 로켓, C 폭탄';
-    return '◀ ▶ 로 갑판 위를 움직인다 · 가운데 엘리베이터에서 수리와 재장전 · 오른쪽 끝에서 발진';
+    if (p.s > 0) return '▶ 를 누르고 있으면 가속해서 이륙 · 가운데 엘리베이터 위에서 Space 정비 · 공중에서 Space 기관총, X 로켓, C 폭탄';
+    return '▶ 로 돌아서고, 계속 누르면 가속해서 이륙 · 가운데 엘리베이터 위에서 Space 정비';
   }
   if (p.mode === 'lift') return p.el && p.el.st === 'svc' ? '' : '엘리베이터 이동 중';
   const xr = p.x - ship.x;
   if (p.mode === 'deck' && !p.landing) {
-    if (!p.go) return '▶ 를 누르면 발진';
-    if (p.held) return '발진 신호를 기다린다…';
+
     return kts() >= TAKEOFF_KT ? '좋다! 갑판 끝에서 떠오른다' : '달리는 중… 갑판 끝까지 ' + TAKEOFF_KT + '노트를 넘기면 뜬다';
   }
   if (p.mode === 'deck') return '';

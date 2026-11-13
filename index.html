@@ -1237,6 +1237,8 @@ function startTurn() {
 addEventListener('keydown', e => {
   if (e.repeat) return; keys[e.code] = true; initAudio();
   if (G.scene !== 'play') { sceneKey(e); if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault(); return; }
+  if (e.code === 'KeyP') { G.paused = !G.paused; return; }
+  if (G.paused) { G.paused = false; return; }
   if (e.code === 'Escape') goMenu(); if (e.code === 'KeyV') startLanding();
   if (e.code === 'KeyM') setMuted(!sound.muted);
   if (e.code === 'KeyR' && G.result) afterCrash();
@@ -1252,7 +1254,7 @@ const DPAD = [
   { k: 'left', x: 18, y: 438, w: 96, h: 88, label: '◀' }, { k: 'right', x: 124, y: 438, w: 96, h: 88, label: '▶' },
   { k: 'up', x: 846, y: 340, w: 96, h: 88, label: '▲' }, { k: 'down', x: 846, y: 438, w: 96, h: 88, label: '▼' }
 ];
-const BTN = [{ id: 'menu', x: 14, y: 12, w: 64, h: 34, label: '작전' }, { id: 'snd', x: 14, y: 54, w: 64, h: 34, label: '소리' }];
+const BTN = [{ id: 'menu', x: 14, y: 12, w: 64, h: 34, label: '작전' }, { id: 'snd', x: 14, y: 54, w: 64, h: 34, label: '소리' }, { id: 'pause', x: 14, y: 96, w: 64, h: 34, label: '멈춤' }];
 const touch = { ids: {}, on: { up: 0, down: 0, left: 0, right: 0, gun: 0 } };
 let keyIn = 0, prevRev = false;
 function readKeys(dt) {
@@ -1270,12 +1272,13 @@ const inR = (m, r) => m.x >= r.x - 6 && m.x <= r.x + r.w + 6 && m.y >= r.y - 6 &
 cv.addEventListener('pointerdown', e => {
   const m = pos(e); e.preventDefault(); initAudio();
   if (G.scene !== 'play') { sceneTap(m); return; }
+  if (G.paused) { G.paused = false; return; }   // 멈춘 동안에는 어디를 눌러도 다시 시작
   if (landBtnOn() && inR(m, LANDBTN)) { startLanding(); return; }
   if (hangarOpen()) { HG_CARDS.forEach((r, i) => { if (inR(m, r)) G.loadout = i; }); if (inR(m, HG_GO)) liftUp(); return; }
   if (overElev() && inR(m, ELEV_BTN)) { startLift(); return; }
   if (p.mode === 'air') for (const b of FIRE) if (inR(m, b)) { if (b.k === 'gun') { touch.ids[e.pointerId] = 'gun'; touch.on.gun++; try { cv.setPointerCapture(e.pointerId); } catch (_) {} } else if (b.k === 'rocket') fireRocket(); else dropBomb(); return; }
   for (const d of DPAD) if (inR(m, d)) { touch.ids[e.pointerId] = d.k; touch.on[d.k]++; try { cv.setPointerCapture(e.pointerId); } catch (_) {} return; }
-  for (const b of BTN) if (inR(m, b)) { b.id === 'menu' ? goMenu() : setMuted(!sound.muted); return; }
+  for (const b of BTN) if (inR(m, b)) { if (b.id === 'menu') goMenu(); else if (b.id === 'pause') { G.paused = true; for (const k in keys) keys[k] = false; } else setMuted(!sound.muted); return; }
   if (G.result && m.y > 150 && m.y < 400 && m.x > 250 && m.x < 710) afterCrash();
 });
 const up = e => { const k = touch.ids[e.pointerId]; if (k) { touch.on[k] = Math.max(0, touch.on[k] - 1); delete touch.ids[e.pointerId]; } };
@@ -1599,7 +1602,8 @@ function drawWorld() {
   const sky = c.createLinearGradient(0, 0, 0, H); const tn = TINTS[G.m ? MISSIONS[G.mi].tint : 'day']; sky.addColorStop(0, tn[0]); sky.addColorStop(1, tn[1]);
   c.fillStyle = sky; c.fillRect(0, 0, W, H);
   // 구름은 없앴다
-  const sea = c.createLinearGradient(0, seaY, 0, H); sea.addColorStop(0, '#1f8fa8'); sea.addColorStop(1, '#0e4f73');
+  const SEA = { day: ['#1f8fa8', '#0e4f73'], dawn: ['#3a6f93', '#173d5c'], dusk: ['#2f6386', '#14324f'], night: ['#123352', '#06172a'] }[G.m ? MISSIONS[G.mi].tint : 'day'] || ['#1f8fa8', '#0e4f73'];   // 시간대에 맞는 바다 색
+  const sea = c.createLinearGradient(0, seaY, 0, H); sea.addColorStop(0, SEA[0]); sea.addColorStop(1, SEA[1]);
   c.fillStyle = sea; c.fillRect(0, seaY, W, Math.max(0, H - seaY));
   c.strokeStyle = 'rgba(255,255,255,0.35)'; c.lineWidth = 2;   // 물결
   const span = W / cam.z, x0 = Math.floor((cam.x - span / 2) / 45) * 45;
@@ -1767,7 +1771,12 @@ function drawHUD() {
     c.fillStyle = 'rgba(255,255,255,0.25)'; c.fillRect(bx, by + 38, bw, 2); c.globalAlpha = 1;
   }
   if (hangarOpen()) drawHangar(c);
-  const hm = hint();
+  if (G.paused && G.scene === 'play' && !G.quiet) {   // 일시정지 화면 (G.quiet: 시험용으로 화면 표시 없이 멈춤)
+    c.fillStyle = 'rgba(6,14,26,0.55)'; c.fillRect(-10, -40, W + 20, H + 60);
+    c.textAlign = 'center'; c.fillStyle = '#fff'; c.font = '900 40px system-ui,sans-serif'; c.fillText('일시정지', 480, 250);
+    c.font = '700 17px system-ui,sans-serif'; c.fillText('화면을 누르거나 아무 키나 누르면 계속', 480, 290); c.textAlign = 'left';
+  }
+  const hm = G.paused ? '' : hint();
   if (hm) { const tw = fitFont(c, hm, 16, '700', MSG_W - 30); panel(MSG_CX - tw / 2 - 14, 96, tw + 28, 34, 0.7); c.fillStyle = '#fff'; c.textAlign = 'center'; c.fillText(hm, MSG_CX, 119); }
   // 결과
   if (G.result && (G.result.kind !== 'crash' || G.t - G.result.at > 2.6)) {
@@ -1802,6 +1811,7 @@ function fit() {
   cv.style.width = W * s + 'px'; cv.style.height = H * s + 'px';
 }
 addEventListener('resize', fit); fit();
+document.addEventListener('visibilitychange', () => { if (document.hidden && G.scene === 'play') { G.paused = true; for (const k in keys) keys[k] = false; } });   // 다른 앱으로 가면 저절로 멈춘다
 
 let last = 0, acc = 0;
 const STEP = 1 / 120;

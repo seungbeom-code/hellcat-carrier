@@ -1772,7 +1772,7 @@ const FIRE = [{ k: 'gun', x: 250, y: 456, w: 105, h: 60, label: 'Gun', key: 'Spa
 const LANDBTN = { x: 330, y: 392, w: 300, h: 50 };
 
 // 첫 화면: 2번 작전 섬 위에서 자동으로 날아다니며 싸우는 데모
-function startDemo() { startMission(1); reset(); G.scene = 'title'; G.toast = null; G.lives = 99; G.demo = { t: 0, ct: 0, z: 0 }; }
+function startDemo() { startMission(genMission(1 + Math.floor(Math.random() * MAX_LVL), newSeed())); reset(); G.scene = 'title'; G.toast = null; G.lives = 99; G.demo = { t: 0, ct: 0, z: 0 }; }
 function demoBot(dt) {
   const D = G.demo; D.t += dt;
   const K = (u, l, r, f) => { keys.ArrowUp = u > 0; keys.ArrowDown = u < 0; keys.ArrowLeft = !!l; keys.ArrowRight = !!r; G.demoFire = !!f; };

@@ -78,6 +78,9 @@ function airDenAt(y) { return clamp(1 - Math.max(0, y - 250) / 400, 0.1, 1); }
 function airDen() { return airDenAt(p.y); }
 function stallKt() { return Math.sqrt(GRAV / (KL * CL_MAX * (0.25 + 0.75 * airDen()))) * KT; }   // 높이 올라갈수록 실속 속도가 올라간다
 
+function liftLoss() {   // 속도가 느릴수록 양력이 모자란다: 실속 속도의 1.6배부터 서서히 늘어 실속 속도에서 1
+  const st = stallKt(), full = st * 1.6, k = kts(); return clamp((full - k) / (full - st), 0, 1);
+}
 function airStep(dt) {
   p.prevY = p.y;
   let V = Math.hypot(p.vx, p.vy) || 0.01;
@@ -112,11 +115,13 @@ function airStep(dt) {
   const f = aero(V, p.a), ux = p.vx / V, uy = p.vy / V;
   p.vx += (f.aT * Math.cos(p.th) - f.aD * ux - f.aL * uy) * dt;
   p.vy += (f.aT * Math.sin(p.th) - f.aD * uy + f.aL * ux - GRAV) * dt;
+  const lossD = liftLoss(); if (lossD > 0 && !p.stalled) p.vy -= 5.5 * lossD * lossD * dt * 1.0 + 1.2 * lossD * dt;   // 느리면 양력이 모자라 서서히 가라앉는다
   if (p.neutral) {   // 손을 뗀 상태: 흔들림 없이 천천히 내려가고 속도도 안정된다
     // 손을 뗀 상태: 항모 근처든 아니든 똑같이 난다 (갑판에 맞춰 주는 보정은 없다)
     const hold = p.holdG !== null && p.holdG !== undefined && G.t - p.liftT >= 5;
     if (hold && p.holdG > 0 && V * KT < stallKt() * 1.15) { p.holdG -= 0.3 * dt; if (p.holdG <= 0) p.holdG = null; }   // 너무 느려지면 기수가 서서히 내려간다
     let vt = G.t - p.liftT < 5 ? 3 : hold ? Math.tan(p.holdG) * Math.abs(p.vx) : -2.5;   // 오르거나 내려가던 중에 손을 떼면 그 방향 그대로 부드럽게 난다
+    vt -= 4 * lossD;   // 느릴수록 더 빨리 가라앉는다
     if (p.stalled || V * KT < stallKt()) vt = Math.min(vt, -8);   // 실속: 가라앉는다
     p.vy += (vt - p.vy) * Math.min(1, 4 * dt);
     const kV = clamp((p.y - 45) / 90, 0, 1);   // 낮을수록 천천히, 높을수록 빠르게 (위치와는 상관없다)

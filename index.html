@@ -47,7 +47,7 @@ const G = { t: 0, stickers: [], result: null, assist: true, lso: null, lsoT: 0, 
 let p;
 function reset() {
   p = { mode: 'taxi', x: 0, y: DECK_Y + WH, vx: SHIP_V, vy: 0, th: 0, a: 0.035, s: 1, in: 0, thr: 0,
-        gear: true, flaps: true, hook: false, gunT: 0, rkT: 0, bmT: 0, ammo: { ...LOAD_AMMO[G.loadout] }, fuel: LOADS[G.loadout].fuel, fuelMax: LOADS[G.loadout].fuel, hp: 100, lock: 0, flip: 0, flipFrom: 1, pushT: 0, el: null, xr: START_XR, vr: 0, held: true, flagT: 0,
+        gear: true, flaps: true, hook: false, turnPend: false, gunT: 0, rkT: 0, bmT: 0, ammo: { ...LOAD_AMMO[G.loadout] }, fuel: LOADS[G.loadout].fuel, fuelMax: LOADS[G.loadout].fuel, hp: 100, lock: 0, flip: 0, flipFrom: 1, pushT: 0, el: null, xr: START_XR, vr: 0, held: true, flagT: 0,
         landing: false, wire: -1, turn: 0, go: false, off: false, liftT: 0, wx: null, eng: false, ld: 1, relT: 0, engT: 0, tookOff: false, prevY: DECK_Y + WH,
         ap: { maxErr: 0, maxSpd: 0, on: false }, td: null };
   p.x = ship.x + p.xr;
@@ -71,6 +71,7 @@ function stallKt() { return Math.sqrt(GRAV / (KL * CL_MAX * (0.25 + 0.75 * airDe
 function airStep(dt) {
   p.prevY = p.y;
   let V = Math.hypot(p.vx, p.vy) || 0.01;
+  if (p.turnPend) p.in = 0;   // 선회 대기 중에는 ▲▼ 를 받지 않는다
   if (p.off) {                            // 갑판에서 떨어지는 중: 조종 불가
     p.vy -= 11 * dt; p.vx *= 1 - 0.4 * dt; p.th += -p.s * 0.9 * dt;
     p.x += p.vx * dt; p.y += p.vy * dt; return;
@@ -110,6 +111,10 @@ function airStep(dt) {
     const farC = Math.abs(p.x - ship.x - DECK_L / 2), kV = Math.max(clamp((p.y - 45) / 90, 0, 1), clamp((farC - 500) / 700, 0, 1));   // 항모에서 멀거나 높으면 빠르게, 항모 근처에서 낮게 날 때만 천천히
     const Vt = lerp(SLOW_KT, CRUISE_KT, kV) / KT;   // 손을 떼면 낮을수록 천천히 난다 (바퀴와는 무관)
     p.vx += Math.sign(p.vx) * clamp((Vt - V) * 1.6, -12, 9 * airDen()) * dt;
+  }
+  if (p.turnPend) {   // 선회 대기: 부드럽게 수평으로 돌아온 다음 선회한다
+    p.vy += (0 - p.vy) * Math.min(1, 2.2 * dt);
+    if (Math.abs(Math.atan2(p.vy, Math.abs(p.vx))) < 0.1) startTurn();
   }
   if (G.t - p.liftT < 4) p.vy = Math.min(p.vy, 1 + (G.t - p.liftT) * 3);
   if (p.y > 250 && kts() < stallKt() * 1.08 && (!G.toast || G.toast.until < G.t)) G.toast = { text: '공기가 희박해 실속한다! 기수를 내려 속도를 붙여라', grade: 'yellow', until: G.t + 2.5 };   // 고도 제한 대신 실속
@@ -1439,7 +1444,8 @@ const keys = {}, ctl = { up: false, down: false, left: false, right: false };
 function startTurn() {
   if (p.mode !== 'air' || p.turn > 0 || p.off || p.y <= 12) return;
   if (kts() < TURN_KT) { G.msg = { text: '속도가 모자라 선회할 수 없다 (' + TURN_KT + '노트 이상)', until: G.t + 1.6 }; sfx('stall'); return; }
-  p.turn = TURN_T; p.v0 = p.vx; p.flipped = false; sfx('turn');
+  if (Math.abs(Math.atan2(p.vy, Math.abs(p.vx))) > 0.14) { if (!p.turnPend) G.msg = { text: '기체를 수평으로 세운 뒤 선회한다', until: G.t + 1.5 }; p.turnPend = true; return; }   // 급상승·급강하 중이면 먼저 수평으로
+  p.turnPend = false; p.turn = TURN_T; p.v0 = p.vx; p.flipped = false; sfx('turn');
 }
 addEventListener('keydown', e => {
   if (e.repeat) return; keys[e.code] = true; initAudio();

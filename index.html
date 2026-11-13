@@ -1246,7 +1246,7 @@ function autoFly(dt) {
   }
   if (p.mode !== 'air') p.neutral = false;
   p.thr += (tgt - p.thr) * Math.min(1, dt * 9);
-  p.hook = p.gear && p.tookOff;
+  p.hook = p.gear && p.tookOff && G.t - p.liftT > 15;   // 이륙 직후에는 후크를 내리지 않는다 (착함하러 올 때만)
   if (p.mode === 'taxi' || p.mode === 'lift' || (p.mode === 'deck' && !p.landing)) p.hook = G.t < p.relT;   // 착함 뒤에는 후크를 들어 올린다
 }
 

@@ -87,7 +87,7 @@ function airStep(dt) {
   if (p.s * Math.cos(g) < -0.3 && Math.abs(p.in) < 0.2) { p.s = -p.s; p.a = -p.a; }   // 뒤집힌 채 놓으면 바로 선다
   const aTrim = clamp((GRAV * 0.985 / (KL * V * V) - CL_BASE) / 5, -0.25, 0.25);   // 키를 안 눌러도 속도에 맞춰 수평에 가깝게 맞춰 준다
   const pg = clamp(Math.pow(60 / V, 1.6), 0.3, 2.0);                                  // 빠를수록 같은 입력에 덜 꺾이게 해서 조작감을 같게 한다
-  const aCmd = p.s * (aTrim + p.in * (p.in > 0 ? 0.2 : 0.14) * pg);
+  const aCmd = p.s * (aTrim + p.in * (p.in > 0 ? 0.3 : 0.24) * pg);
   p.a += (aCmd - p.a) * Math.min(1, dt * 28);
   p.th = g + p.a;
   const f = aero(V, p.a), ux = p.vx / V, uy = p.vy / V;
@@ -1078,7 +1078,7 @@ function demoBot(dt) {
   let alt = en ? en.y : tgt ? tgt.y + 70 : 150; alt = Math.max(alt, ground + 55);
   let u = p.y < alt - 6 ? 1 : p.y > alt + 10 ? -1 : 0;
   if (tgt && !en && Math.abs(tgt.x - p.x) < 450 && p.y - tgt.y > 35) u = -1;   // 표적으로 얕게 내려간다
-  if (p.y - ground < 40 || (p.vy < -12 && p.y - ground < 90)) u = 1;           // 땅이 가까우면 올라간다
+  if (p.y - ground < 50 || (p.vy < -10 && p.y - ground < 140) || (p.vy < -25 && p.y - ground < 220)) u = 1;           // 땅이 가까우면 올라간다
   const aim = (x, y) => Math.abs(angd(Math.atan2(y - p.y, x - p.x), p.th)) < 0.12;
   // 기관총은 적기와 일본군에게만, 시설과 배에는 로켓·폭탄
   let fire = false;

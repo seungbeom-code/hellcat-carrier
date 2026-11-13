@@ -1,8 +1,8 @@
 {
-  "name": "태평양의 푸른날개",
-  "short_name": "태평양의 푸른날개",
-  "description": "항공모함에서 이륙하고 착함하는 비행 게임 (1944 태평양 작전)",
-  "lang": "ko",
+  "name": "Blue Wings of the Pacific",
+  "short_name": "Blue Wings",
+  "description": "Carrier takeoff and landing flight game (1944 Pacific)",
+  "lang": "en",
   "id": "./",
   "start_url": "./",
   "scope": "./",

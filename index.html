@@ -1454,7 +1454,7 @@ function drawZero(c, type) {
 const FIRE_KEY = { rocket: 'rk', bomb: 'bm', torp: 'tp' };
 function fireBtns() {   // 화면의 발사 버튼: 기관총과, 이번에 실은 무기 하나 (늘 같은 자리에 크게)
   const cap = LOAD_AMMO[G.loadout], w = FIRE.find(b => b.k !== 'gun' && cap[FIRE_KEY[b.k]] > 0);
-  return w ? [{ ...FIRE[0], x: 280, w: 190 }, { ...w, x: 490, w: 190 }] : [{ ...FIRE[0], x: 385, w: 190 }];
+  return w ? [{ ...FIRE[0], x: 22, y: 432, w: 150, h: 84 }, { ...w, x: 22, y: 338, w: 150, h: 84 }] : [{ ...FIRE[0], x: 22, y: 432, w: 150, h: 84 }];   // 왼쪽 아래: 기관총 + 이번에 실은 무기 하나
 }
 function drawEnemyMarks(c) {
   if (G.scene !== 'play' && G.scene !== 'title') return;
@@ -1708,9 +1708,13 @@ addEventListener('keydown', e => {
   if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault();
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
+// 방향키: 오른쪽 아래에 십자(+) 모양. 가운데 칸은 비워 둔다
+const PAD_C = { x: 818, y: 408 }, PAD_S = 76, PAD_G = 80;   // 십자 가운데 좌표, 버튼 크기, 버튼 사이 거리
 const DPAD = [
-  { k: 'left', x: 18, y: 438, w: 96, h: 88, label: '◀' }, { k: 'right', x: 124, y: 438, w: 96, h: 88, label: '▶' },
-  { k: 'up', x: 846, y: 340, w: 96, h: 88, label: '▲' }, { k: 'down', x: 846, y: 438, w: 96, h: 88, label: '▼' }
+  { k: 'up', x: PAD_C.x - PAD_S / 2, y: PAD_C.y - PAD_S / 2 - PAD_G, w: PAD_S, h: PAD_S, label: '▲' },
+  { k: 'left', x: PAD_C.x - PAD_S / 2 - PAD_G, y: PAD_C.y - PAD_S / 2, w: PAD_S, h: PAD_S, label: '◀' },
+  { k: 'right', x: PAD_C.x - PAD_S / 2 + PAD_G, y: PAD_C.y - PAD_S / 2, w: PAD_S, h: PAD_S, label: '▶' },
+  { k: 'down', x: PAD_C.x - PAD_S / 2, y: PAD_C.y - PAD_S / 2 + PAD_G, w: PAD_S, h: PAD_S, label: '▼' }
 ];
 const BTN = [{ id: 'menu', x: 14, y: 12, w: 64, h: 34, label: 'Ops' }, { id: 'snd', x: 14, y: 54, w: 64, h: 34, label: 'Sound' }, { id: 'pause', x: 14, y: 96, w: 64, h: 34, label: 'Pause' }];
 const touch = { ids: {}, on: { up: 0, down: 0, left: 0, right: 0, gun: 0 } };
@@ -1735,7 +1739,8 @@ cv.addEventListener('pointerdown', e => {
   if (hangarOpen()) { PICK_CARDS.forEach((r, i) => { if (inR(m, r)) pickLoad(i); }); return; }
   if (overElev() && inR(m, ELEV_BTN)) { startLift(); return; }
   if (p.mode === 'air') for (const b of fireBtns()) if (inR(m, b)) { if (b.k === 'gun') { touch.ids[e.pointerId] = 'gun'; touch.on.gun++; try { cv.setPointerCapture(e.pointerId); } catch (_) {} } else if (b.k === 'rocket') fireRocket(); else if (b.k === 'torp') fireTorpedo(); else dropBomb(); return; }
-  for (const d of DPAD) if (inR(m, d)) { touch.ids[e.pointerId] = d.k; touch.on[d.k]++; try { cv.setPointerCapture(e.pointerId); } catch (_) {} return; }
+  { const hit = DPAD.filter(d => inR(m, d)).sort((a, b) => Math.hypot(m.x - a.x - a.w / 2, m.y - a.y - a.h / 2) - Math.hypot(m.x - b.x - b.w / 2, m.y - b.y - b.h / 2))[0];
+    if (hit) { touch.ids[e.pointerId] = hit.k; touch.on[hit.k]++; try { cv.setPointerCapture(e.pointerId); } catch (_) {} return; } }
   for (const b of BTN) if (inR(m, b)) { if (b.id === 'menu') { G.paused = true; G.askQuit = true; for (const k in keys) keys[k] = false; } else if (b.id === 'pause') { G.paused = true; G.askQuit = false; for (const k in keys) keys[k] = false; } else setMuted(!sound.muted); return; }
   if (G.result && m.y > 150 && m.y < 400 && m.x > 250 && m.x < 710) afterCrash();
 });
@@ -2194,6 +2199,7 @@ function drawHUD() {
   }
   c.restore();
   // 방향 버튼
+  c.fillStyle = 'rgba(8,20,34,0.3)'; c.beginPath(); c.arc(PAD_C.x, PAD_C.y, PAD_S / 2 - 6, 0, 7); c.fill();   // 십자 가운데
   for (const d of DPAD) {
     c.fillStyle = ctl[d.k] ? 'rgba(255,210,63,0.85)' : 'rgba(8,20,34,0.42)'; c.beginPath(); c.roundRect(d.x, d.y, d.w, d.h, 14); c.fill();
     c.strokeStyle = 'rgba(255,255,255,0.55)'; c.lineWidth = 2; c.stroke();
@@ -2221,7 +2227,7 @@ function drawHUD() {
   if (landBtnOn()) { const b = LANDBTN; c.fillStyle = 'rgba(40,120,70,0.94)'; c.beginPath(); c.roundRect(b.x, b.y, b.w, b.h, 12); c.fill(); c.strokeStyle = '#9ef0b8'; c.lineWidth = 2; c.stroke(); c.fillStyle = '#fff'; c.font = '800 17px system-ui,sans-serif'; c.textAlign = 'center'; c.fillText('Start landing (V)', b.x + b.w / 2, b.y + 32); }
   if (p.mode === 'air') fireBtns().forEach(b => {   // 발사 버튼
     const n = b.k === 'gun' ? p.ammo.gun : b.k === 'rocket' ? p.ammo.rk : b.k === 'torp' ? (p.ammo.tp || 0) : p.ammo.bm, held = b.k === 'gun' && (keys.Space || keys.KeyZ || touch.on.gun > 0);
-    c.fillStyle = held ? 'rgba(230,90,60,0.95)' : n > 0 ? 'rgba(150,40,30,0.88)' : 'rgba(60,66,76,0.8)'; c.beginPath(); c.roundRect(b.x, b.y, b.w, b.h, 12); c.fill();
+    c.fillStyle = held ? 'rgba(230,90,60,0.9)' : n > 0 ? 'rgba(150,40,30,0.62)' : 'rgba(60,66,76,0.55)'; c.strokeStyle = 'rgba(255,255,255,0.45)'; c.lineWidth = 2; c.beginPath(); c.roundRect(b.x, b.y, b.w, b.h, 12); c.fill(); c.stroke();
     c.fillStyle = '#fff'; c.textAlign = 'center'; c.font = '800 15px system-ui,sans-serif'; c.fillText(b.label, b.x + b.w / 2, b.y + 26); c.font = '600 12px system-ui,sans-serif'; c.fillText(n + '  (' + b.key + ')', b.x + b.w / 2, b.y + 46);
   });
   if (G.tick && G.tick.length) {   // 뉴스 자막처럼: 왼쪽에 빨간 '속보' 꼬리표, 흰 글씨, 부드럽게 나타났다 사라진다

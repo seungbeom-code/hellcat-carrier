@@ -900,7 +900,7 @@ function ebStep(dt) {
     if (b.life <= 0 || b.y <= gh(b.x)) EB.splice(i, 1);
   }
 }
-const SHELL = [], HOW = { bunker: { cd: 9, r: 1200, n: 1 } }   // 곡사포는 일반 벙커만;
+const SHELL = [], HOW = { bunker: { cd: 9, r: 1000, n: 1 } }   // 곡사포는 일반 벙커만;
 function shellStep(dt) {   // 벙커의 곡사포: 내 비행기가 갈 곳을 내다보고 포물선으로 쏜다, 가까이에서 터지면 피해
   for (const t of TARGETS) {
     const H = HOW[t.type]; if (!H || !t.alive) continue;

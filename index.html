@@ -247,7 +247,6 @@ function crashBuildings(o, hitSet) {   // 떨어지는 비행기가 건물 몸�
 }
 function plowThrough(o, x, y, vx, hitSet) {   // 미끄러지는 기체가 지나가며 주는 피해. 반환값: 속도에 곱할 값
   const sp = Math.abs(vx); let k = 1;
-  for (const t of TREES) if (t.alive && Math.abs(t.x - x) < 3) { t.alive = false; chips(t.x, t.y + 2, 10, ['#4f8a3c', '#7a5a36', '#4b3621']); k *= 0.85; }
   for (const q of SOLD) if (q.alive && Math.abs(q.x - x) < 5) killSoldier(q);
   for (const t of TARGETS) {
     if (!t.alive || SHIPS[t.type] || hitSet.has(t) || Math.abs(t.x - x) > BOX[t.type].w / 2 + 3 || y > t.y + BOX[t.type].h + 2) continue;

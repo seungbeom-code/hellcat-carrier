@@ -1358,6 +1358,24 @@ function dropBomb() {
   p.ammo.bm--; p.bmT = G.t + 0.25; sfx('bomb'); if (p.ammo.bm === 0) lastShot(1);
   PROJ.push({ k: 'm', x: p.x, y: p.y - 2.5, vx: p.vx, vy: p.vy - 15, life: 30, lb: p.ammo.lb });
 }
+function bombImpact(q, hit, g, sea) {   // 폭탄은 표적에 직격했을 때만 피해를 준다. 조금이라도 빗나가 옆 땅에 떨어지면 작은 파편만 튀고 파괴에 실패한다
+  const R = q.lb >= 1000 ? 44 : 30;
+  if (sea) { explode(q.x, 0, R, 'none', true); return; }
+  if (!hit) {
+    const y = Math.max(q.y, g); chips(q.x, y + 0.5, 14, ['#6e4e2c', '#8a6b43', '#a8885a', '#4d3720'], 1.5); dirtBurst(q.x, y, 1.5); FX.push({ k: 'flash', x: q.x, y: y + 1, vx: 0, vy: 0, life: 0.12, t: 0 });
+    for (let i = 0; i < 4; i++) FX.push({ k: 'smoke', x: q.x + (Math.random() - 0.5) * 4, y: y + 1, vx: (Math.random() - 0.5) * 6, vy: 3 + Math.random() * 4, life: 0.8 + Math.random() * 0.5, t: 0, s: 1.2 + Math.random() * 1.2 });
+    alarmFauna(q.x, y, 170); sfx('thump');
+    if (!G.toast || G.toast.until < G.t) G.toast = { text: 'Near miss! A bomb only damages what it hits directly', grade: 'yellow', until: G.t + 2.5 };
+    return;
+  }
+  explode(q.x, q.y, R, 'none', false);   // 직격: 큰 폭발 연출
+  for (const o of SOLD) if (o.alive && Math.abs(o.x - q.x) < 9 && Math.abs(o.y - q.y) < 9) killSoldier(o);
+  for (const e of ENE) if (!e.dead && Math.hypot(e.x - q.x, e.y - q.y) <= 14) { e.hp -= 8; if (e.hp <= 0) killEnemy(e); }
+  if (SHIPS[hit.type]) { if (!G.toast || G.toast.until < G.t) G.toast = { text: 'Ships sink only to torpedoes · rockets knock out their guns', grade: 'yellow', until: G.t + 3 }; return; }
+  if (hit.type === 'runway') { killParkedNear(hit, q.x, q.y, 14); return; }
+  applyDmg(hit, DMG.bomb[hit.type] || 0);
+  if (hit.type === 'pill' && (!G.toast || G.toast.until < G.t)) G.toast = { text: 'Bombs do not hurt concrete bunkers — use rockets!', grade: 'yellow', until: G.t + 2.5 };
+}
 function gunHitTarget(t, q) {   // 기관총탄이 맞았다: 건물은 조금씩 깎이고, 군함은 선체가 아니라 갑판의 대공포·기관총이 상한다
   for (let j = 0; j < 2; j++) FX.push({ k: 'spark', x: q.x, y: q.y, vx: (Math.random() - 0.5) * 18, vy: 3 + Math.random() * 8, life: 0.3, t: 0 });
   alarmFauna(q.x, q.y, 90);
@@ -1419,7 +1437,7 @@ function stepProj(dt) {
       PROJ.splice(i, 1); continue;
     }
     if (q.k === 'b') { const sd = SOLD.find(o => o.alive && o.st !== 'enter' && Math.abs(q.x - o.x) < 4.5 && q.y >= o.y - 0.5 && q.y <= o.y + 8); if (sd) { killSoldier(sd); PROJ.splice(i, 1); continue; } }
-    const hit = hitTest(q.x, q.y, q.k === 'b' ? 0.5 : 1.5),   // 기관총도 건물·벙커·대공포·함선의 포에 피해를 준다
+    const hit = hitTest(q.x, q.y, q.k === 'b' ? 0.5 : q.k === 'm' ? 0 : 1.5),   // 기관총도 건물·벙커·대공포·함선의 포에 피해를 준다
       tree = q.k === 'b' ? hitTree(q.x, q.y) : null,   // 기관총은 나무도 맞힌다 (로켓은 폭발로만 쓰러뜨린다)
       g = gh(q.x), ground = g > 0 && q.y <= g, sea = !ground && q.y <= 0;
     if (!(hit || tree || ground || sea)) { if (q.life <= 0) PROJ.splice(i, 1); continue; }
@@ -1428,7 +1446,8 @@ function stepProj(dt) {
       else if (hit) gunHitTarget(hit, q);
       else if (sea) FX.push({ k: 'splash', x: q.x, y: 0, vx: 0, vy: 3, life: 0.4, t: 0 });
       else { dirtBurst(q.x, g, 1); alarmFauna(q.x, g, 110); for (const o of SOLD) if (o.alive && Math.abs(o.x - q.x) < 4) killSoldier(o); }
-    } else explode(q.x, Math.max(q.y, g), q.k === 'm' ? (q.lb >= 1000 ? 44 : 30) : 14, q.k === 'm' ? 'bomb' : 'rocket', sea);
+    } else if (q.k === 'm') bombImpact(q, hit, g, sea);
+    else explode(q.x, Math.max(q.y, g), 14, 'rocket', sea);
     PROJ.splice(i, 1);
   }
 }
@@ -2194,7 +2213,7 @@ const HELP = [
   ['GUN', 'Space — machine gun: hurts planes, soldiers, buildings, trees and ship AA guns (rockets and bombs hit far harder)'],
   ['WEAPON', 'C — fires the one weapon you loaded in the hangar'],
   ['ROCKETS', 'Bunkers, AA guns, buildings and ship guns; the only weapon that breaks concrete bunkers. Range 2,000 m, then the motor cuts out'],
-  ['BOMBS', 'Buildings and airfields. No effect on concrete bunkers or ships'],
+  ['BOMBS', 'Buildings and parked aircraft, but only on a direct hit: a near miss just throws up small debris. No effect on concrete bunkers or ships'],
   ['TORPEDOES', 'The only way to sink a ship. Release level, below 40 m. Range 1,100 m'],
   ['ISLANDS', 'An island surrenders when every building and soldier is gone.'],
   ['', 'A destroyed barracks releases soldiers who repair wrecked bunkers and guns. Shoot them first.'],

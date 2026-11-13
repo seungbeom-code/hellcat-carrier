@@ -519,7 +519,7 @@ function startMission(i) {
   G.isx = x => { if (!BP.length || x <= BP[0][0]) return x; for (let j = 1; j < BP.length; j++) if (x <= BP[j][0]) { const [r0, n0] = BP[j - 1], [r1, n1] = BP[j]; return n0 + (x - r0) / (r1 - r0) * (n1 - n0); } const [rl, nl] = BP[BP.length - 1]; return nl + (x - rl) * SC; };
   ISLANDS = M.islands.map(([a, w, pk], k) => mkIsland(G.isx(a) - OFF, w * SC, pk * 1.15, i * 10 + k + 1));
   makeTargets(M);
-  { let nx = 1e9; ISLANDS.forEach(s => nx = Math.min(nx, s.a)); TARGETS.forEach(t => nx = Math.min(nx, t.x - 50)); G.holdX = nx - 1760; }
+  { let nx = 1e9; ISLANDS.forEach(s => nx = Math.min(nx, s.a)); TARGETS.forEach(t => nx = Math.min(nx, t.x - 50)); G.holdX = nx - 880; if (nx < 1e8) ship.x = Math.min(G.holdX, nx - (nx + 500) / 2); }   // 항모와 섬(첫 표적) 사이를 전의 반으로
   {   // 전체 지도의 범위: 작전 동안 항모가 갈 수 있는 곳, 섬, 배, 적기가 나타나는 곳까지 모두 (작전 중에는 바뀌지 않는다)
     const last = M.waves.length ? M.waves[M.waves.length - 1].t + 150 : 300, shipEnd = Math.min(G.holdX, ship.x + ship.v * last);
     let a = ship.x - 400, b = shipEnd + 260 + (M.waves.length ? 2800 : 0);

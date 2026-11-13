@@ -365,6 +365,7 @@ function boom(x, y, vx, vy, sea) {
   G.burn = sea ? null : { xr: x - ship.x, x, ship: x - ship.x > -6 && x - ship.x < DECK_L + 6 && y < DECK_Y + 12, y, until: G.t + 7, next: 0 };
 }
 function stepFx(dt) {
+  faunaStep(dt);
   stepWrecks(dt);
   if (G.burn && G.t < G.burn.until && G.t >= G.burn.next) {   // 잔해에서 연기와 불이 계속 오른다
     G.burn.next = G.t + 0.07; const onShip = G.burn.ship !== false, bx = (onShip ? ship.x + G.burn.xr : G.burn.x) + (Math.random() - 0.5) * 6;
@@ -899,18 +900,21 @@ function makeTargets(M) {
   }
   ISLANDS.forEach((si, k) => {   // 숲은 건물이 없는 빈 구간에만 만든다: 건물·깃발·활주로 둘레 35m는 비우고, 나무는 20~48m씩 떨어뜨려 심는다
     const w = si.b - si.a, hs = n => Math.abs(Math.sin(n * 12.9898) * 43758.5453) % 1;
-    const blk = TARGETS.filter(t => !SHIPS[t.type] && t.isl === k).map(t => [t.x - BOX[t.type].w / 2 - 35, t.x + BOX[t.type].w / 2 + 35]);
+    const blk = TARGETS.filter(t => !SHIPS[t.type] && t.isl === k).map(t => [t.x - BOX[t.type].w / 2 - 25, t.x + BOX[t.type].w / 2 + 25]);
     blk.push([si.fx - 35, si.fx + 35]); if (si.flat) blk.push([si.flat.a - 35, si.flat.b + 35]);
     blk.sort((u, v) => u[0] - v[0]);
     si.forests = []; let cur = si.a + w * 0.07; const end = si.b - w * 0.07;
-    for (const [b0, b1] of blk) { if (b0 - cur >= 110) si.forests.push([cur + 8, Math.min(b0, end) - 8]); cur = Math.max(cur, b1); }
-    if (end - cur >= 110) si.forests.push([cur + 8, end - 8]);
-    si.forests = si.forests.filter(f => f[1] - f[0] >= 90);
+    for (const [b0, b1] of blk) { if (b0 - cur >= 50) si.forests.push([cur + 6, Math.min(b0, end) - 6]); cur = Math.max(cur, b1); }
+    if (end - cur >= 50) si.forests.push([cur + 6, end - 6]);
+    { const all = si.forests.filter(f => f[1] - f[0] >= 36), sel = [];   // 숲은 섬의 양끝에 하나씩, 짧게
+      for (const side of [0, 1]) { const c0 = all.filter(f => { const m = ((f[0] + f[1]) / 2 - si.a) / w; return side ? m > 0.76 : m < 0.24; }).sort((u, v) => (v[1] - v[0]) - (u[1] - u[0]))[0]; if (c0) { const len = Math.min(200, c0[1] - c0[0]), mid = (c0[0] + c0[1]) / 2; sel.push([mid - len / 2, mid + len / 2]); } }
+      si.forests = sel; }
     for (const [f0, f1] of si.forests) {
       for (let x = f0, i = 0; x < f1; i++) { const h = hs(x * 0.137 + i), h2 = hs(x * 0.311 + i * 1.7), tx = x, r = 3 + h * 2.5; x += 20 + h2 * 28; TREES.push(Object.assign({ x: tx, y: gh(tx), hp: 3, hp0: 3, alive: true }, treeSpec(h, h2, r))); }
-      for (let x = f0 + 5, i = 0; x < f1; i++) { const h = hs(x * 0.71 + i), h2 = hs(x * 0.29 + i * 2.3), bx = x; x += 9 + h2 * 16; if (h < 0.75) BUSH.push({ x: bx, y: gh(bx), r: 1.2 + h * 1.6, k: Math.floor(h2 * 3), ph: h * 6.28 }); }
+      for (let x = f0 + 5, i = 0; x < f1; i++) { const h = hs(x * 0.71 + i), h2 = hs(x * 0.29 + i * 2.3), bx = x; x += 9 + h2 * 16; if (false) BUSH.push({ x: bx, y: gh(bx), r: 1.2 + h * 1.6, k: Math.floor(h2 * 3), ph: h * 6.28 }); }
     }
   });
+  spawnFauna();
 }
 const isOpen = t => ((G.t + t.x * 0.37) % 9) < 4;   // 동굴 포대 문이 열린 때
 function defPct() { const M = G.cur; let tot = 0, al = 0; for (const t of TARGETS) if (DEF_W[t.type] && t.isl === M.cap) { tot += DEF_W[t.type]; if (t.alive) al += DEF_W[t.type]; } return tot ? al / tot * 100 : 0; }
@@ -1157,7 +1161,7 @@ function quadStep(dt) {   // 일반 벙커의 4연장 기관포: 포신이 내 �
     const want = p.mode === 'air' && d < 700 ? clamp(Math.atan2(p.y + p.vy * tf - gy, p.x + p.vx * tf - gx), 0.05, Math.PI - 0.05) : 0.9;
     t.aim = t.aim === undefined ? want : t.aim + clamp(angd(want, t.aim), -1.4 * dt, 1.4 * dt);
     t.qcd = (t.qcd === undefined ? Math.random() * 3 : t.qcd) - dt; t.burst = (t.burst || 0) - dt;
-    if (t.burst <= 0 && t.qcd <= 0 && p.mode === 'air' && d < 500 && d > 40 && Math.abs(angd(want, t.aim)) < 0.12) { t.burst = 0.5; t.qcd = 6.5 + Math.random() * 2; t.qn = 0; t.qe = (Math.random() - 0.5) * (0.1 + d / 8000); if (d < 1200) sfx('gun'); }
+    if (t.burst <= 0 && t.qcd <= 0 && p.mode === 'air' && d < 500 && d > 40 && Math.abs(angd(want, t.aim)) < 0.12) { t.burst = 0.5; alarmFauna(gx, gy, 220); t.qcd = 6.5 + Math.random() * 2; t.qn = 0; t.qe = (Math.random() - 0.5) * (0.1 + d / 8000); if (d < 1200) sfx('gun'); }
     if (t.burst > 0) { t.qt = (t.qt || 0) - dt; while (t.qt <= 0) { t.qt += 1 / 12; t.qn = (t.qn || 0) + 1; const a = t.aim + t.qe + (Math.random() - 0.5) * 0.12, k = t.qn % 4; EB.push({ x: gx + Math.cos(t.aim) * 6, y: gy + Math.sin(t.aim) * 6 + (k - 1.5) * 0.4, vx: Math.cos(a) * 520, vy: Math.sin(a) * 520, life: 2.2, why: 'Shot down by bunker cannon fire.', dmg: 1 }); t.qf = G.t; } }
   }
 }
@@ -1213,12 +1217,12 @@ function hitTest(x, y, pad) {
 }
 const CROWN = { palm: 1, broad: 0.75, banyan: 0.72, tall: 0.88, pine: 0.7, banana: 0.9, bamboo: 0.85 };   // 나무 키에서 우듬지가 있는 높이 비율
 function treeSpec(h, h2, r) {   // h: 0~1 로 종류를 정한다
-  if (h < 0.26) return { kind: 'palm', H: 10 + r * 1.6, r, lean: (h2 - 0.5) * 0.45 };
-  if (h < 0.44) return { kind: 'broad', H: 7 + r * 1.3, r, lean: 0 };
-  if (h < 0.54) return { kind: 'banyan', H: 9 + r * 0.6, r: r * 1.7, lean: 0 };
-  if (h < 0.68) return { kind: 'tall', H: 20 + h2 * 9, r: r * 0.9, lean: (h2 - 0.5) * 0.12 };
-  if (h < 0.78) return { kind: 'pine', H: 12 + h2 * 6, r: 2.6 + h2 * 1.2, lean: (h2 - 0.5) * 0.1 };
-  if (h < 0.87) return { kind: 'banana', H: 5 + h2 * 2, r: 2.4 + h2, lean: (h2 - 0.5) * 0.2 };
+  if (h < 0.62) return { kind: 'palm', H: 10 + r * 1.6 + h2 * 4, r, lean: (h2 - 0.5) * 0.45 };   // 야자수 위주
+  if (h < 0.74) return { kind: 'broad', H: 7 + r * 1.3, r, lean: 0 };
+  if (h < 0.80) return { kind: 'banyan', H: 9 + r * 0.6, r: r * 1.7, lean: 0 };
+  if (h < 0.86) return { kind: 'tall', H: 20 + h2 * 9, r: r * 0.9, lean: (h2 - 0.5) * 0.12 };
+  if (h < 0.91) return { kind: 'pine', H: 12 + h2 * 6, r: 2.6 + h2 * 1.2, lean: (h2 - 0.5) * 0.1 };
+  if (h < 0.96) return { kind: 'banana', H: 5 + h2 * 2, r: 2.4 + h2, lean: (h2 - 0.5) * 0.2 };
   return { kind: 'bamboo', H: 11 + h2 * 5, r: 1.8, lean: (h2 - 0.5) * 0.3 };
 }
 function hitTree(x, y) {
@@ -1261,6 +1265,7 @@ function damageAt(x, y, r, kind) {
   }
 }
 function explode(x, y, r, kind, sea) {
+  alarmFauna(x, y, 170);
   if (sea) { for (let i = 0; i < 7; i++) FX.push({ k: 'splash', x: x + (Math.random() - 0.5) * r * 0.9, y: 0, vx: 0, vy: 0, life: 0.9, t: 0 }); }
   else {
     FX.push({ k: 'flash', x, y, vx: 0, vy: 0, life: 0.25, t: 0 });
@@ -1279,7 +1284,7 @@ function fireStep(dt) {
   if ((keys.Space || keys.KeyZ || touch.on.gun > 0 || G.demoFire) && p.ammo.gun > 0) {   // 기관총: 연속 약 30초
     p.gunT -= dt;
     while (p.gunT <= 0 && p.ammo.gun > 0) {
-      p.gunT += 1 / 16; p.ammo.gun = Math.max(0, p.ammo.gun - 5);
+      p.gunT += 1 / 16; p.ammo.gun = Math.max(0, p.ammo.gun - 5); G.gunFireT = G.t;
       const a = p.th + (Math.random() - 0.5) * 0.02, dx = Math.cos(a), dy = Math.sin(a);
       PROJ.push({ k: 'b', x: p.x + dx * 9, y: p.y + dy * 9 - 0.4, vx: p.vx + dx * 640, vy: p.vy + dy * 640, life: 0.95 });
       if (((p.ammo.gun / 5) | 0) % 2 === 0) { sfx('gun'); FX.push({ k: 'muz', x: p.x + dx * 6.5, y: p.y + dy * 6.5 - 0.4, vx: p.vx, vy: p.vy, a, s: 1.4 + Math.random() * 0.9, life: 0.05, t: 0 }); }
@@ -1377,7 +1382,7 @@ function stepProj(dt) {
     if (q.k === 'b') {
       if (tree) treeHit(tree, 1);
       else if (sea) FX.push({ k: 'splash', x: q.x, y: 0, vx: 0, vy: 3, life: 0.4, t: 0 });
-      else { dirtBurst(q.x, g, 1); for (const o of SOLD) if (o.alive && Math.abs(o.x - q.x) < 4) killSoldier(o); }
+      else { dirtBurst(q.x, g, 1); alarmFauna(q.x, g, 110); for (const o of SOLD) if (o.alive && Math.abs(o.x - q.x) < 4) killSoldier(o); }
     } else explode(q.x, Math.max(q.y, g), q.k === 'm' ? (q.lb >= 1000 ? 44 : 30) : 14, q.k === 'm' ? 'bomb' : 'rocket', sea);
     PROJ.splice(i, 1);
   }
@@ -1418,9 +1423,8 @@ function drawIsland(c) {
     });
   }
   world(0, 0, () => {
-    drawJungleBack(c, span);
-    for (const b of BUSH) { if (Math.abs(b.x - cam.x) > span / 2 + 20) continue; drawBush(c, b); }
     for (const t of TREES) { if (Math.abs(t.x - cam.x) > span / 2 + 30) continue; drawTree(c, t); }
+    drawFauna(c, span);
   });
   world(0, 0, () => {
     for (const s of ISLANDS) {
@@ -1436,6 +1440,105 @@ function drawIsland(c) {
   });
 }
 // 나무: 야자수(휘어진 마디 줄기, 처진 깃털 잎, 열매)와 활엽수(가지와 여러 덩어리 수관). 바람에 살짝 흔들린다
+const FAUNA = [];   // 야생동물: 해변의 거북이, 숲의 원숭이, 나무 위의 새
+const fhs = n => Math.abs(Math.sin(n * 12.9898) * 43758.5453) % 1;
+function perchPt(t, k) { const top = t.y + t.H * (CROWN[t.kind] || 0.75) + (t.kind === 'palm' ? 0.5 : t.r * 0.3); return { x: t.x + (t.kind === 'palm' ? t.lean * t.H : 0) + (k % 3 - 1) * t.r * 0.5, y: top }; }
+function spawnFauna() {
+  FAUNA.length = 0;
+  const perchable = t => t.kind === 'broad' || t.kind === 'banyan' || t.kind === 'tall' || t.kind === 'palm';
+  ISLANDS.forEach((si, k) => {
+    for (const side of [-1, 1]) {   // 거북이: 해변에서 쉬거나 느리게 기어 다닌다
+      let shore = side < 0 ? si.a : si.b; for (let d = 0; d < 160; d += 2) { const xx = side < 0 ? si.a + d : si.b - d; if (gh(xx) >= 0.9) { shore = xx; break; } }
+      for (let i = 0; i < (si.big ? 3 : 2); i++) { const x = shore - side * (5 + fhs(k * 7 + i * 3 + side) * 26 + i * 16); if (TARGETS.some(t => !SHIPS[t.type] && Math.abs(t.x - x) < BOX[t.type].w / 2 + 8)) continue; FAUNA.push({ k: 'turtle', x, y: gh(x), dir: side, st: 'rest', tt: fhs(i + k) * 5, ph: fhs(x) * 6, home: x }); }
+    }
+    (si.forests || []).forEach((f, fi) => {   // 숲의 원숭이와 새
+      const cand = TREES.filter(t => t.alive && t.x >= f[0] && t.x <= f[1] && perchable(t)); if (!cand.length) return;
+      const nm = Math.min(cand.length, Math.max(1, Math.round((f[1] - f[0]) / 80)));
+      for (let j = 0; j < nm; j++) FAUNA.push({ k: 'monkey', tree: cand[Math.floor(fhs(f[0] + j * 5) * cand.length)], off: j, st: 'sit', ph: fhs(j + f[0]) * 6, x: 0, y: 0 });
+      for (let n = 0; n < 2; n++) { const tr = cand[Math.floor(fhs(f[0] * 1.3 + n * 9) * cand.length)], nb = 3 + Math.floor(fhs(n + f[1]) * 3); for (let j = 0; j < nb; j++) FAUNA.push({ k: 'bird', tree: tr, slot: j, sp: (fi + n) % 2, st: 'perch', ph: fhs(j + n * 4) * 6, x: 0, y: 0, vx: 0, vy: 0 }); }
+    });
+  });
+}
+function faunaPos(f) { if (f.k === 'turtle') return { x: f.x, y: f.y }; if (f.st === 'perch' || f.st === 'sit') return perchPt(f.tree, f.k === 'monkey' ? f.off + 1 : f.slot); return { x: f.x, y: f.y }; }
+function alarmFauna(x, y, r) {   // 폭발·총성·낮은 비행에 동물이 놀란다
+  for (const f of FAUNA) {
+    if (f.st === 'gone') continue;
+    const P = faunaPos(f), d = Math.hypot(P.x - x, (P.y - y) * 0.6);
+    if (f.k === 'turtle') { if (d < r * 0.55 && f.st !== 'flee') { f.st = 'flee'; f.dir = f.dir; } }
+    else if (f.k === 'bird') { if (d < r && (f.st === 'perch')) { f.st = 'fly'; f.delay = Math.random() * 0.4; f.x = P.x; f.y = P.y; f.vx = (Math.random() < 0.5 ? -1 : 1) * (9 + Math.random() * 9); f.vy = 9 + Math.random() * 8; f.life = 4 + Math.random() * 3; f.t = 0; } }
+    else if (f.k === 'monkey') { if (d < r * 0.8 && f.st === 'sit') monkeyJump(f, x); }
+  }
+}
+function monkeyJump(f, fromX) {   // 원숭이가 놀라 옆 나무로 뛰어 건너간다
+  const P = perchPt(f.tree, f.off + 1), cand = TREES.filter(t => t.alive && t !== f.tree && (t.kind === 'broad' || t.kind === 'banyan' || t.kind === 'tall' || t.kind === 'palm') && Math.abs(t.x - P.x) > 10 && Math.abs(t.x - P.x) < 130).sort((a, b) => Math.abs(b.x - fromX) - Math.abs(a.x - fromX));
+  if (!cand.length) { f.st = 'gone'; return; }
+  const tg = cand[Math.floor(Math.random() * Math.min(3, cand.length))], Q = perchPt(tg, f.off + 1), dist = Math.hypot(Q.x - P.x, Q.y - P.y);
+  f.st = 'jump'; f.from = P; f.to = Q; f.t = 0; f.dur = 0.5 + dist / 70; f.arc = 3 + dist * 0.15; f.next = tg;
+}
+function faunaStep(dt) {
+  if (G.t - (G.gunFireT || -9) < 0.2 && p.mode === 'air' && G.t > (G.faunaGT || 0)) { G.faunaGT = G.t + 0.3; const ax = p.x + Math.cos(p.th) * 260; alarmFauna(ax, gh(ax) + 5, 240); }   // 기관총 사격 소리
+  if (p.mode === 'air' && p.y - gh(p.x) < 45 && G.t > (G.faunaLT || 0)) { G.faunaLT = G.t + 0.4; alarmFauna(p.x, gh(p.x), 70); }   // 낮게 지나가는 비행기
+  for (let i = FAUNA.length - 1; i >= 0; i--) {
+    const f = FAUNA[i]; if (f.st === 'gone') { FAUNA.splice(i, 1); continue; }
+    if (Math.abs((f.k === 'turtle' ? f.x : faunaPos(f).x) - cam.x) > 3000) continue;
+    if (f.k === 'turtle') {
+      if (f.st === 'flee') { f.x += f.dir * 6.5 * dt; f.y = Math.max(0.1, gh(f.x)); f.ph += dt * 6; if (gh(f.x) < 0.35) { for (let j = 0; j < 4; j++) FX.push({ k: 'splash', x: f.x + (Math.random() - 0.5) * 3, y: 0, vx: 0, vy: 0, life: 0.7, t: 0 }); f.st = 'gone'; } }
+      else { f.tt -= dt; if (f.tt <= 0) { if (f.st === 'rest') { f.st = 'crawl'; f.tt = 2 + Math.random() * 3; f.cd = Math.random() < 0.5 ? -1 : 1; } else { f.st = 'rest'; f.tt = 3 + Math.random() * 6; } }
+        if (f.st === 'crawl') { const nx = f.x + f.cd * 0.7 * dt; if (Math.abs(nx - f.home) < 14 && gh(nx) >= 0.8) { f.x = nx; f.y = gh(nx); f.ph += dt * 3; } else f.cd = -f.cd; } }
+    } else if (f.k === 'bird') {
+      if (f.st === 'perch') { if (!f.tree.alive) { const P = faunaPos(f); f.st = 'fly'; f.delay = Math.random() * 0.3; f.x = P.x; f.y = P.y; f.vx = (Math.random() < 0.5 ? -1 : 1) * 12; f.vy = 10; f.life = 4; f.t = 0; } }
+      else if (f.st === 'fly') {
+        if (f.delay > 0) { f.delay -= dt; const P = perchPt(f.tree, f.slot); f.x = P.x; f.y = P.y; continue; }
+        f.t += dt; f.x += f.vx * dt + Math.sin(f.t * 3 + f.ph) * 2 * dt; f.y += f.vy * dt; f.vy += ((f.t < 1.6 ? 6 : 1.5 * Math.sin(f.t * 1.7 + f.ph)) - f.vy) * Math.min(1, 1.5 * dt); f.y = Math.max(f.y, gh(f.x) + 3);
+        if (f.t > f.life) { const cand = TREES.filter(t => t.alive && (t.kind === 'broad' || t.kind === 'banyan' || t.kind === 'tall' || t.kind === 'palm') && Math.abs(t.x - f.x) < 500).sort((a, b) => Math.abs(a.x - f.x) - Math.abs(b.x - f.x)); if (cand.length) { f.tree = cand[Math.floor(Math.random() * Math.min(4, cand.length))]; f.slot = Math.floor(Math.random() * 5); f.st = 'glide'; } else if (Math.abs(f.x - cam.x) > 1800) f.st = 'gone'; }
+      } else if (f.st === 'glide') {
+        const P = perchPt(f.tree, f.slot), dx = P.x - f.x, dy = P.y - f.y, d = Math.hypot(dx, dy);
+        if (!f.tree.alive) { f.st = 'fly'; f.delay = 0; f.t = 0; f.life = 3; f.vx = 10; f.vy = 6; continue; }
+        if (d < 1.2) { f.st = 'perch'; } else { f.vx = dx / d * 15; f.vy = dy / d * 15; f.x += f.vx * dt; f.y += f.vy * dt; }
+      }
+    } else if (f.k === 'monkey') {
+      if (f.st === 'sit') { if (!f.tree.alive) monkeyJump(f, f.tree.x); }
+      else if (f.st === 'jump') { f.t += dt; const u = Math.min(1, f.t / f.dur); f.x = f.from.x + (f.to.x - f.from.x) * u; f.y = f.from.y + (f.to.y - f.from.y) * u + Math.sin(u * Math.PI) * f.arc; if (u >= 1) { f.st = 'sit'; f.tree = f.next; } }
+    }
+  }
+}
+function drawFauna(c, span) {
+  const T = G.t;
+  for (const f of FAUNA) {
+    if (f.st === 'gone') continue;
+    const P = faunaPos(f); if (Math.abs(P.x - cam.x) > span / 2 + 20) continue;
+    c.save(); c.translate(P.x, P.y);
+    if (f.k === 'turtle') {   // 바다쪽을 향한 바다거북: 둥근 등딱지, 머리와 지느러미
+      c.scale(f.dir * 1.9, 1.9); const mv = f.st === 'crawl' || f.st === 'flee', sw = mv ? Math.sin(f.ph) * 0.35 : 0;
+      c.fillStyle = '#7d8c52'; c.save(); c.translate(1.4, 0.15); c.rotate(-0.5 + sw); c.beginPath(); c.ellipse(0.4, 0, 0.8, 0.28, 0, 0, 7); c.fill(); c.restore();
+      c.save(); c.translate(-1.1, 0.15); c.rotate(0.5 - sw); c.beginPath(); c.ellipse(-0.3, 0, 0.55, 0.22, 0, 0, 7); c.fill(); c.restore();
+      c.fillStyle = '#9aab62'; c.beginPath(); c.ellipse(2.05, 0.7 + (mv ? 0.05 * Math.sin(f.ph * 2) : 0), 0.5, 0.36, 0, 0, 7); c.fill(); c.fillStyle = '#1b1b1b'; c.beginPath(); c.arc(2.25, 0.8, 0.08, 0, 7); c.fill();
+      c.fillStyle = '#6a5d3a'; c.beginPath(); c.ellipse(0, 0.35, 1.6, 0.42, 0, 0, 7); c.fill();
+      c.fillStyle = '#5a7a3c'; c.beginPath(); c.moveTo(-1.8, 0.45); c.quadraticCurveTo(0, 2.5, 1.8, 0.45); c.closePath(); c.fill();
+      c.strokeStyle = '#3d5a2a'; c.lineWidth = 0.1; c.beginPath(); c.moveTo(-0.9, 0.7); c.quadraticCurveTo(0, 1.9, 0.9, 0.7); c.moveTo(0, 0.5); c.lineTo(0, 1.55); c.stroke();
+    } else if (f.k === 'bird') {
+      const sc = 1.9, fly = f.st === 'fly' && f.delay <= 0 || f.st === 'glide', dir = fly ? (f.vx >= 0 ? 1 : -1) : (f.ph > 3 ? 1 : -1);
+      c.scale(dir * sc, sc);
+      const body = f.sp ? '#d8402e' : '#f4f4ee', wing = f.sp ? '#2f8f4a' : '#cfd5d8';
+      if (fly) { const fl = Math.sin(T * 17 + f.ph); c.fillStyle = wing; c.beginPath(); c.moveTo(-0.1, 0.45); c.quadraticCurveTo(-0.5, 0.45 + fl * 1.0, -1.2, 0.45 + fl * 0.7); c.quadraticCurveTo(-0.5, 0.35, 0.3, 0.4); c.fill(); }
+      c.fillStyle = body; c.beginPath(); c.ellipse(0, 0.4, 0.55, 0.26, fly ? -0.1 : 0.4, 0, 7); c.fill();
+      c.beginPath(); c.arc(0.5, fly ? 0.5 : 0.75, 0.2, 0, 7); c.fill(); c.fillStyle = '#e8a020'; c.beginPath(); c.moveTo(0.68, fly ? 0.52 : 0.77); c.lineTo(0.95, fly ? 0.45 : 0.7); c.lineTo(0.68, fly ? 0.44 : 0.69); c.fill();
+      c.strokeStyle = f.sp ? '#2f8f4a' : '#b8c0c4'; c.lineWidth = 0.14; c.beginPath(); c.moveTo(-0.5, 0.35); c.lineTo(-1.1, fly ? 0.3 : 0.05); c.stroke();
+      if (!fly) { c.strokeStyle = '#5a4630'; c.lineWidth = 0.08; c.beginPath(); c.moveTo(0.05, 0.15); c.lineTo(0.05, -0.05); c.moveTo(-0.15, 0.15); c.lineTo(-0.15, -0.05); c.stroke(); }
+    } else {   // 원숭이: 나무 위에 앉아 가끔 머리를 긁는다. 뛸 때는 팔다리를 쭉 뻗는다
+      const sc = 2.2, jump = f.st === 'jump'; c.scale(sc, sc); if (jump) { const dx = f.to.x - f.from.x; c.scale(dx >= 0 ? 1 : -1, 1); c.rotate(-0.5 * (f.t / f.dur - 0.5)); }
+      const sc2 = Math.sin(T * 0.7 + f.ph) > 0.92, br = '#6b4a2a';
+      c.strokeStyle = br; c.lineWidth = 0.22; c.lineCap = 'round'; c.beginPath(); c.moveTo(-0.35, 0.3); c.quadraticCurveTo(-0.9, jump ? 0.6 : -0.2, -0.7, jump ? 1.0 : -0.7 + Math.sin(T * 1.3 + f.ph) * 0.1); c.stroke();   // 꼬리
+      c.fillStyle = br; c.beginPath(); c.ellipse(0, 0.65, 0.42, 0.55, 0, 0, 7); c.fill(); c.fillStyle = '#a68460'; c.beginPath(); c.ellipse(0.1, 0.6, 0.25, 0.36, 0, 0, 7); c.fill();
+      c.strokeStyle = br; c.lineWidth = 0.2;
+      if (jump) { c.beginPath(); c.moveTo(0.2, 1.0); c.lineTo(0.95, 1.35); c.moveTo(-0.2, 0.2); c.lineTo(-0.8, -0.1); c.stroke(); }
+      else { c.beginPath(); c.moveTo(0.25, 0.95); c.lineTo(sc2 ? 0.55 : 0.55, sc2 ? 1.6 : 0.6); c.moveTo(0.1, 0.25); c.lineTo(0.5, 0.1); c.stroke(); }
+      c.fillStyle = br; c.beginPath(); c.arc(0.18, 1.45, 0.34, 0, 7); c.fill(); c.fillStyle = '#d8b090'; c.beginPath(); c.ellipse(0.3, 1.4, 0.2, 0.18, 0, 0, 7); c.fill();
+      c.fillStyle = '#1b1b1b'; c.beginPath(); c.arc(0.34, 1.5, 0.045, 0, 7); c.fill(); c.fillStyle = br; c.beginPath(); c.arc(-0.12, 1.55, 0.13, 0, 7); c.fill();
+    }
+    c.restore();
+  }
+}
 function drawJungleBack(c, span) {   // 숲 구간 뒤쪽의 낮은 수관층 (숲이 있는 곳에만)
   const hs = n => Math.abs(Math.sin(n * 12.9898) * 43758.5453) % 1;
   for (const si of ISLANDS) for (const [fa, fb] of (si.forests || [])) {

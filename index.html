@@ -636,8 +636,8 @@ function missionStep(dt) {
   if (G.tick && G.tick.length) { const T = G.tick[0]; if (T.t0 === undefined) T.t0 = G.t; if (G.t - T.t0 > 6) G.tick.shift(); }   // 속보 한 줄은 6초 동안 보인다
   if (G.carrierHp < 70 && Math.random() < dt * 6) FX.push({ k: 'smoke', x: ship.x + 40 + Math.random() * 170, y: DECK_Y + 2, vx: ship.v - 6, vy: 5, life: 1.6, t: 0, s: 2 + Math.random() * 2 });
   if (p.mode === 'air' && p.hp < 45 && Math.random() < dt * 12) FX.push({ k: 'smoke', x: p.x - Math.cos(p.th) * 5, y: p.y - Math.sin(p.th) * 5, vx: p.vx * 0.2, vy: 2, life: 1, t: 0, s: 1.4 });
-  if (GOALS[M.goal](m, M)) m.obj = true;
-  if (m.obj && (!M.landAfter || (p.mode === 'taxi' && G.t >= p.lock))) endMission(true);
+  if (!m.obj && GOALS[M.goal](m, M)) { m.obj = true; G.toast = { text: '임무 달성! 항모로 돌아와 착함하고 엘리베이터로 내려가라', grade: 'green', until: G.t + 6 }; }
+  if (m.obj && p.mode === 'lift' && p.el && p.el.st === 'svc') endMission(true);   // 귀환해서 엘리베이터로 격납고까지 내려가면 끝
   else if (G.carrierHp <= 0) endMission(false, '항모가 침몰했다');
 }
 function enemyStep(dt) {
@@ -821,7 +821,8 @@ function missionLines() {
   else if (M.goal === 'capture') out.push('탈환 ' + ISLANDS.filter(q => q.cleared).length + '/' + ISLANDS.length + '섬 · 일본군 ' + SOLD.filter(o => o.alive).length + '명 · 시설 ' + TARGETS.filter(t => t.alive && JP[t.type]).length + '곳');
   else if (M.goal === 'air') out.push('격추 ' + m.zeros + '/12 · 비행장 ' + rw.filter(t => !t.alive).length + '/' + rw.length);
   else if (M.goal === 'defend') out.push('공습 ' + Math.min(m.wave, M.waves.length) + '/' + M.waves.length + ' · 항모 ' + Math.round(G.carrierHp) + '%');
-  else { const fl = TARGETS.filter(t => M.fleet.includes(t.type)); out.push('적 주력함 ' + fl.filter(t => !t.alive).length + '/' + fl.length + (m.obj ? ' · 항모로 귀환!' : '')); }
+  else { const fl = TARGETS.filter(t => M.fleet.includes(t.type)); out.push('적 주력함 ' + fl.filter(t => !t.alive).length + '/' + fl.length); }
+  if (m.obj) out.push('임무 달성 — 항모로 귀환해 엘리베이터로 내려가라');
   if (M.goal !== 'defend') out.push('항모 내구도 ' + Math.round(G.carrierHp) + '%');
   return out;
 }
@@ -1593,6 +1594,7 @@ function panel(x, y, w, h, a) { ctx.fillStyle = 'rgba(8,20,34,' + (a || 0.55) + 
 function hint() {
   if (G.result) return '';
   if (G.msg && G.t < G.msg.until) return G.msg.text;
+  if (p.mode === 'taxi' && G.m && G.m.obj) return overElev() ? 'Space — 엘리베이터로 내려가 임무 완료' : '◀▶ 로 엘리베이터까지 가서 Space';
   if (p.mode === 'taxi') {
     if (G.t < p.lock) return '';
     if (overElev()) return '스페이스바: 엘리베이터로 내려가기 (수리·재장전)';

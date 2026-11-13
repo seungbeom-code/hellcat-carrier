@@ -2042,16 +2042,17 @@ function drawPlane(o) {   // 원점: 기체 중심, 오른쪽이 기수, 단위 
     c.fillStyle = '#222'; c.beginPath(); c.arc(2.3, -2.45, 0.75, 0, 7); c.fill();
     c.beginPath(); c.arc(-7.6, -1.2, 0.4, 0, 7); c.fill();
   }
-  c.fillStyle = '#24405f'; c.beginPath(); c.moveTo(-6.2, 1.2); c.lineTo(-9.3, 5.2); c.lineTo(-10.2, 5.2); c.lineTo(-9.6, 0.8); c.closePath(); c.fill();   // 꼬리날개
+  c.save(); c.scale(1, 0.8);   // 슬림한 기체
+  c.fillStyle = '#33649f'; c.beginPath(); c.moveTo(-6.2, 1.2); c.lineTo(-9.3, 5.2); c.lineTo(-10.2, 5.2); c.lineTo(-9.6, 0.8); c.closePath(); c.fill();   // 꼬리날개
   c.beginPath(); c.moveTo(8.2, 1.0); c.bezierCurveTo(3, 4.4, -4, 3.2, -9.6, 1.3); c.lineTo(-9.6, 0.3); c.bezierCurveTo(-3, -2.8, 4, -3.3, 8.2, -1.0); c.closePath();
-  c.fillStyle = '#2f4f74'; c.fill();
-  c.save(); c.clip(); c.fillStyle = '#e9edf0'; c.fillRect(-10, -4, 19, 3.1); c.fillStyle = '#5f86ad'; c.fillRect(-10, -0.9, 19, 0.9); c.restore();   // 3색 위장
-  c.fillStyle = '#1d3552'; c.beginPath(); c.moveTo(8.2, 1.0); c.quadraticCurveTo(9.3, 0, 8.2, -1.0); c.lineTo(6.4, -1.9); c.lineTo(6.4, 2.0); c.closePath(); c.fill();   // 엔진 덮개
+  c.fillStyle = '#3f72b8'; c.fill();
+  c.save(); c.clip(); c.fillStyle = '#e9edf0'; c.fillRect(-10, -4, 19, 3.1); c.fillStyle = '#86b0e2'; c.fillRect(-10, -0.9, 19, 0.9); c.restore();   // 3색 위장
+  c.fillStyle = '#2a4d84'; c.beginPath(); c.moveTo(8.2, 1.0); c.quadraticCurveTo(9.3, 0, 8.2, -1.0); c.lineTo(6.4, -1.9); c.lineTo(6.4, 2.0); c.closePath(); c.fill();   // 엔진 덮개
   c.fillStyle = '#bfe3f2'; c.beginPath(); c.moveTo(-1.2, 2.5); c.quadraticCurveTo(1, 4.6, 3.6, 2.7); c.closePath(); c.fill();   // 조종석
   c.fillStyle = '#6b4a2e'; c.beginPath(); c.arc(1.2, 3.0, 0.85, 0, 7); c.fill();
   c.fillStyle = '#f2c9a0'; c.beginPath(); c.arc(1.55, 2.9, 0.5, 0, 7); c.fill();
-  c.fillStyle = '#1c3350'; c.beginPath(); c.ellipse(0.4, -0.7, 3.8, 0.75, 0, 0, 7); c.fill();   // 날개
-  if (o.flaps) { c.fillStyle = '#16293f'; c.save(); c.translate(-2.6, -1.0); c.rotate(-0.6); c.fillRect(-1.6, -0.25, 1.8, 0.5); c.restore(); }
+  c.fillStyle = '#2e5896'; c.beginPath(); c.ellipse(0.4, -0.7, 3.8, 0.75, 0, 0, 7); c.fill();   // 날개
+  if (o.flaps) { c.fillStyle = '#24457a'; c.save(); c.translate(-2.6, -1.0); c.rotate(-0.6); c.fillRect(-1.6, -0.25, 1.8, 0.5); c.restore(); }
   c.fillStyle = '#1a2f6b'; c.beginPath(); c.arc(-4.2, 0.9, 1.15, 0, 7); c.fill();   // 국적 표지
   c.fillStyle = '#fff'; c.fillRect(-6.1, 0.6, 3.8, 0.6);
   c.beginPath(); for (let i = 0; i < 5; i++) { const a = Math.PI / 2 + i * 2.513; c.lineTo(-4.2 + Math.cos(a) * 1.0, 0.9 + Math.sin(a) * 1.0); } c.closePath(); c.fill();
@@ -2059,6 +2060,7 @@ function drawPlane(o) {   // 원점: 기체 중심, 오른쪽이 기수, 단위 
   const sp = o.thr || 0;
   if (sp > 0.02) { c.fillStyle = 'rgba(230,235,240,' + (0.18 + 0.2 * sp) + ')'; c.beginPath(); c.ellipse(9.1, 0, 0.45, 3.6, 0, 0, 7); c.fill(); }
   else { c.fillStyle = '#333'; c.fillRect(8.95, -3.4, 0.3, 6.8); }
+  c.restore();
 }
 
 // 선회 중에는 기체를 간단한 입체 모형으로 그린다 (yaw: 수직축 회전, bank: 왼쪽 기울기)
@@ -2072,16 +2074,16 @@ function drawPlane3D(yaw, bank, gear) {
     c.fillStyle = col; c.beginPath(); c.arc(a[0], a[1], r, 0, 7); c.fill();
     if (belly) { const k = r * (0.95 - 0.8 * dn[2]); c.save(); c.clip(); c.fillStyle = '#e9edf0'; c.beginPath(); c.arc(a[0] + dn[0] * k, a[1] + dn[1] * k, r * 0.85, 0, 7); c.fill(); c.restore(); } } }); };
   const ring = (cx, cyy, cz, r, plane, fill) => { const pts = []; for (let i = 0; i < 14; i++) { const a = i / 14 * 6.283; pts.push(plane === 'yz' ? [cx, cyy + Math.cos(a) * r, cz + Math.sin(a) * r] : [cx + Math.cos(a) * r, cyy, cz + Math.sin(a) * r]); } poly(pts, fill); };
-  const prof = [[-8.8, 0.9, 0.6], [-7.2, 0.8, 1.05], [-5.4, 0.6, 1.55], [-3.6, 0.4, 2.0], [-1.8, 0.3, 2.4], [0, 0.3, 2.65], [1.8, 0.2, 2.75], [3.6, 0.1, 2.65], [5.2, 0, 2.45]];
-  for (let i = 0; i < prof.length - 1; i++) for (let k = 0; k < 4; k++) { const a = prof[i], b = prof[i + 1], u = k / 4; ball(lerp(a[0], b[0], u), lerp(a[1], b[1], u), lerp(a[2], b[2], u), '#2f4f74', true); }
-  ball(6.9, 0, 2.15, '#1d3552'); ball(1.3, 2.3, 1.45, '#bfe3f2'); ball(8.9, 0, 0.6, '#c9ced4');
-  const wingCol = topSeen ? '#27466a' : '#dfe5ea', wingEdge = topSeen ? '#1c3350' : '#b9c2cb';
+  const prof = [[-8.8, 0.9, 0.5], [-7.2, 0.8, 0.85], [-5.4, 0.6, 1.25], [-3.6, 0.4, 1.6], [-1.8, 0.3, 1.9], [0, 0.3, 2.1], [1.8, 0.2, 2.2], [3.6, 0.1, 2.1], [5.2, 0, 1.95]];
+  for (let i = 0; i < prof.length - 1; i++) for (let k = 0; k < 4; k++) { const a = prof[i], b = prof[i + 1], u = k / 4; ball(lerp(a[0], b[0], u), lerp(a[1], b[1], u), lerp(a[2], b[2], u), '#3f72b8', true); }
+  ball(6.9, 0, 1.75, '#2a4d84'); ball(1.3, 2.3, 1.45, '#bfe3f2'); ball(8.9, 0, 0.6, '#c9ced4');
+  const wingCol = topSeen ? '#3b68ab' : '#dfe5ea', wingEdge = topSeen ? '#2e5896' : '#b9c2cb';
   [1, -1].forEach(m => {
     poly([[3.4, -0.6, 0], [1.9, -0.4, 10.8 * m], [-0.5, -0.4, 10.8 * m], [-2.4, -0.6, 0]], wingCol, wingEdge);
     poly([[-6.4, 0.9, 0], [-7.3, 0.9, 4.2 * m], [-8.9, 0.9, 4.2 * m], [-9.4, 0.9, 0]], wingCol, wingEdge);
     if (topSeen) ring(0.5, -0.38, 7.4 * m, 1.3, 'xz', '#f4f6f8');
   });
-  poly([[-6.2, 1.2, 0], [-9.3, 5.2, 0], [-10.2, 5.2, 0], [-9.6, 0.8, 0]], '#24405f');
+  poly([[-6.2, 1.2, 0], [-9.3, 5.2, 0], [-10.2, 5.2, 0], [-9.6, 0.8, 0]], '#33649f');
   if (gear) {   // 내려와 있는 바퀴
     [2.7, -2.7].forEach(z => { poly([[1.6, -0.8, z], [2.1, -0.8, z], [2.5, -2.5, z], [2.1, -2.5, z]], '#9aa3ad'); ball(2.3, -2.5, 0.8, '#222', false, z); });
     ball(-7.6, -1.2, 0.42, '#222');

@@ -850,8 +850,9 @@ function drawIsland(c) {
     if (cam.x + span / 2 < s.a - 60 || cam.x - span / 2 > s.b + 60) continue;
     world(0, 0, () => {
       c.beginPath(); c.moveTo(s.a, -1.5); for (let x = s.a; x <= s.b; x += 15) c.lineTo(x, gh(x)); c.lineTo(s.b, gh(s.b)); c.lineTo(s.b, -1.5); c.closePath();
-      const g = c.createLinearGradient(0, s.pk + 4, 0, -2); g.addColorStop(0, '#5f9348'); g.addColorStop(0.55, '#3f7440'); g.addColorStop(1, '#2d5636'); c.fillStyle = g; c.fill();
-      c.fillStyle = '#d3bf85'; c.beginPath(); c.moveTo(s.a - 8, -1.5); c.lineTo(s.a + 80, 6); c.lineTo(s.b - 80, 6); c.lineTo(s.b + 8, -1.5); c.closePath(); c.fill();
+      const wk = s.cleared ? clamp((G.t - s.clearT) / 3, 0, 1) : 0, mix = (a, b) => { const A = parseInt(a.slice(1), 16), B = parseInt(b.slice(1), 16), ch = sh => Math.round(((A >> sh) & 255) * (1 - wk) + ((B >> sh) & 255) * wk); return 'rgb(' + ch(16) + ',' + ch(8) + ',' + ch(0) + ')'; };   // 항복한 섬은 3초에 걸쳐 하얗게
+      const g = c.createLinearGradient(0, s.pk + 4, 0, -2); g.addColorStop(0, mix('#5f9348', '#f4f6f2')); g.addColorStop(0.55, mix('#3f7440', '#e4e8e2')); g.addColorStop(1, mix('#2d5636', '#cfd5cf')); c.fillStyle = g; c.fill();
+      c.fillStyle = mix('#d3bf85', '#ffffff'); c.beginPath(); c.moveTo(s.a - 8, -1.5); c.lineTo(s.a + 80, 6); c.lineTo(s.b - 80, 6); c.lineTo(s.b + 8, -1.5); c.closePath(); c.fill();
       c.fillStyle = 'rgba(255,255,255,0.8)'; [s.a - 4, s.b + 4].forEach(x => { c.beginPath(); c.ellipse(x, 0.4, 9, 1.1, 0, 0, 7); c.fill(); });
     });
   }
@@ -1663,7 +1664,7 @@ function drawMiniMap(c) {
   c.fillStyle = 'rgba(8,20,34,0.72)'; c.beginPath(); c.roundRect(x0 - 8, y0 - 1, x1 - x0 + 16, h + 2, 8); c.fill();
   c.fillStyle = 'rgba(40,120,160,0.6)'; c.fillRect(x0, base, x1 - x0, 2);
   c.fillStyle = '#4f8a45';
-  ISLANDS.forEach(s => { c.beginPath(); c.moveTo(mx(s.a), base + 1); for (let x = s.a; x <= s.b; x += Math.max(20, (s.b - s.a) / 12)) c.lineTo(mx(x), base - gh(x) * vf); c.lineTo(mx(s.b), base + 1); c.closePath(); c.fill(); });
+  ISLANDS.forEach(s => { c.fillStyle = s.cleared ? '#eef2ee' : '#4f8a45'; c.beginPath(); c.moveTo(mx(s.a), base + 1); for (let x = s.a; x <= s.b; x += Math.max(20, (s.b - s.a) / 12)) c.lineTo(mx(x), base - gh(x) * vf); c.lineTo(mx(s.b), base + 1); c.closePath(); c.fill(); });
   ISLANDS.forEach(s => { c.fillStyle = s.cleared ? '#ffffff' : '#e03030'; c.fillRect(mx(s.fx) - 1.5, base - gh(s.fx) * vf - 8, 3, 4); });   // 섬의 깃발
   TARGETS.forEach(t => { if (t.alive) { c.fillStyle = '#ff5a3c'; c.fillRect(mx(t.x) - 1, SHIPS[t.type] ? base - 3 : base - gh(t.x) * vf - 3, 2, 2); } });
   c.fillStyle = '#ff8a5c'; ENE.forEach(e => { if (!e.dead) c.fillRect(mx(e.x) - 1, base - clamp(e.y / CEIL, 0, 1) * (h - 7) - 3, 2, 2); });

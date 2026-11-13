@@ -622,6 +622,7 @@ function drawHangar(c) {
 }
 
 // ───────── 작전, 섬, 표적, 적기, 무기 ─────────
+const RUNWAY_L = 520;   // 적 비행장 활주로 길이(m): 항모 갑판과 비슷하다
 const SMALL_W = 1500, BIG_W = 3600;   // 작은 섬, 큰 섬 길이(m)
 const LOAD_AMMO = [{ gun: 2400, rk: 15, bm: 0, tp: 0, lb: 1000 }, { gun: 2400, rk: 0, bm: 30, tp: 0, lb: 1000 }, { gun: 2400, rk: 0, bm: 0, tp: 2, lb: 1000 }];
 let ISLANDS = [];
@@ -646,7 +647,7 @@ function gh(x) {
 const HP = { aa: 4, bunker: 10, fuel: 3, radar: 4, boat: 8, runway: 14, tank: 6, cave: 14, dd: 16, tr: 10, bb: 60, cv: 40 };
 const BOX = { aa: { w: 6, h: 5 }, bunker: { w: 12, h: 6 }, fuel: { w: 6, h: 6 }, radar: { w: 6, h: 10 }, boat: { w: 26, h: 7 }, runway: { w: 60, h: 3 }, tank: { w: 9, h: 4 }, cave: { w: 8, h: 7 }, dd: { w: 44, h: 14 }, tr: { w: 36, h: 10 }, bb: { w: 84, h: 20 }, cv: { w: 96, h: 14 } };
 const SK = { boat: 1.5, dd: 2.6, tr: 3.2, bb: 2.6, cv: 2.4 }, SP = { boat: 5, dd: 9, tr: 4, bb: 6, cv: 7 };   // 배의 크기 배율, 순항 속도(m/s)
-Object.assign(BOX, { boat: { w: 40, h: 11 }, dd: { w: 115, h: 36 }, tr: { w: 115, h: 32 }, bb: { w: 220, h: 52 }, cv: { w: 230, h: 34 } });
+Object.assign(BOX, { runway: { w: RUNWAY_L, h: 3 }, boat: { w: 40, h: 11 }, dd: { w: 115, h: 36 }, tr: { w: 115, h: 32 }, bb: { w: 220, h: 52 }, cv: { w: 230, h: 34 } });
 const DMG = {
   gun: { aa: 0.35, bunker: 0.08, fuel: 0.5, radar: 0.35, boat: 0.3, runway: 0.03, tank: 0.15, cave: 0, dd: 0.06, tr: 0.12, bb: 0.02, cv: 0.03 },
   rocket: { aa: 5, bunker: 7, fuel: 6, radar: 5, boat: 6, runway: 4, tank: 6, cave: 5, dd: 6, tr: 6, bb: 3.5, cv: 5 },
@@ -848,7 +849,7 @@ function makeTargets(M) {
   const CREW_W = { barracks: 1 };   // 일본군은 병영(집)에만 산다
   M.build((type, x0) => { const k = ISLANDS.findIndex(q => x0 - OFF > q.a && x0 - OFF < q.b); if (k >= 0 && (type === 'bunker' || type === 'barracks' || type === 'runway')) { if (type === 'runway') rwIsl.add(k); return null; } return add(type, x0); }, P);
   // 섬마다 양 끝에서 가운데로: 콘크리트 벙커(로켓만) → 일반 벙커(로켓·폭탄) → 병영 → 비행장(있을 때) → 깃발(정중앙)
-  ISLANDS.forEach((q, k) => { q.flat = null; if (q.big) { const w = q.b - q.a, e = 90 / w, cx = q.a + w * Math.max(0.05 + e * 3.1 + 60 / w, 0.5 - 75 / w); q.flat = { a: cx - 38, b: cx + 38, h: 0 }; q.flat.h = (() => { const f = q.flat; q.flat = null; const v = Math.max(gh(cx - 30), gh(cx), gh(cx + 30)) * 0.5 + gh(cx) * 0.5; q.flat = f; return v; })(); } });
+  ISLANDS.forEach((q, k) => { q.flat = null; if (q.big) { const w = q.b - q.a, e = 90 / w, cx = q.a + w * 0.5 + 60 + RUNWAY_L / 2; q.flat = { a: cx - RUNWAY_L / 2, b: cx + RUNWAY_L / 2, h: 0 }; q.flat.h = (() => { const f = q.flat; q.flat = null; const v = Math.max(gh(cx - RUNWAY_L / 2), gh(cx), gh(cx + RUNWAY_L / 2)) * 0.5 + gh(cx) * 0.5; q.flat = f; return v; })(); } });
   for (const t of TARGETS) if (!SHIPS[t.type]) t.y = gh(t.x);
   ISLANDS.forEach((q, k) => {
     const w = q.b - q.a, m = u => Math.min(u, 0.45), e = 90 / w;
@@ -865,7 +866,7 @@ function makeTargets(M) {
   // 다른 시설이 벙커·병영·비행장과 겹치면 섬 가운데 쪽으로 비켜 놓는다
   const LAY = { pill: 1, bunker: 1, barracks: 1, runway: 1 };
   for (const t of TARGETS) { if (SHIPS[t.type] || LAY[t.type] || t.isl < 0) continue; const q = ISLANDS[t.isl], cx = (q.a + q.b) / 2;
-    for (let n = 0; n < 12; n++) { const o = TARGETS.find(u => u !== t && !SHIPS[u.type] && Math.abs(u.x - t.x) < (BOX[u.type].w + BOX[t.type].w) / 2 + 16); if (!o) break; t.x = clamp(t.x + (t.x <= o.x ? -18 : 18), q.a + 40, q.b - 40); t.x0 = t.x; }   // 겹친 것에서 멀어지는 쪽으로 비킨다
+    for (let n = 0; n < 40; n++) { const o = TARGETS.find(u => u !== t && !SHIPS[u.type] && Math.abs(u.x - t.x) < (BOX[u.type].w + BOX[t.type].w) / 2 + 16); if (!o) break; t.x = clamp(t.x + (t.x <= o.x ? -18 : 18), q.a + 40, q.b - 40); t.x0 = t.x; }   // 겹친 것에서 멀어지는 쪽으로 비킨다
     t.y = gh(t.x); }
   // 섬의 나무: 해안가(양 끝 10%)는 없음 → 숲(10~38%) → 가운데 평지(38~62%)는 없음 → 숲(62~90%) → 해안가는 없음
   ISLANDS.forEach(s => {
@@ -898,6 +899,22 @@ function landStep(dt, M) {
   L.str -= dt * (0.3 * def + 0.5 * tk);
   if (L.prog >= 100) { L.prog = 100; G.m.flag = G.t; G.toast = { text: 'The flag is up on the summit!', grade: 'green', until: G.t + 5 }; }
   else if (L.str <= 0) { G.land = null; G.toast = { text: 'Landing failed. Destroy more defenses and try again', grade: 'brown', until: G.t + 5 }; }
+}
+function rwPk(t) {   // 활주로에 대기 중인 적기들: 이륙 방향(항모 쪽)을 보고 활주로 뒤쪽에 줄지어 서 있다
+  if (!t.pk) { t.pf = (G.holdX >= t.x) ? 1 : -1; t.pk = [0, 1, 2, 3].map(i => ({ x: -t.pf * (50 + 36 * i), v: 0, st: 'park' })); t.pk.f = t.pf; }
+  return t.pk;
+}
+function drawParked(c, t, burnt) {
+  const L = rwPk(t), f = t.pf;
+  L.forEach((pl, i) => {
+    if (pl.st === 'gone') return;
+    c.save(); c.translate(pl.x, 3.0); c.scale(f, 1); c.rotate(burnt ? 0.05 + (i % 2) * 0.08 : 0.13 * (1 - Math.min(1, pl.v / 45)) + 0.02);
+    drawZero(c, 'zero');
+    c.fillStyle = '#1d1d1d'; c.beginPath(); c.arc(1.4, -2.3, 0.85, 0, 7); c.fill(); c.beginPath(); c.arc(-7.6, -0.6, 0.35, 0, 7); c.fill();
+    c.strokeStyle = '#555'; c.lineWidth = 0.3; c.beginPath(); c.moveTo(1.4, -2.3); c.lineTo(1.2, -0.8); c.stroke();
+    if (burnt) { c.fillStyle = 'rgba(14,11,9,0.66)'; c.beginPath(); c.ellipse(0, 0, 9, 2.6, 0, 0, 7); c.fill(); }
+    c.restore();
+  });
 }
 function spawnEnemy(type, x, y) { ENE.push({ type, x, y, h: Math.PI, v: ES[type].v, bank: 0, att: false, xt: 0, seeT: 0, sx: x, sy: y, svx: 0, svy: 0, ex: 0, ey: 0, hp: ES[type].hp, st: 'app', tm: 0, bt: 0, cd: 1 + Math.random() * 2, rel: false, dead: false, vx: 0, vy: 0, btm: 0 }); }
 function spawnWave(l) { const m = G.m; (m.queue = m.queue || []).push(...l); }
@@ -977,12 +994,13 @@ function missionStep(dt) {
   }
   for (let i = m.hits.length - 1; i >= 0; i--) if (m.t >= m.hits[i].t) { hitCarrier(m.hits[i].d); m.hits.splice(i, 1); }
   for (const t of TARGETS) if (SHIPS[t.type] && t.alive) { const nx = t.x + t.dir * SP[t.type] * dt; if (ISLANDS.some(si => nx > si.a - 90 && nx < si.b + 90)) t.dir = -t.dir; else { t.x = nx; if (Math.abs(t.x - t.x0) > 90) t.dir = t.x > t.x0 ? -1 : 1; } }   // 순찰
-  if (M.goal !== 'train') for (const t of TARGETS) if (t.type === 'runway' && t.alive && (t.parked === undefined ? 3 : t.parked) > 0) {   // 큰 섬 비행장에서 대기하던 제로센이 이륙한다
-    t.rl = (t.rl === undefined ? 12 + Math.random() * 10 : t.rl) - dt; if (t.rl > 0) continue; t.rl = 28 + Math.random() * 14;
-    if (p.mode !== 'air' || Math.abs(p.x - t.x) > 3500 || ENE.filter(e => !e.dead).length >= 6) continue;
-    t.parked = (t.parked === undefined ? 3 : t.parked) - 1; const dir = p.x >= t.x ? 1 : -1;
-    spawnEnemy(ZR, t.x - dir * 22, t.y + 2.2); const e = ENE[ENE.length - 1]; e.h = dir > 0 ? 0.1 : Math.PI - 0.1; e.v = 50; e.tm = 0;
-    G.msg = { text: 'Zeros taking off from the enemy airfield!', until: G.t + 2.5 };
+  if (M.goal !== 'train') for (const t of TARGETS) if (t.type === 'runway' && t.alive) {   // 비행장에 아군이 다가오면 대기하던 제로센이 한 대씩 가속해서 이륙한다
+    const L = rwPk(t), f = t.pf; t.rl = (t.rl || 0) - dt;
+    if (p.mode === 'air' && Math.abs(p.x - t.x) < 1500 && t.rl <= 0 && !L.some(q => q.st === 'roll') && ENE.filter(e => !e.dead).length < 7) { const q = L.find(o => o.st === 'park'); if (q) { q.st = 'roll'; t.rl = 2.5; if (!G.msg || G.msg.until < G.t) G.msg = { text: 'Zeros taking off from the enemy airfield!', until: G.t + 2.5 }; } }
+    for (const q of L) if (q.st === 'roll') {
+      q.v += (3 + q.v * 0.12) * dt * 3; q.x += f * q.v * dt;   // 처음엔 천천히, 점점 빨라진다
+      if (q.v >= 48 || Math.abs(q.x) > RUNWAY_L / 2 - 6) { q.st = 'gone'; spawnEnemy(ZR, t.x + q.x, t.y + 3.0); const e = ENE[ENE.length - 1]; e.h = f > 0 ? 0.1 : Math.PI - 0.1; e.v = Math.max(50, q.v); e.tm = 0; }
+    }
   }
   for (const t of TARGETS) if (t.type === 'cv' && t.alive) { t.launch -= dt; if (t.launch <= 0) { t.launch = 22 + Math.random() * 10; if (ENE.length < 6) spawnEnemy(ZR, t.x, 22); } }   // 적 항모가 전투기를 발진
   G.dark = M.tint === 'night' ? clamp((m.t - 40) / 160, 0, 0.5) : M.tint === 'dusk' ? 0.1 + clamp(m.t / 600, 0, 0.2) : 0;
@@ -1421,11 +1439,13 @@ function drawLife(c, t) {
     c.fillStyle = '#5c5a34'; c.beginPath(); c.arc(-1.6, 2.5, 0.42, Math.PI, 0); c.fill();
     drum(10, '#55605a'); drum(11.8, '#55605a');
   } else if (t.type === 'runway') {
+    c.save(); c.translate(-rwPk(t).f * 215, 0);
     R(34, 0, 0.25, 7, '#d8d8d0');   // 바람자루
     const sw = Math.sin(T * 1.7) * 0.25; [0, 1, 2, 3].forEach(i => { c.fillStyle = i % 2 ? '#f2f2ea' : '#e2571e'; c.beginPath(); c.moveTo(34.25 + i * 1.1, 6.9 - i * 0.06 + sw * i * 0.3); c.lineTo(35.35 + i * 1.1, 6.85 - (i + 1) * 0.06 + sw * (i + 1) * 0.3); c.lineTo(35.35 + i * 1.1, 6.1 + (i + 1) * 0.08 + sw * (i + 1) * 0.3); c.lineTo(34.25 + i * 1.1, 6.0 + i * 0.08 + sw * i * 0.3); c.fill(); });
     drum(-36, '#55605a'); drum(-34.2, '#55605a'); drum(-35.1, '#55605a'); crates(-41, 2);
     // 천막
     c.fillStyle = '#7a7450'; c.beginPath(); c.moveTo(38, 0); c.lineTo(42.5, 5); c.lineTo(47, 0); c.closePath(); c.fill(); R(41.8, 0, 1.4, 2.6, '#3a3624');
+    c.restore();
   }
 }
 function drawQuad(c, t) {   // 4연장 기관포: 둥근 포탑에 포신 넷 (위아래 두 쌍), 쏠 때 포구마다 섬광
@@ -1502,11 +1522,12 @@ function drawRuin(c, t) {
       c.save(); c.translate(5.4, 0.9); c.rotate(0.5); rect(-1.7, -0.1, 3.4, 1.2, '#3f4535'); rect(1.2, 0.3, 3.0, 0.35, '#2a2d22'); c.restore();
       rubble(-5, 5, 4, ['#2a2d22', '#3f4535']);
       break;
-    case 'runway':   // 활주로: 폭탄 구덩이가 파이고 대기하던 비행기가 불에 탔다
-      rect(-30, 0, 60, 0.9, '#44474d');
-      [[-24, 3.4], [-9, 2.8], [6, 3.6], [21, 3.0]].forEach(([x, w], i) => { c.fillStyle = '#1b1c1f'; c.beginPath(); c.ellipse(x, 0.9, w, 0.55, 0, Math.PI, 0); c.fill(); rubble(x - w - 1, x + w + 1, 3, ['#5c6068', '#44474d'], 0.5); });
-      [-17, 0, 17].slice(0, t.parked === undefined ? 3 : t.parked).forEach((x, i) => { c.save(); c.translate(x, 2.2); c.rotate((R(i + 40) - 0.5) * 0.3); c.scale(0.62, 0.62); drawZero(c, 'zero'); c.fillStyle = 'rgba(14,11,9,0.66)'; c.beginPath(); c.ellipse(0, 0, 8.5, 2.3, 0, 0, 7); c.fill(); c.restore(); });
+    case 'runway': {   // 활주로: 폭탄 구덩이가 파이고 대기하던 비행기가 불에 탔다
+      const H = RUNWAY_L / 2; rect(-H, 0, RUNWAY_L, 0.9, '#44474d');
+      [[-220, 3.4], [-140, 2.8], [-60, 3.6], [20, 3.0], [100, 3.4], [180, 2.8], [235, 3.2]].forEach(([x, w]) => { c.fillStyle = '#1b1c1f'; c.beginPath(); c.ellipse(x, 0.9, w, 0.55, 0, Math.PI, 0); c.fill(); rubble(x - w - 1, x + w + 1, 3, ['#5c6068', '#44474d'], 0.5); });
+      drawParked(c, t, true);
       break;
+    }
     case 'cave':   // 동굴 포대: 입구가 무너져 내린 바위로 막혔다
       soot(5);
       c.fillStyle = '#0c0e0d'; c.beginPath(); c.arc(0, 2.6, 3.6, 0, Math.PI); c.fill();
@@ -1563,16 +1584,10 @@ function drawTarget(c, t, dead) {
     case 'fuel': rect(-3, 0, 6, 5, '#d8d8d2'); rect(-3, 2, 6, 0.9, '#b5342c'); c.fillStyle = '#e8e8e2'; c.beginPath(); c.ellipse(0, 5, 3, 0.8, 0, 0, 7); c.fill(); break;
     case 'radar': rect(-0.4, 0, 0.8, 8, '#51585e'); c.strokeStyle = '#51585e'; c.lineWidth = 0.6; c.beginPath(); c.moveTo(-3, 9.4); c.quadraticCurveTo(0, 6.6, 3, 9.4); c.stroke(); break;
     case 'boat': poly([[-13, 3], [11, 3], [14, 4.4], [9, -0.4], [-11, -0.4]], '#5d6b78'); rect(-3, 3, 7, 3.2, '#7b8895'); rect(-0.5, 6, 2, 1.8, '#4a5560'); break;
-    case 'runway': {   // 활주로와 대기 중인 제로센 (꼬리를 내리고 앉아 있다), 정비병
-      rect(-30, 0, 60, 0.9, '#5c6068'); for (let x = -27; x < 27; x += 8) rect(x, 0.35, 4, 0.2, '#e8e8e2');
-      [-17, 0, 17].slice(0, t.parked === undefined ? 3 : t.parked).forEach((x, i) => {
-        c.save(); c.translate(x, 2.6); c.rotate(0.13); c.scale(0.62, 0.62);
-        drawZero(c, 'zero'); c.restore();
-        c.fillStyle = '#1d1d1d'; c.beginPath(); c.arc(x + 2.2, 1.45, 0.55, 0, 7); c.fill(); c.strokeStyle = '#555'; c.lineWidth = 0.25; c.beginPath(); c.moveTo(x + 2.2, 1.45); c.lineTo(x + 2.4, 2.4); c.stroke();
-        c.beginPath(); c.arc(x - 4.4, 1.1, 0.25, 0, 7); c.fill();
-        c.fillStyle = 'rgba(220,220,220,0.5)'; c.fillRect(x + 4.5, 1.2, 0.18, 2.2);   // 멈춘 프로펠러
-        if (i === 1) { c.fillStyle = '#4f5a3c'; c.fillRect(x + 5.6, 0.9, 0.5, 1.2); c.fillStyle = '#e2b58a'; c.beginPath(); c.arc(x + 5.85, 2.4, 0.3, 0, 7); c.fill(); }
-      });
+    case 'runway': {   // 활주로와 대기 중인 제로센
+      const H = RUNWAY_L / 2; rect(-H, 0, RUNWAY_L, 0.9, '#5c6068'); for (let x = -H + 10; x < H - 14; x += 16) rect(x, 0.35, 8, 0.2, '#e8e8e2');
+      rect(-H, 0.9, 2, 0.5, '#d8d8d0'); rect(H - 2, 0.9, 2, 0.5, '#d8d8d0');
+      drawParked(c, t, false);
       break;
     }
     case 'tank': rect(-4.4, 0, 8.8, 0.9, '#2f3328'); rect(-4, 0.9, 8, 1.5, '#5f6a47'); rect(-1.4, 2.4, 3.4, 1.3, '#6a7650'); rect(2, 2.9, 3.4, 0.4, '#3a4030'); break;

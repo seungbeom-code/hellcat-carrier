@@ -32,6 +32,7 @@ const TURN_T = 1.6;   // 선회에 걸리는 시간(초)
 const HOOK_BACK = 7.5, CRUISE_KT = 270, SLOW_KT = 105;   // 후크 끝 위치, 손을 뗐을 때 순항 속도, 항모 근처 접근 속도
 const TAKEOFF_KT = 100, TURN_KT = 100;   // 이륙과 선회에 필요한 최소 속도
 const LAND_KT = 125, LAND_SINK = 8, LAND_PITCH = 0.22;   // 착함 허용 한계: 속도, 가라앉는 속도, 기울기
+const MAX_ALT = 600;   // 최고 고도: 나도 적기도 이 위로는 못 올라간다
 const CEIL = 500;   // 지도에서 고도를 그리는 기준(m). 실제 고도 제한은 없고 높이 올라가면 실속한다
 const START_XR = 312, LAUNCH_XR = 312;   // 발진선
 const ELEV_A = 236, ELEV_W = 24, ELEV_C = ELEV_A + ELEV_W / 2, ELEV_DEPTH = 14, TAXI_V = 13, ELEV_R = 16;
@@ -90,7 +91,7 @@ function airStep(dt) {
     if (f >= 0.5 && !p.flipped) { p.s = -p.s; p.a = -p.a; p.flipped = true; }
     p.th = p.s > 0 ? -0.06 : Math.PI + 0.06;
     if (p.turn <= 0) { p.vx = -p.v0 * 0.85; p.turn = 0; p.turnEndT = G.t; p.holdG = null; if (p.slowTurn) { p.stalled = true; p.slowTurn = false; G.msg = { text: 'Stalled by turning too slowly! Falling until you gain speed', until: G.t + 2.5 }; sfx('stall'); } }
-    p.x += p.vx * dt; p.y += p.vy * dt;
+    p.x += p.vx * dt; p.y = Math.min(MAX_ALT, p.y + p.vy * dt);
     return;
   }
   const g = Math.atan2(p.vy, p.vx);
@@ -127,6 +128,7 @@ function airStep(dt) {
     if (Math.abs(Math.atan2(p.vy, Math.abs(p.vx))) < 0.1) startTurn();
   }
   if (G.t - p.liftT < 4) p.vy = Math.min(p.vy, 1 + (G.t - p.liftT) * 3);
+  if (p.y > MAX_ALT - 80 && p.vy > 0) { p.vy = Math.min(p.vy, Math.max(0, MAX_ALT - p.y) * 0.4); if (p.y > MAX_ALT - 15 && (!G.msg || G.msg.until < G.t)) G.msg = { text: 'Maximum altitude ' + MAX_ALT + ' m', until: G.t + 1.5 }; }   // 600m 가까이 가면 부드럽게 멈춘다
   if (p.y > 250 && kts() < stallKt() * 1.08 && (!G.toast || G.toast.until < G.t)) G.toast = { text: p.y > 420 ? 'Air too thin, stalling! Lower the nose and build speed' : 'Stalling! Lower the nose and build speed', grade: 'yellow', until: G.t + 2.5 };   // 고도 제한 대신 실속
   p.x += p.vx * dt; p.y += p.vy * dt;
 }
@@ -933,7 +935,8 @@ function enemyStep(dt) {
     if (e.hp <= 0) { killEnemy(e); continue; }
     // 속도가 빠를수록 크게 못 돈다 (g 한계), 너무 느리면 거의 못 돈다
     const wmax = clamp(S.n * 9.8 / Math.max(e.v, 40), 0.15, 1.5) * (e.v < S.v * 0.55 ? 0.35 : 1);
-    if (e.y > 230) ty = Math.min(ty, e.y);   // 높은 곳에서는 더 오르려 하지 않는다
+    if (e.y > 230) ty = Math.min(ty, e.y);
+    ty = Math.min(ty, MAX_ALT - 30);   // 높은 곳에서는 더 오르려 하지 않는다
     const dh = e.stall ? 0 : clamp(angd(Math.atan2(ty - e.y, tx - e.x), e.h), -wmax * dt, wmax * dt);
     e.h += dh; e.bank += (clamp(dh / (wmax * dt), -1, 1) - e.bank) * Math.min(1, 4 * dt);
     const edn = airDenAt(e.y);   // 적기도 높이 올라가면 공기가 희박해 엔진 힘이 줄고 실속한다
@@ -942,6 +945,7 @@ function enemyStep(dt) {
     if (e.stall) { e.h += clamp(angd(Math.cos(e.h) >= 0 ? -0.7 : Math.PI + 0.7, e.h), -1.5 * dt, 1.5 * dt); }   // 실속: 기수를 떨어뜨려 속도를 되찾는다
     e.v = clamp(e.v, S.v * 0.45, S.v * 1.5);
     e.x += Math.cos(e.h) * e.v * dt; e.y += Math.sin(e.h) * e.v * dt;
+    if (e.y > MAX_ALT - 40 && Math.sin(e.h) > 0) { e.h += clamp(angd(Math.cos(e.h) >= 0 ? 0 : Math.PI, e.h), -2 * dt, 2 * dt); if (e.y > MAX_ALT) e.y = MAX_ALT; }   // 적기도 600m 위로는 못 올라간다
     const sink = Math.max(0, -Math.sin(e.h) * e.v), floor = Math.max(bomber ? 12 : 35, gA + 35) + sink * 2.2, nearShip = Math.abs(e.x - cx) < DECK_L / 2 + 40 && e.y > DECK_Y - 4;
     if (e.y < floor && Math.sin(e.h) < 0.25 && !(diving && e.y > DECK_Y - 2)) { const up = clamp((floor - e.y) / 40, 0.3, 0.9); e.h += clamp(angd(fwd > 0 ? up : Math.PI - up, e.h), -wmax * 2.5 * dt, wmax * 2.5 * dt); e.v = Math.max(e.v, S.v * 0.7); }   // 땅이나 바다가 가까우면 미리 힘껏 기수를 든다
     if (e.y <= Math.max(1, gh(e.x)) && !nearShip) { G.selfCrash = (G.selfCrash || 0) + 1; killEnemy(e); continue; }   // 늦으면 추락한다

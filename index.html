@@ -2061,14 +2061,15 @@ function drawHUD() {
   }
 }
 
+const ZOOM_MIN = 0.6;   // 가장 많이 축소했을 때 (화면에 약 1.6km 폭)
 function updateCam(dt) {
   const xr = p.x - ship.x, near = Math.abs(xr - 130) < 900 && p.y < 260;
   let zt = p.mode === 'deck' || p.mode === 'taxi' || p.mode === 'lift' || (p.mode === 'down' && !G.result.sea) ? 2.9 : near ? 2.1 : 1.6;
-  zt = Math.max(0.15, Math.min(zt, 0.5 * H / Math.max(p.y, 40)));   // 높이 올라가면 지평선(바다)이 항상 보이도록 축소
+  zt = Math.max(ZOOM_MIN, Math.min(zt, 0.5 * H / Math.max(p.y, 40)));   // 높이 올라가면 바다가 보이도록 축소하되, 너무 작아지지 않게 한계를 둔다
   cam.z = lerp(cam.z, zt, Math.min(1, dt * (zt < cam.z ? 6 : 1.5)));
   const dir = p.vx >= 0 ? 1 : -1;
   const tx = p.x + dir * (0.2 + clamp((kts() - 120) / 900, 0, 0.12)) * W / cam.z, ty = Math.max(p.y * 0.92, H * 0.27 / cam.z);
-  cam.x = lerp(cam.x, tx, Math.min(1, dt * 5)); cam.y = lerp(cam.y, ty, Math.min(1, dt * 6)); cam.y = Math.min(cam.y, 0.4 * H / cam.z);   // 바다가 화면 밖으로 나가지 않게
+  cam.x = lerp(cam.x, tx, Math.min(1, dt * 5)); cam.y = lerp(cam.y, ty, Math.min(1, dt * 6)); cam.y = Math.min(cam.y, Math.max(0.4 * H / cam.z, p.y - 0.3 * H / cam.z));   // 바다가 화면 밖으로 나가지 않게 (아주 높으면 비행기를 따라간다)
 }
 
 function fit() {

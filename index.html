@@ -31,6 +31,7 @@ const TURN_T = 1.6;   // 선회에 걸리는 시간(초)
 const HOOK_BACK = 7.5, CRUISE_KT = 270, SLOW_KT = 105;   // 후크 끝 위치, 손을 뗐을 때 순항 속도, 항모 근처 접근 속도
 const TAKEOFF_KT = 100, TURN_KT = 100;   // 이륙과 선회에 필요한 최소 속도
 const LAND_KT = 125, LAND_SINK = 8, LAND_PITCH = 0.22;   // 착함 허용 한계: 속도, 가라앉는 속도, 기울기
+const CEIL = 500;   // 최고 고도(m)
 const START_XR = 156, LAUNCH_XR = 156;   // 발진선
 const ELEV_A = 118, ELEV_W = 24, ELEV_C = ELEV_A + ELEV_W / 2, ELEV_DEPTH = 14, TAXI_V = 13;   // 가운데 엘리베이터
 const LOADS = [{ name: '기본', fuel: 100, accel: 1.0, ammo: '기관총 3,000발 + 로켓 30발 + 폭탄 30발', hud: '기관총 3000 · 로켓 30 · 폭탄 30', lines: [] }];   // 무장은 하나로 통일
@@ -100,7 +101,8 @@ function airStep(dt) {
     const Vt = lerp(SLOW_KT, CRUISE_KT, kV) / KT;   // 손을 떼면 낮을수록 천천히 난다 (바퀴와는 무관)
     p.vx += Math.sign(p.vx) * clamp((Vt - V) * 1.6, -12, 9) * dt;
   }
-  if (G.t - p.liftT < 4) p.vy = Math.min(p.vy, 1 + (G.t - p.liftT) * 3);   // 막 떠오른 뒤에는 서서히 오른다
+  if (G.t - p.liftT < 4) p.vy = Math.min(p.vy, 1 + (G.t - p.liftT) * 3);
+  if (p.y > CEIL - 120 && p.vy > 0) { p.vy = Math.min(p.vy, Math.max(0, CEIL - p.y) * 0.25); if (p.y > CEIL - 20 && (!G.toast || G.toast.until < G.t)) G.toast = { text: '최고 고도 ' + CEIL + 'm — 더 올라갈 수 없다', grade: 'yellow', until: G.t + 2 }; }   // 최고 고도 제한   // 막 떠오른 뒤에는 서서히 오른다
   p.x += p.vx * dt; p.y += p.vy * dt;
 }
 // 수평선에 대한 기수 각도 (어느 쪽을 보고 날든 같은 기준)
@@ -1650,11 +1652,11 @@ function drawMiniMap(c) {
   ISLANDS.forEach(s => { c.beginPath(); c.moveTo(mx(s.a), base + 1); for (let x = s.a; x <= s.b; x += Math.max(20, (s.b - s.a) / 12)) c.lineTo(mx(x), base - gh(x) * vf); c.lineTo(mx(s.b), base + 1); c.closePath(); c.fill(); });
   ISLANDS.forEach(s => { c.fillStyle = s.cleared ? '#ffffff' : '#e03030'; c.fillRect(mx(s.fx) - 1.5, base - gh(s.fx) * vf - 8, 3, 4); });   // 섬의 깃발
   TARGETS.forEach(t => { if (t.alive) { c.fillStyle = '#ff5a3c'; c.fillRect(mx(t.x) - 1, SHIPS[t.type] ? base - 3 : base - gh(t.x) * vf - 3, 2, 2); } });
-  c.fillStyle = '#ff8a5c'; ENE.forEach(e => { if (!e.dead) c.fillRect(mx(e.x) - 1, base - clamp(e.y / 400, 0, 1) * (h - 7) - 3, 2, 2); });
+  c.fillStyle = '#ff8a5c'; ENE.forEach(e => { if (!e.dead) c.fillRect(mx(e.x) - 1, base - clamp(e.y / CEIL, 0, 1) * (h - 7) - 3, 2, 2); });
   c.fillStyle = '#c3ccd6'; c.fillRect(mx(ship.x), base - 3, Math.max(8, mx(ship.x + 260) - mx(ship.x)), 3); c.fillRect(mx(ship.x + 130), base - 6, 3, 3);
   c.fillStyle = '#fff'; c.font = '700 10px system-ui,sans-serif'; c.textAlign = 'center'; c.fillText('항모', mx(ship.x + 130), y0 + 9);
   ISLANDS.forEach((s, k) => { if (s.b - s.a > 600 || ISLANDS.length === 1) c.fillText('섬', mx((s.a + s.b) / 2), y0 + 9); });
-  const px = mx(p.x), py = base - clamp(p.y / 400, 0, 1) * (h - 7) - 2, d = p.s >= 0 ? 1 : -1;
+  const px = mx(p.x), py = base - clamp(p.y / CEIL, 0, 1) * (h - 7) - 2, d = p.s >= 0 ? 1 : -1;
   c.fillStyle = '#ffd23f'; c.beginPath(); c.moveTo(px + 4 * d, py); c.lineTo(px - 3 * d, py - 2.6); c.lineTo(px - 3 * d, py + 2.6); c.closePath(); c.fill();
   c.textAlign = 'left';
 }

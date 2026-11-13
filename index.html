@@ -668,8 +668,8 @@ Object.assign(HP, { barracks: 12, pill: 14 }); BOX.pill = { w: 28, h: 13 }; DMG.
 Object.assign(HP, { barracks: 12 }); Object.assign(BOX, { barracks: { w: 40, h: 7 }, aa: { w: 11, h: 9 } }); DMG.gun.barracks = 0.15; DMG.rocket.barracks = 4; DMG.bomb.barracks = 10;
 const JP = { pill: 1, aa: 1, bunker: 1, cave: 1, radar: 1, barracks: 1, tank: 1 };   // 일본군이 있는 시설
 const SHIPS = { boat: 1, dd: 1, tr: 1, bm: 1, bb: 1, cv: 1 }, DEF_W = { pill: 2, aa: 1, bunker: 1.5, cave: 2, radar: 1 }, AA_N = { pill: 1, aa: 1, dd: 2, bm: 3, bb: 5, cv: 3, tr: 1, cave: 1 }, AA_R = { pill: 500, aa: 500, cave: 500, dd: 500, bm: 500, bb: 500, cv: 500, tr: 500 };
-const HULL_H = { boat: 4.5, dd: 6.5, tr: 16, bm: 5.2, bb: 5.2, cv: 14.5 };   // 적 함정 선체(갑판) 높이(m)
-const SHIP_GUNS = { dd: { gy: 3.2, xs: [-15, -5, 10] }, bm: { gy: 3.4, xs: [-36, -28, -20, 20, 28, 36], mg: [1, 4] }, bb: { gy: 3.4, xs: [-44, -37, -30, -23, -16, 20, 27, 34, 41, 48], mg: [1, 3, 6, 8] }, cv: { gy: 8.2, xs: [-42, -30, -18, 28, 38, 45] }, tr: { gy: 5.2, xs: [-12, 12] } };   // 함정의 대공포 자리
+const HULL_H = { boat: 4.5, dd: 6.5, tr: 16, bm: 7.8, bb: 7.8, cv: 14.5 };   // 적 함정 선체(갑판) 높이(m)
+const SHIP_GUNS = { dd: { gy: 3.2, xs: [-15, -5, 10] }, bm: { gy: 4.3, xs: [-36, -28, -20, 20, 28, 36], mg: [1, 4] }, bb: { gy: 4.3, xs: [-44, -37, -30, -23, -16, 20, 27, 34, 41, 48], mg: [1, 3, 6, 8] }, cv: { gy: 8.2, xs: [-42, -30, -18, 28, 38, 45] }, tr: { gy: 5.2, xs: [-12, 12] } };   // 함정의 대공포 자리
 const BUSH = [];   // 덤불: 숲 바닥을 채우는 장식 (부딪히지 않는다)
 const TARGETS = [], PROJ = [], TREES = [], ENE = [], EB = [], FLAK = [], SOLD = [];
 const ES = { zero: { v: 125, n: 5.0, hp: 4 }, ace: { v: 140, n: 6.0, hp: 8 }, n1k: { v: 145, n: 5.5, hp: 9 }, d4y: { v: 105, n: 2.6, hp: 6 }, b6n: { v: 100, n: 2.2, hp: 7 } };   // 속도(m/s), 견딜 수 있는 선회 g, 체력
@@ -1069,6 +1069,17 @@ function missionStep(dt) {
     for (const q of L) if (q.st === 'roll') {
       q.v += (3 + q.v * 0.12) * dt * 3; q.x += f * q.v * dt;   // 처음엔 천천히, 점점 빨라진다
       if (q.v >= 48 || Math.abs(q.x) > RUNWAY_L / 2 - 6) { q.st = 'gone'; spawnEnemy(ZR, t.x + q.x, t.y + 3.0); const e = ENE[ENE.length - 1]; e.h = f > 0 ? 0.1 : Math.PI - 0.1; e.v = Math.max(50, q.v); e.tm = 0; }
+    }
+  }
+  for (const t of TARGETS) if ((t.type === 'bb' || t.type === 'bm') && t.alive) {   // 전함의 사출기에서 수상기가 발진한다
+    if (t.fp === undefined) t.fp = t.type === 'bb' ? 2 : 1;
+    if (t.fp > 0 && p.mode === 'air' && Math.abs(p.x - t.x) < 2400) {
+      t.fpT = (t.fpT === undefined ? 3 + Math.random() * 5 : t.fpT) - dt;
+      if (t.fpT <= 0 && ENE.filter(e => !e.dead).length < 7) {
+        t.fpT = 14 + Math.random() * 8; t.fp--; const dr = t.dir < 0 ? -1 : 1, lx = -(t.type === 'bb' ? 75 : 50) + (t.type === 'bb' ? 42 : 30) - (t.fp === 0 && t.type === 'bb' ? 0 : 0), wx = t.x + lx * SK[t.type] * dr, wy = t.y + 5.45 * SK[t.type];
+        spawnEnemy(ZR, wx, wy); const e = ENE[ENE.length - 1]; e.h = p.x >= wx ? 0.18 : Math.PI - 0.18; e.v = 75; e.tm = 0;
+        if (!G.msg || G.msg.until < G.t) G.msg = { text: 'Enemy floatplane catapulted from a battleship!', until: G.t + 2.5 };
+      }
     }
   }
   for (const t of TARGETS) if (t.type === 'cv' && t.alive) { t.launch -= dt; if (t.launch <= 0) { t.launch = 22 + Math.random() * 10; if (ENE.length < 6) spawnEnemy(ZR, t.x, 22); } }   // 적 항모가 전투기를 발진
@@ -1874,70 +1885,79 @@ function drawBunkerBody(c, t, wreck) {   // 모래주머니를 쌓은 보루: �
     if (t.inside > 0) { c.fillStyle = '#5c5a34'; c.beginPath(); c.arc(-0.6 + Math.sin(G.t * 4) * 0.6, 1.6, 0.5, Math.PI, 0); c.fill(); }   // 안에서 수리하는 일본군 철모
   }
 }
-function drawBattleship(c, t, big) {   // 전함: 뱃머리가 날카롭게 솟은 선체, 현측 장갑대, 줄지은 현창, 연장 주포탑, 층층이 쌓은 파고다형 함교, 굴뚝과 연기, 마스트와 레이더, 항공기 사출기, 일장기
-  const hl = big ? 75 : 50, T = G.t + t.x * 0.1;
+function drawFloatPlane(c, x, y) {   // 사출기 위의 수상기: 초록색 동체와 일장기, 복엽 날개, 아래의 플로트
+  c.save(); c.translate(x, y);
+  c.fillStyle = '#c3ccd3'; c.beginPath(); c.ellipse(0.2, -1.05, 3.3, 0.42, 0, 0, 7); c.fill(); c.fillStyle = '#9aa5ae'; c.beginPath(); c.ellipse(0.2, -1.2, 3.3, 0.2, 0, 0, 7); c.fill();   // 플로트
+  c.strokeStyle = '#59656f'; c.lineWidth = 0.1; c.beginPath(); c.moveTo(-1.2, -0.7); c.lineTo(-0.9, 0.1); c.moveTo(1.4, -0.7); c.lineTo(1.1, 0.1); c.moveTo(-1.3, -0.7); c.lineTo(-0.7, 0.1); c.stroke();
+  c.fillStyle = '#3d6a3a'; c.beginPath(); c.moveTo(-3.1, 0.35); c.lineTo(-2.2, 0.0); c.lineTo(1.6, -0.35); c.lineTo(2.7, -0.15); c.lineTo(2.9, 0.25); c.lineTo(1.9, 0.75); c.lineTo(-0.8, 0.9); c.lineTo(-2.9, 0.62); c.closePath(); c.fill();
+  c.fillStyle = '#8fb2c4'; c.beginPath(); c.moveTo(-0.6, 0.85); c.lineTo(0.4, 1.35); c.lineTo(1.5, 0.75); c.closePath(); c.fill();   // 풍방
+  c.fillStyle = '#355d33'; c.beginPath(); c.moveTo(-3.0, 0.5); c.lineTo(-3.6, 1.7); c.lineTo(-2.8, 1.7); c.lineTo(-2.3, 0.5); c.closePath(); c.fill();   // 꼬리
+  c.fillStyle = '#2f5230'; c.fillRect(-1.6, 1.55, 3.9, 0.17); c.fillRect(-1.3, 0.85, 3.3, 0.14);
+  c.strokeStyle = '#2f5230'; c.lineWidth = 0.08; c.beginPath(); c.moveTo(-1.0, 0.95); c.lineTo(-1.0, 1.55); c.moveTo(1.8, 0.95); c.lineTo(1.8, 1.55); c.stroke();
+  c.fillStyle = '#d83a3a'; c.beginPath(); c.arc(-0.9, 0.38, 0.34, 0, 7); c.fill();   // 일장기
+  c.fillStyle = '#1b1d1c'; c.beginPath(); c.arc(3.0, 0.15, 0.3, 0, 7); c.fill(); c.strokeStyle = '#2b2b2b'; c.lineWidth = 0.1; c.beginPath(); c.moveTo(3.1, -0.9); c.lineTo(3.1, 1.2); c.stroke();
+  c.restore();
+}
+function drawBattleship(c, t, big) {   // 야마토급 전함: 붉은 수선부와 어두운 회색 상부, 날카롭게 솟은 선수, 층층이 쌓은 파고다 함교와 마스트, 돛대에서 이물·고물로 늘어지는 줄, 3연장 주포탑 (굴뚝은 없다)
+  const hl = big ? 75 : 50, T = G.t + t.x * 0.1, D = 3.0;   // D: 갑판 높이
   const poly = (pts, fill, stroke, lw) => { c.beginPath(); pts.forEach((q, i) => i ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1])); c.closePath(); c.fillStyle = fill; c.fill(); if (stroke) { c.strokeStyle = stroke; c.lineWidth = lw || 0.1; c.stroke(); } };
   const rect = (x, y, w, h, f) => { c.fillStyle = f; c.fillRect(x, y, w, h); };
   const line = (x1, y1, x2, y2, col, w) => { c.strokeStyle = col; c.lineWidth = w; c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke(); };
-  // ── 선체: 완만한 현호(뱃머리 쪽으로 오르는 갑판선), 기울어진 선수, 늘씬한 선미
-  const hull = [[-hl + 1, -0.5], [-hl - 0.2, 1.7], [-hl + 2, 2.2], [-hl * 0.45, 2.05], [hl * 0.4, 2.2], [hl - 6, 2.7], [hl - 2.2, 3.3], [hl + 1.4, 1.5], [hl - 5, -0.5]];
-  const g = c.createLinearGradient(0, -0.5, 0, 3.3); g.addColorStop(0, '#4e5b67'); g.addColorStop(0.5, '#6d7a87'); g.addColorStop(1, '#8996a2');
-  poly(hull, g, '#3a444d', 0.12);
+  // ── 선체
+  const hull = [[-hl + 1, -0.7], [-hl - 0.3, 2.3], [-hl + 2.2, D], [-hl * 0.45, D - 0.1], [hl * 0.4, D + 0.05], [hl - 6, D + 0.6], [hl - 2.2, D + 1.2], [hl + 1.8, 2.0], [hl - 5.5, -0.7]];
+  poly(hull, '#5d6973', '#2f3841', 0.12);
   c.save(); c.beginPath(); hull.forEach((q, i) => i ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1])); c.closePath(); c.clip();
-  rect(-hl - 1, -0.6, 2 * hl + 4, 0.95, '#6f2b25');   // 수선 아래 붉은 선저 도료
-  rect(-hl - 1, 0.35, 2 * hl + 4, 0.18, '#d8d4c8');   // 흘수선 띠
-  rect(-hl - 1, 0.55, 2 * hl + 4, 0.8, '#59656f');   // 장갑대
-  for (let x = -hl + 5; x < hl - 6; x += 2.3) { c.fillStyle = '#10161c'; c.beginPath(); c.arc(x, 1.7, 0.2, 0, 7); c.fill(); }   // 현창
-  [[-hl + 8, 14, 0.8], [-hl * 0.2, 18, 1.1], [hl * 0.45, 13, 0.9]].forEach(([x0, w, y]) => poly([[x0, 1.2], [x0 + w, 1.2], [x0 + w - 3, 2.4], [x0 - 2, 2.4]], 'rgba(36,46,56,0.28)'));   // 얼룩 위장
+  const rg = c.createLinearGradient(0, -0.7, 0, 1.7); rg.addColorStop(0, '#6a241e'); rg.addColorStop(1, '#932f26'); rect(-hl - 1, -0.8, 2 * hl + 4, 2.5, rg);   // 붉은 선저 도료(수선부)
+  rect(-hl - 1, 1.7, 2 * hl + 4, 0.14, '#d8d4c8');   // 도료 경계선
+  rect(-hl - 1, 1.84, 2 * hl + 4, D - 1.84, '#66727d'); rect(-hl - 1, 1.84, 2 * hl + 4, 0.55, '#59656f');   // 어두운 회색 상부 선체와 장갑대
+  for (let x = -hl + 4; x < hl - 6; x += 2.4) { c.fillStyle = '#10161c'; c.beginPath(); c.arc(x, 2.55, 0.2, 0, 7); c.fill(); }   // 현창
+  [[-hl + 6, 16, 1.0], [-hl * 0.25, 20, 1.2], [hl * 0.4, 14, 1.0]].forEach(([x0, w, h]) => poly([[x0, 1.9], [x0 + w, 1.9], [x0 + w - 3.5, 1.9 + h + 0.8], [x0 - 2.5, 1.9 + h + 0.8]], 'rgba(30,38,46,0.3)'));   // 얼룩 위장
   c.restore();
-  rect(-hl + 2, 2.1, 2 * hl - 8, 0.2, '#b79f72');   // 갑판 널
-  line(-hl + 2, 2.2, hl - 5, 2.75, '#a9b4be', 0.07);   // 갑판 가장자리 하이라이트
-  // 난간
-  c.strokeStyle = 'rgba(210,216,222,0.7)'; c.lineWidth = 0.05; c.beginPath(); c.moveTo(-hl + 3, 2.75); c.lineTo(hl * 0.4, 2.85); c.lineTo(hl - 6, 3.2); c.stroke();
-  c.lineWidth = 0.05; c.beginPath(); for (let x = -hl + 3; x < hl * 0.4; x += 1.8) { c.moveTo(x, 2.2); c.lineTo(x, 2.78); } c.stroke();
-  // 닻 구멍과 이물 깃대
-  c.fillStyle = '#10161c'; c.beginPath(); c.arc(hl - 3.8, 1.7, 0.28, 0, 7); c.fill(); c.strokeStyle = '#7f8c98'; c.lineWidth = 0.1; c.beginPath(); c.moveTo(hl - 3.5, 1.6); c.lineTo(hl - 2.2, 1.1); c.stroke();
-  line(hl - 2.2, 3.3, hl - 2.2, 4.8, '#d8d8d0', 0.1);
-  // 주포탑: 포탑 몸체 + 긴 포신 (소형 2기, 대형 4기: 대형은 앞뒤로 두 기씩 쌓아 올린다)
-  const turret = (x, dirn, lift, nb) => {
-    const y0 = 2.15 + lift;
-    rect(x - 3.4, y0, 6.8, 1.15, '#56626c'); rect(x - 3.4, y0 + 0.9, 6.8, 0.15, '#7d8a96');   // 포탑 기초(바베트)
-    poly([[x - 3.4 * dirn, y0 + 1.1], [x - 2.6 * dirn, y0 + 2.5], [x + 2.0 * dirn, y0 + 2.6], [x + 3.6 * dirn, y0 + 1.1]], '#6c7985', '#3b444d', 0.1);
-    poly([[x - 2.8 * dirn, y0 + 2.5], [x + 2.0 * dirn, y0 + 2.6], [x + 2.0 * dirn, y0 + 2.9], [x - 2.4 * dirn, y0 + 2.8]], '#808d99');   // 포탑 지붕
-    for (let b = 0; b < nb; b++) { const by = y0 + 1.5 + b * 0.5 - (nb - 1) * 0.2; line(x + 3.4 * dirn, by, x + 10.5 * dirn, by + 0.9 + 0.05 * b, '#323b44', 0.34); rect(x + (10.5 * dirn) - (dirn > 0 ? 0.5 : 0), by + 0.75 + 0.05 * b, 0.5, 0.3, '#232a31'); }   // 포신과 포구 제퇴기
+  rect(-hl + 2, D - 0.1, 2 * hl - 8, 0.2, '#b79f72'); line(-hl + 2, D, hl - 5.5, D + 0.7, '#aab5bf', 0.07);   // 갑판 널과 가장자리
+  c.strokeStyle = 'rgba(210,216,222,0.7)'; c.lineWidth = 0.05; c.beginPath(); c.moveTo(-hl + 3, D + 0.6); c.lineTo(hl * 0.4, D + 0.7); c.lineTo(hl - 6, D + 1.2); c.stroke();
+  c.beginPath(); for (let x = -hl + 3; x < hl * 0.4; x += 1.8) { c.moveTo(x, D); c.lineTo(x, D + 0.65); } c.stroke();   // 난간
+  c.fillStyle = '#10161c'; c.beginPath(); c.arc(hl - 4, 2.6, 0.3, 0, 7); c.fill(); line(hl - 3.7, 2.5, hl - 2.2, 1.9, '#7f8c98', 0.1);   // 닻 구멍
+  // ── 주포탑 (대형 3기 = 앞 2기 + 뒤 1기, 소형 2기)
+  const turret = (x, dirn, lift) => {
+    const y0 = D + lift;
+    rect(x - 3.6, y0, 7.2, 1.2, '#505c66'); rect(x - 3.6, y0 + 0.95, 7.2, 0.18, '#7d8a96');   // 바베트
+    poly([[x - 3.8 * dirn, y0 + 1.15], [x - 2.8 * dirn, y0 + 2.7], [x + 2.1 * dirn, y0 + 2.8], [x + 3.9 * dirn, y0 + 1.15]], '#6a7783', '#37414a', 0.1);
+    poly([[x - 3.0 * dirn, y0 + 2.7], [x + 2.1 * dirn, y0 + 2.8], [x + 2.1 * dirn, y0 + 3.15], [x - 2.6 * dirn, y0 + 3.05]], '#808d99');
+    rect(x - 1.2, y0 + 3.1, 2.4, 0.25, '#4a5560');   // 조준경 덮개
+    for (let b = 0; b < 3; b++) { const by = y0 + 1.35 + b * 0.55; line(x + 3.6 * dirn, by, x + 12 * dirn, by + 1.0 + 0.04 * b, '#2e373f', 0.38); rect(x + 12 * dirn - (dirn > 0 ? 0.6 : 0), by + 0.85 + 0.04 * b, 0.6, 0.34, '#1f262d'); }
   };
-  if (big) { turret(hl - 17, 1, 0, 3); turret(hl - 31, 1, 1.3, 3); turret(-hl + 20, -1, 0, 3); }
-  else { turret(hl - 14, 1, 0, 2); turret(-hl + 14, -1, 0, 2); }
-  // 항공기 사출기와 수상기 (선미)
-  { const cx = -hl + (big ? 40 : 28); line(cx - 7, 2.7, cx + 7, 2.7, '#7f8c98', 0.14); line(cx - 6, 2.2, cx - 6, 2.7, '#7f8c98', 0.1); line(cx + 6, 2.2, cx + 6, 2.7, '#7f8c98', 0.1);
-    poly([[cx - 2.8, 3.05], [cx + 2.6, 3.0], [cx + 3.2, 3.4], [cx - 2.6, 3.5]], '#8f9aa6'); line(cx - 1.5, 3.55, cx - 2.6, 4.4, '#8f9aa6', 0.14); line(cx - 3.8, 3.1, cx + 3.8, 3.2, '#4a5560', 0.1);
-    line(cx + 7.5, 2.2, cx + 7.5, 6.2, '#6c7985', 0.14); line(cx + 7.5, 6.2, cx + 11.5, 4.0, '#6c7985', 0.1); }   // 크레인
-  // ── 함교: 파고다처럼 층층이 쌓아 올린 탑. 위로 갈수록 좁아지고 앞으로 살짝 기운다
-  const bx = big ? -3 : -2, sc = big ? 1 : 0.85;
-  const tiers = [[-13, 12, 2.1, 5.6, '#7d8a96'], [-10.5, 9.5, 5.6, 8.8, '#86939f'], [-8.5, 7.6, 8.8, 11.6, '#7a8793'], [-6.6, 6.0, 11.6, 14.0, '#8794a1'], [-4.8, 4.6, 14.0, 16.2, '#7a8793'], [-3.2, 3.6, 16.2, 17.8, '#8f9ba7']];
+  if (big) { turret(hl - 20, 1, 0); turret(hl - 35, 1, 1.4); turret(-hl + 22, -1, 0); } else { turret(hl - 15, 1, 0); turret(-hl + 16, -1, 0); }
+  // ── 사출기와 수상기
+  { const cx = -hl + (big ? 42 : 30);
+    line(cx - 7.5, D + 0.9, cx + 7.5, D + 0.9, '#7f8c98', 0.16); line(cx - 6.5, D, cx - 6.5, D + 0.9, '#7f8c98', 0.1); line(cx + 6.5, D, cx + 6.5, D + 0.9, '#7f8c98', 0.1);
+    const nfp = t.fp === undefined ? (big ? 2 : 1) : t.fp;   // 갑판에 남은 수상기 수 (발진하면 줄어든다)
+    if (nfp >= 1) drawFloatPlane(c, cx, D + 2.45);
+    if (nfp >= 2) { line(cx - 19.5, D + 0.9, cx - 4.5, D + 0.9, '#7f8c98', 0.16); drawFloatPlane(c, cx - 12, D + 2.45); }
+    line(cx + 9, D, cx + 9, D + 4.8, '#6c7985', 0.16); line(cx + 9, D + 4.8, cx + 13, D + 2.4, '#6c7985', 0.1); line(cx + 13, D + 2.4, cx + 13, D + 0.4, '#6c7985', 0.06); }   // 크레인
+  // ── 함교: 파고다처럼 층층이 쌓은 탑 (위로 갈수록 좁아지고 앞으로 기운다)
+  const bx = big ? -3 : -2, sc = big ? 1 : 0.85, hy = D - 2.1 + 0.0;
+  const tiers = [[-13, 12, 2.1, 5.6, '#7d8a96'], [-10.8, 9.8, 5.6, 8.6, '#86939f'], [-9, 8, 8.6, 11.2, '#7a8793'], [-7.2, 6.5, 11.2, 13.8, '#8794a1'], [-5.6, 5.2, 13.8, 16.0, '#7a8793'], [-4.2, 4.0, 16.0, 17.8, '#8f9ba7'], [-3.0, 3.0, 17.8, 19.0, '#808d99']];
   tiers.forEach(([x0, x1, y0, y1, col], i) => {
-    const X0 = bx + x0 * sc, X1 = bx + x1 * sc, Y0 = 2.1 + (y0 - 2.1) * sc, Y1 = 2.1 + (y1 - 2.1) * sc, lean = 0.35 * i;
-    poly([[X0, Y0], [X1, Y0], [X1 + lean + 0.5, Y1], [X0 + lean, Y1]], col, '#3b444d', 0.08);
-    rect(X0 + lean - 0.3, Y1 - 0.12, X1 - X0 + 0.9, 0.22, '#aab5bf');   // 층 지붕 테두리
-    for (let x = X0 + 1.0 + lean * 0.5; x < X1 - 1.2; x += 1.6) { rect(x, Y0 + (Y1 - Y0) * 0.35, 0.9, 0.6 * sc + 0.2, i === 3 ? '#26485f' : '#161d24'); }   // 창
-    if (i === 3) { rect(X0 + lean + 0.4, Y0 + (Y1 - Y0) * 0.3, X1 - X0 - 0.4, 0.9, 'rgba(120,170,200,0.6)'); }   // 함교 유리
+    const X0 = bx + x0 * sc, X1 = bx + x1 * sc, Y0 = D + (y0 - 2.1) * sc, Y1 = D + (y1 - 2.1) * sc, lean = 0.4 * i;
+    poly([[X0, Y0], [X1, Y0], [X1 + lean + 0.5, Y1], [X0 + lean, Y1]], col, '#37414a', 0.08);
+    rect(X0 + lean - 0.3, Y1 - 0.12, X1 - X0 + 0.9, 0.22, '#aab5bf');
+    for (let x = X0 + 1.0 + lean * 0.5; x < X1 - 1.2; x += 1.5) rect(x, Y0 + (Y1 - Y0) * 0.35, 0.85, 0.55 * sc + 0.2, i === 4 ? '#26485f' : '#161d24');   // 창
+    if (i === 4) rect(X0 + lean + 0.4, Y0 + (Y1 - Y0) * 0.3, X1 - X0 - 0.4, 0.9, 'rgba(120,170,200,0.6)');
+    if (i === 2) { c.fillStyle = '#6a7783'; c.beginPath(); c.arc(X0 - 0.6 + lean, Y0 + 1.2, 0.7, 0, 7); c.arc(X1 + 0.8 + lean, Y0 + 1.2, 0.7, 0, 7); c.fill(); }   // 측면 관측 장치
   });
-  rect(bx - 11.2 * sc, 5.6, 22 * sc, 0.28, '#5a6672');   // 1층 비막이 갑판
-  // 마스트: 삼각 기둥 · 활대 · 레이더
-  const mx = bx + 0.4 * sc, my = 2.1 + 15.7 * sc;
-  line(mx, my, mx, my + 7.5, '#4a5560', 0.34); line(mx - 1.2, my - 0.2, mx - 0.2, my + 6.5, '#4a5560', 0.15); line(mx + 1.2, my - 0.2, mx + 0.4, my + 6.5, '#4a5560', 0.15);
-  line(mx - 3, my + 4.2, mx + 3.4, my + 4.2, '#4a5560', 0.18); rect(mx - 0.7, my + 7.5, 1.6, 0.9, '#59656f'); rect(mx - 1.8, my + 8.4, 3.2, 0.14, '#7f8c98'); line(mx, my + 8.5, mx, my + 9.6, '#4a5560', 0.14);
-  rect(mx - 1.6, my + 1.6, 3.4, 0.9, '#4e5a65');   // 감시대
-  // 굴뚝과 연기
-  const fx = bx + 15 * sc;
-  poly([[fx - 2.6, 2.1], [fx - 2.0, 10.0], [fx + 2.6, 10.0], [fx + 3.2, 2.1]], '#5d6a75', '#3b444d', 0.08); rect(fx - 2.0, 9.2, 4.6, 0.9, '#1f262d'); rect(fx - 2.4, 5.0, 5.4, 0.25, '#323b44');
-  rect(fx - 3.4, 6.2, 0.7, 0.4, '#8f9aa6');
-  for (let k = 0; k < 6; k++) { const u = ((T * 0.3 + k / 6) % 1); c.fillStyle = 'rgba(70,70,72,' + (0.45 * (1 - u)) + ')'; c.beginPath(); c.arc(fx + 0.3 - u * 8 + Math.sin(T + k) * 0.3, 10.8 + u * 6, 1.1 + u * 2.4, 0, 7); c.fill(); }
-  // 구명정과 통풍통
-  [[bx - 6, 1], [bx + 8, 1]].forEach(([x]) => { c.fillStyle = '#9fa8b0'; c.beginPath(); c.ellipse(x, 2.7, 2.2, 0.55, 0, 0, Math.PI); c.fill(); line(x - 2.2, 2.7, x + 2.2, 2.7, '#5a6672', 0.1); });
-  // 선미 일장기
-  line(-hl + 2.4, 2.2, -hl + 2.4, 6.0, '#d8d8d0', 0.1); const wv = Math.sin(T * 3) * 0.25;
-  poly([[-hl + 2.4, 5.9], [-hl - 0.6, 5.9 + wv], [-hl - 0.6, 4.6 + wv], [-hl + 2.4, 4.6]], '#f2f2ea'); c.fillStyle = '#c83a3a'; c.beginPath(); c.arc(-hl + 0.7, 5.25 + wv * 0.5, 0.45, 0, 7); c.fill();
+  poly([[bx - 6, D + 0.9], [bx + 14 * sc, D + 0.9], [bx + 12 * sc, D + 1.9], [bx - 4, D + 1.9]], 'rgba(36,46,56,0.28)');   // 탑 기부 위장
+  // 마스트·활대·레이더, 이물과 고물로 늘어지는 줄
+  const mx = bx + 1.0 * sc, my = D + 16.7 * sc;
+  line(mx, my, mx, my + 7.5, '#444f59', 0.36); line(mx - 1.3, my - 0.2, mx - 0.2, my + 6.4, '#444f59', 0.15); line(mx + 1.3, my - 0.2, mx + 0.5, my + 6.4, '#444f59', 0.15);
+  line(mx - 3.2, my + 4.2, mx + 3.6, my + 4.2, '#444f59', 0.18); rect(mx - 0.8, my + 7.5, 1.7, 0.9, '#59656f'); rect(mx - 2.0, my + 8.4, 3.4, 0.14, '#7f8c98'); line(mx, my + 8.5, mx, my + 9.8, '#444f59', 0.14);
+  rect(mx - 1.8, my + 1.6, 3.6, 0.9, '#4e5a65');
+  c.strokeStyle = 'rgba(36,42,48,0.85)'; c.lineWidth = 0.06; c.beginPath(); c.moveTo(mx, my + 9.6); c.lineTo(hl - 2.2, D + 1.2); c.moveTo(mx, my + 9.6); c.quadraticCurveTo(-hl * 0.4, my * 0.8, -hl + 2.4, D + 6.2); c.moveTo(mx, my + 4.2); c.lineTo(hl * 0.55, D + 0.8); c.stroke();
+  // 후방 마스트와 크게 펄럭이는 일장기
+  { const ax = -hl + 8; line(ax, D, ax, D + 9, '#6c7985', 0.3); line(ax - 1.6, D, ax - 0.2, D + 7, '#6c7985', 0.12); line(ax + 1.6, D, ax + 0.4, D + 7, '#6c7985', 0.12); line(ax - 3, D + 6, ax + 3, D + 6, '#6c7985', 0.12);
+    const fx = -hl + 2.2; line(fx, D, fx, D + 7.4, '#d8d8d0', 0.1); const wv = Math.sin(T * 3) * 0.3;
+    poly([[fx, D + 7.3], [fx - 3.6, D + 7.3 + wv], [fx - 3.6, D + 5.2 + wv], [fx, D + 5.2]], '#f4f4ee'); c.fillStyle = '#c83a3a'; c.beginPath(); c.arc(fx - 1.8, D + 6.25 + wv * 0.5, 0.7, 0, 7); c.fill(); }
+  // 구명정
+  [[bx - 7.5], [bx + 9.5]].forEach(([x]) => { c.fillStyle = '#9fa8b0'; c.beginPath(); c.ellipse(x, D + 0.65, 2.3, 0.55, 0, 0, Math.PI); c.fill(); line(x - 2.3, D + 0.65, x + 2.3, D + 0.65, '#5a6672', 0.1); });
 }
 function drawTarget(c, t, dead) {
   const poly = (pts, fill) => { c.beginPath(); pts.forEach((q, i) => i ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1])); c.closePath(); c.fillStyle = fill; c.fill(); };
@@ -2005,18 +2025,37 @@ function drawTarget(c, t, dead) {
   if (SHIPS[t.type] && !dead && AA_N[t.type]) {
     const SG = SHIP_GUNS[t.type], gy = SG.gy, xs = SG.xs, dr = t.dir < 0 ? -1 : 1;
     xs.forEach((lx, gi) => {
-      if (t.guns && t.guns[gi] && !t.guns[gi].alive) { c.fillStyle = '#2a2622'; c.beginPath(); c.arc(lx, gy, 1.3, 0, 7); c.fill(); c.fillStyle = 'rgba(80,80,80,0.5)'; c.beginPath(); c.arc(lx + 0.6, gy + 1.6 + Math.sin(G.t * 3 + gi) * 0.3, 1, 0, 7); c.fill(); return; }   // 부서진 함포
+      const gun = t.guns && t.guns[gi], base = gy - 1.3;
+      const quad = (x0, y0, w, h, f) => { c.fillStyle = f; c.fillRect(x0, y0, w, h); };
+      if (gun && !gun.alive) {   // 부서진 포: 그을린 받침과 찢어진 포탑, 피어오르는 연기
+        quad(lx - 1.5, base, 3, 1.1, '#3a3430'); c.fillStyle = '#26221f'; c.beginPath(); c.moveTo(lx - 1.5, gy - 0.2); c.lineTo(lx - 0.9, gy + 0.6); c.lineTo(lx - 0.2, gy + 0.1); c.lineTo(lx + 0.5, gy + 0.8); c.lineTo(lx + 1.5, gy - 0.2); c.closePath(); c.fill();
+        c.strokeStyle = '#1b1815'; c.lineWidth = 0.25; c.beginPath(); c.moveTo(lx + 0.4, gy + 0.6); c.lineTo(lx + 2.2, gy + 0.2); c.stroke();
+        c.fillStyle = 'rgba(80,80,80,0.5)'; c.beginPath(); c.arc(lx + 0.6, gy + 1.8 + Math.sin(G.t * 3 + gi) * 0.3, 1, 0, 7); c.fill(); return;
+      }
       const wx = t.x + lx * SK[t.type] * dr, wy = t.y + gy * SK[t.type];
-      const an = p.mode === 'air' ? clamp(Math.atan2(p.y - wy, p.x - wx), 0.15, Math.PI - 0.15) : 1.1, ca = Math.cos(an) * dr, sa = Math.sin(an);
-      if (t.guns && t.guns[gi] && t.guns[gi].mg) {   // 대공기관총: 작은 4연장
-        c.fillStyle = '#3d4650'; c.beginPath(); c.arc(lx, gy, 1.0, 0, 7); c.fill();
-        c.strokeStyle = '#1a1f24'; c.lineWidth = 0.22; [-0.5, -0.17, 0.17, 0.5].forEach(o => { c.beginPath(); c.moveTo(lx + o, gy + 0.3); c.lineTo(lx + o + ca * 3.4, gy + 0.3 + sa * 3.4); c.stroke(); });
-        if (G.t - (t.guns[gi].fl || -9) < 0.06) { c.fillStyle = 'rgba(255,230,140,0.95)'; c.beginPath(); c.arc(lx + ca * 4, gy + sa * 4, 1.1, 0, 7); c.fill(); }
+      const an = p.mode === 'air' ? clamp(Math.atan2(p.y - wy, p.x - wx), 0.15, Math.PI - 0.15) : 1.1, ca = Math.cos(an) * dr, sa = Math.sin(an), nx = -sa, ny = ca;
+      const fl = gun && gun.mg ? G.t - (gun.fl || -9) < 0.06 : G.t - (t.flashT || -9) < 0.12;
+      if (gun && gun.mg) {   // 대공기관총: 낮은 받침 위의 4연장 — 방패, 탄약 상자, 가는 포신 넷
+        quad(lx - 0.9, base + 0.2, 1.8, 0.9, '#4a5560'); quad(lx - 1.1, base + 1.0, 2.2, 0.2, '#7d8a96');
+        c.fillStyle = '#5f6b76'; c.beginPath(); c.moveTo(lx - 1.0, gy - 0.2); c.lineTo(lx - 0.7, gy + 0.6); c.lineTo(lx + 0.7, gy + 0.7); c.lineTo(lx + 1.0, gy - 0.2); c.closePath(); c.fill(); c.strokeStyle = '#2b333b'; c.lineWidth = 0.08; c.stroke();
+        quad(lx - 1.9, gy - 0.4, 0.9, 0.7, '#5a4a2a'); quad(lx - 1.9, gy + 0.15, 0.9, 0.12, '#3a2c18');   // 탄약 상자
+        const px = lx + ca * 0.2, py = gy + 0.45 + sa * 0.2;
+        c.lineCap = 'round'; c.strokeStyle = '#1a1f24'; c.lineWidth = 0.17; [-0.36, -0.12, 0.12, 0.36].forEach(o => { c.beginPath(); c.moveTo(px + nx * o, py + ny * o); c.lineTo(px + nx * o + ca * 3.6, py + ny * o + sa * 3.6); c.stroke(); });
+        c.strokeStyle = '#4a5560'; c.lineWidth = 0.5; c.beginPath(); c.moveTo(px, py); c.lineTo(px + ca * 1.0, py + sa * 1.0); c.stroke(); c.lineCap = 'butt';
+        c.fillStyle = '#2f3840'; c.beginPath(); c.arc(px, py, 0.35, 0, 7); c.fill();
+        if (fl) { c.fillStyle = 'rgba(255,230,140,0.95)'; c.beginPath(); c.arc(lx + ca * 4.2, gy + 0.45 + sa * 4.2, 1.0, 0, 7); c.fill(); }
         return;
       }
-      c.fillStyle = '#4a5560'; c.beginPath(); c.arc(lx, gy, 1.5, 0, 7); c.fill();
-      c.strokeStyle = '#1f252b'; c.lineWidth = 0.6; [-0.45, 0.45].forEach(o => { c.beginPath(); c.moveTo(lx + o, gy); c.lineTo(lx + o + ca * 4.6, gy + sa * 4.6); c.stroke(); });
-      if (G.t - (t.flashT || -9) < 0.12) { c.fillStyle = 'rgba(255,220,120,0.95)'; c.beginPath(); c.arc(lx + ca * 5.2, gy + sa * 5.2, 1.8, 0, 7); c.fill(); }
+      // 대공포: 주포탑을 작게 줄인 모양 — 바베트, 경사진 포탑 몸체, 두꺼운 포신 받침과 쌍포신, 포구 제퇴기
+      quad(lx - 1.6, base, 3.2, 1.1, '#56626c'); quad(lx - 1.8, base + 0.9, 3.6, 0.2, '#7d8a96');
+      c.fillStyle = '#6c7985'; c.beginPath(); c.moveTo(lx - 1.7, gy - 0.2); c.lineTo(lx - 1.2, gy + 1.0); c.lineTo(lx + 1.0, gy + 1.1); c.lineTo(lx + 1.7, gy - 0.2); c.closePath(); c.fill(); c.strokeStyle = '#3b444d'; c.lineWidth = 0.1; c.stroke();
+      quad(lx - 1.2, gy + 0.95, 2.3, 0.16, '#808d99');
+      const px = lx + ca * 0.2, py = gy + 0.55 + sa * 0.2;
+      c.lineCap = 'round'; c.strokeStyle = '#4a5560'; c.lineWidth = 0.75; c.beginPath(); c.moveTo(px, py); c.lineTo(px + ca * 1.7, py + sa * 1.7); c.stroke();
+      c.strokeStyle = '#2f3840'; c.lineWidth = 0.3; [-0.3, 0.3].forEach(o => { c.beginPath(); c.moveTo(px + nx * o + ca * 1.2, py + ny * o + sa * 1.2); c.lineTo(px + nx * o + ca * 5.4, py + ny * o + sa * 5.4); c.stroke(); });
+      c.strokeStyle = '#1d2329'; c.lineWidth = 0.42; [-0.3, 0.3].forEach(o => { c.beginPath(); c.moveTo(px + nx * o + ca * 5.0, py + ny * o + sa * 5.0); c.lineTo(px + nx * o + ca * 5.7, py + ny * o + sa * 5.7); c.stroke(); }); c.lineCap = 'butt';
+      c.fillStyle = '#3d4852'; c.beginPath(); c.arc(px, py, 0.6, 0, 7); c.fill();
+      if (fl) { c.fillStyle = 'rgba(255,220,120,0.95)'; c.beginPath(); c.arc(lx + ca * 6.2, py + sa * 6.2, 1.8, 0, 7); c.fill(); }
     });
   }
 }

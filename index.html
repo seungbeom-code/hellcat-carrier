@@ -2674,7 +2674,7 @@ function drawShip() {
     c.strokeStyle = '#d9dde2'; c.lineWidth = 0.4;
     lsoSmall(c);   // 함교 날개에 선 신호장교
     // 남은 예비 항공기: 날개 끝을 위로 접어 갑판 뒤쪽에 세워 둔다 (잃을 때마다 하나씩 줄어든다)
-    for (let i = 0; i < Math.min(2, Math.max(0, G.lives - 1)); i++) { c.save(); c.translate(i ? 214 : 266, DECK_Y + 3.1); drawPlaneFront(c); c.restore(); }
+    for (let i = 0; i < Math.min(2, Math.max(0, G.lives - 1)); i++) { c.save(); c.translate(224 - i * 15, DECK_Y + 3.1); drawPlaneFront(c); c.restore(); }
     // 발진 장교와 깃발
     {   // 갑판 신호수: ① 엘리베이터에서 멀면 엘리베이터 쪽으로 깃발을 가리키며 유도 ② 엘리베이터 위에서는 멈춤 ③ 출발할 때는 이륙 신호만
       const t = G.t, side = 30;

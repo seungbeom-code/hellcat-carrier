@@ -897,28 +897,18 @@ function makeTargets(M) {
     const half = RUNWAY_L / 2 + BOX[t.type].w / 2 + 6;
     if (Math.abs(t.x - rw.x) < half) { t.x = rw.x + (t.x >= rw.x ? half : -half); t.x0 = t.x; t.y = gh(t.x); }
   }
-  ISLANDS.forEach(si => {   // 숲 바닥의 덤불·고사리: 숲에서는 촘촘하게, 해안 근처는 드문드문
-    const w = si.b - si.a;
-    for (let x = si.a + w * 0.06, k = 0; x < si.b - w * 0.06; k++) {
-      const h = Math.abs(Math.sin(x * 7.13 + k * 1.9) * 43758.5453) % 1, h2 = Math.abs(Math.sin(x * 3.31 + k) * 9631.7) % 1, u = (x - si.a) / w;
-      const forest = (u >= 0.10 && u < 0.38) || (u >= 0.62 && u < 0.90), bx = x; x += forest ? 4 + h2 * 6 : 14 + h2 * 22;
-      if (!forest && h > 0.45) continue;
-      if (si.flat && bx > si.flat.a - 6 && bx < si.flat.b + 6) continue;
-      if (TARGETS.some(t => !SHIPS[t.type] && Math.abs(t.x - bx) < BOX[t.type].w / 2 + 3)) continue;
-      BUSH.push({ x: bx, y: gh(bx), r: 1.3 + h * 1.7, k: Math.floor(h2 * 3), ph: h * 6.28 });
-    }
-  });
-  // 섬의 나무: 해안가(양 끝 10%)는 없음 → 숲(10~38%) → 가운데 평지(38~62%)는 없음 → 숲(62~90%) → 해안가는 없음
-  ISLANDS.forEach(s => {
-    const w = s.b - s.a;
-    for (let x = s.a + w * 0.10, k = 0; x < s.b - w * 0.10; k++) {
-      const h = Math.abs(Math.sin(x * 12.9898 + k * 3.7) * 43758.5453) % 1, h2 = Math.abs(Math.sin(x * 78.233 + k) * 12345.678) % 1, u = (x - s.a) / w;
-      const forest = (u >= 0.10 && u < 0.38) || (u >= 0.62 && u < 0.90);
-      if (!forest) { x = u < 0.5 ? Math.max(x + 8, s.a + w * 0.38 + 1) : x + 8; if (u > 0.38 && u < 0.62) x = s.a + w * 0.62 + 1; continue; }   // 평지·해안은 건너뛴다
-      const tx = x, r = 3 + h * 2.5; x += 11 + h2 * 15;   // 숲은 빽빽하게 (11~26m 간격)
-      if (s.flat && tx > s.flat.a - 8 && tx < s.flat.b + 8) continue;
-      if (TARGETS.some(t => !SHIPS[t.type] && Math.abs(t.x - tx) < BOX[t.type].w / 2 + 5)) continue;   // 건물과 겹치지 않게
-      TREES.push(Object.assign({ x: tx, y: gh(tx), hp: 3, hp0: 3, alive: true }, treeSpec(h, h2, r)));
+  ISLANDS.forEach((si, k) => {   // 숲은 건물이 없는 빈 구간에만 만든다: 건물·깃발·활주로 둘레 35m는 비우고, 나무는 20~48m씩 떨어뜨려 심는다
+    const w = si.b - si.a, hs = n => Math.abs(Math.sin(n * 12.9898) * 43758.5453) % 1;
+    const blk = TARGETS.filter(t => !SHIPS[t.type] && t.isl === k).map(t => [t.x - BOX[t.type].w / 2 - 35, t.x + BOX[t.type].w / 2 + 35]);
+    blk.push([si.fx - 35, si.fx + 35]); if (si.flat) blk.push([si.flat.a - 35, si.flat.b + 35]);
+    blk.sort((u, v) => u[0] - v[0]);
+    si.forests = []; let cur = si.a + w * 0.07; const end = si.b - w * 0.07;
+    for (const [b0, b1] of blk) { if (b0 - cur >= 110) si.forests.push([cur + 8, Math.min(b0, end) - 8]); cur = Math.max(cur, b1); }
+    if (end - cur >= 110) si.forests.push([cur + 8, end - 8]);
+    si.forests = si.forests.filter(f => f[1] - f[0] >= 90);
+    for (const [f0, f1] of si.forests) {
+      for (let x = f0, i = 0; x < f1; i++) { const h = hs(x * 0.137 + i), h2 = hs(x * 0.311 + i * 1.7), tx = x, r = 3 + h * 2.5; x += 20 + h2 * 28; TREES.push(Object.assign({ x: tx, y: gh(tx), hp: 3, hp0: 3, alive: true }, treeSpec(h, h2, r))); }
+      for (let x = f0 + 5, i = 0; x < f1; i++) { const h = hs(x * 0.71 + i), h2 = hs(x * 0.29 + i * 2.3), bx = x; x += 9 + h2 * 16; if (h < 0.75) BUSH.push({ x: bx, y: gh(bx), r: 1.2 + h * 1.6, k: Math.floor(h2 * 3), ph: h * 6.28 }); }
     }
   });
 }
@@ -1446,20 +1436,18 @@ function drawIsland(c) {
   });
 }
 // 나무: 야자수(휘어진 마디 줄기, 처진 깃털 잎, 열매)와 활엽수(가지와 여러 덩어리 수관). 바람에 살짝 흔들린다
-function drawJungleBack(c, span) {   // 숲 구간 뒤쪽의 어두운 수관층: 나무들이 빽빽한 정글처럼 보이게 한다
+function drawJungleBack(c, span) {   // 숲 구간 뒤쪽의 낮은 수관층 (숲이 있는 곳에만)
   const hs = n => Math.abs(Math.sin(n * 12.9898) * 43758.5453) % 1;
-  for (const si of ISLANDS) {
-    const w = si.b - si.a;
-    for (const [u0, u1] of [[0.10, 0.38], [0.62, 0.90]]) {
-      const x0 = Math.max(si.a + w * u0, cam.x - span / 2 - 20), x1 = Math.min(si.a + w * u1, cam.x + span / 2 + 20);
-      if (x1 <= x0) continue;
-      for (const [lay, col, dy] of [[0, '#173a21', 0], [1, '#1f4b2b', -2.2], [2, '#2a5f35', -4.2]]) {
-        c.fillStyle = col;
-        for (let x = Math.floor(x0 / 6) * 6; x < x1; x += 6) {
-          const k = Math.floor(x / 6), hh = 10 + hs(k * 0.37 + lay * 5.1) * 11 - lay * 1.5, r = 5.5 + hs(k * 1.9 + lay) * 4;
-          const gx = gh(x); if (gx <= 0.5) continue;
-          c.beginPath(); c.arc(x, gx + hh * 0.55 + dy * 0.2, r, 0, 7); c.fill();
-        }
+  for (const si of ISLANDS) for (const [fa, fb] of (si.forests || [])) {
+    const x0 = Math.max(fa, cam.x - span / 2 - 20), x1 = Math.min(fb, cam.x + span / 2 + 20);
+    if (x1 <= x0) continue;
+    for (const [lay, col] of [[0, '#2a5c33'], [1, '#356f3c']]) {
+      c.fillStyle = col;
+      for (let x = Math.floor(x0 / 7) * 7; x < x1; x += 7) {
+        if (x < fa || x > fb) continue;
+        const k = Math.floor(x / 7), edge = Math.min(1, (x - fa) / 25, (fb - x) / 25), hh = (5 + hs(k * 0.37 + lay * 5.1) * 6) * edge - lay * 1.2, r = 3.5 + hs(k * 1.9 + lay) * 2.5, gx = gh(x);
+        if (gx <= 0.5 || hh <= 1) continue;
+        c.beginPath(); c.arc(x, gx + hh * 0.5, r * Math.min(1, 0.4 + edge), 0, 7); c.fill();
       }
     }
   }

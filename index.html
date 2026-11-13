@@ -24,16 +24,16 @@ const W = 960, H = 540, KT = 1.944;
 const GRAV = 9.8, KL = 0.004375, KD0 = 0.000276, AMAX = 10, PWR = 2500;   // 바퀴·플랩은 모양일 뿐, 비행에는 영향이 없다 (항상 같은 날개·항력)
 const CL_MAX = 1.17, CL_BASE = 0.35;   // 실속 속도 약 85노트 (그 아래에서는 날개가 양력을 못 낸다)
 const SHIP_V = 11;                 // 갑판 맞바람 30노트
-const DECK_Y = 20, DECK_L = 260, WH = 3.2;   // 갑판 높이, 길이, 바퀴 밑까지 거리
-const ZONE_L = DECK_L * 0.3, ZONE_A = 20, ZONE_B = ZONE_A + ZONE_L;   // 어레스팅 와이어 구역 (갑판의 30%, 가운데)
+const DECK_Y = 20, DECK_L = 520, WH = 3.2, CS = DECK_L / 260, ISL_DX = 136;   // 갑판 길이는 예전의 2배 (선체 그림은 가로로 2배로 늘이고, 함교는 그대로 두고 자리만 옮긴다)   // 갑판 높이, 길이, 바퀴 밑까지 거리
+const ZONE_L = DECK_L * 0.3, ZONE_A = 40, ZONE_B = ZONE_A + ZONE_L;   // 어레스팅 와이어 구역 (갑판의 30%, 가운데)
 const WIRES = [0, 1, 2, 3].map(i => ZONE_A + 10 + i * (ZONE_L - 20) / 3);
 const TURN_T = 1.6;   // 선회에 걸리는 시간(초)
 const HOOK_BACK = 7.5, CRUISE_KT = 270, SLOW_KT = 105;   // 후크 끝 위치, 손을 뗐을 때 순항 속도, 항모 근처 접근 속도
 const TAKEOFF_KT = 100, TURN_KT = 100;   // 이륙과 선회에 필요한 최소 속도
 const LAND_KT = 125, LAND_SINK = 8, LAND_PITCH = 0.22;   // 착함 허용 한계: 속도, 가라앉는 속도, 기울기
 const CEIL = 500;   // 지도에서 고도를 그리는 기준(m). 실제 고도 제한은 없고 높이 올라가면 실속한다
-const START_XR = 156, LAUNCH_XR = 156;   // 발진선
-const ELEV_A = 118, ELEV_W = 24, ELEV_C = ELEV_A + ELEV_W / 2, ELEV_DEPTH = 14, TAXI_V = 13;   // 가운데 엘리베이터
+const START_XR = 312, LAUNCH_XR = 312;   // 발진선
+const ELEV_A = 236, ELEV_W = 24, ELEV_C = ELEV_A + ELEV_W / 2, ELEV_DEPTH = 14, TAXI_V = 13;   // 가운데 엘리베이터
 const LOADS = [   // 무장: 기관총 2400발에 로켓·폭탄·어뢰 중 하나 (엘리베이터 아래에서 고른다)
   { name: 'Rockets', fuel: 100, accel: 1.0, ammo: '15 rockets', use: 'Bunkers, AA guns, ship guns', key: 'X' },
   { name: 'Bombs', fuel: 100, accel: 0.92, ammo: '30 bombs', use: 'Buildings, barracks, airfields', key: 'C' },
@@ -691,10 +691,10 @@ function startMission(i) {
   G.isx = x => { if (!BP.length || x <= BP[0][0]) return x; for (let j = 1; j < BP.length; j++) if (x <= BP[j][0]) { const [r0, n0] = BP[j - 1], [r1, n1] = BP[j]; return n0 + (x - r0) / (r1 - r0) * (n1 - n0); } const [rl, nl] = BP[BP.length - 1]; return nl + (x - rl) * SC; };
   ISLANDS = M.islands.map(([a, w, pk], k) => { const big = w >= 1500, q = mkIsland(G.isx(a) - OFF, ISW(w), (big ? 38 : 20) * 1.15, (M.seed ? M.seed % 9973 : i * 10) + k + 1); q.big = big; return q; });
   makeTargets(M);
-  { let nx = 1e9; ISLANDS.forEach(s => nx = Math.min(nx, s.a)); TARGETS.forEach(t => nx = Math.min(nx, t.x - 50)); G.holdX = nx - 880; if (nx < 1e8) ship.x = Math.min(G.holdX, nx - (nx + 500) / 2); }   // 항모와 섬(첫 표적) 사이를 전의 반으로
+  { let nx = 1e9; ISLANDS.forEach(s => nx = Math.min(nx, s.a)); TARGETS.forEach(t => nx = Math.min(nx, t.x - 50)); G.holdX = nx - 880 - (DECK_L - 260); if (nx < 1e8) ship.x = Math.min(G.holdX, nx - (nx + 500) / 2); }   // 항모와 섬(첫 표적) 사이를 전의 반으로
   {   // 전체 지도의 범위: 작전 동안 항모가 갈 수 있는 곳, 섬, 배, 적기가 나타나는 곳까지 모두 (작전 중에는 바뀌지 않는다)
     const last = M.waves.length ? M.waves[M.waves.length - 1].t + 150 : 300, shipEnd = Math.min(G.holdX, ship.x + ship.v * last);
-    let a = ship.x - 400, b = shipEnd + 260 + (M.waves.length ? 2800 : 0);
+    let a = ship.x - 400, b = shipEnd + DECK_L + (M.waves.length ? 2800 : 0);
     ISLANDS.forEach(q => { a = Math.min(a, q.a); b = Math.max(b, q.b); }); TARGETS.forEach(t => { a = Math.min(a, t.x - BOX[t.type].w); b = Math.max(b, t.x + BOX[t.type].w); });
     G.map = { a: a - 200, b: b + 300 };
   }
@@ -875,7 +875,7 @@ function enemyStep(dt) {
       else if (e.y <= g || e.y <= 0) { explode(e.x, Math.max(e.y, g), 10, 'none', g <= 0); ENE.splice(i, 1); }
       continue;
     }
-    const bomber = e.type === 'd4y' || e.type === 'b6n', cx = ship.x + 130, air = p.mode === 'air' && !G.result;
+    const bomber = e.type === 'd4y' || e.type === 'b6n', cx = ship.x + DECK_L / 2, air = p.mode === 'air' && !G.result;
     let tx, ty;
     if (!bomber) {
       e.seeT -= dt;
@@ -1120,7 +1120,7 @@ function stepProj(dt) {
     PROJ.splice(i, 1);
   }
 }
-function focusX() { let b = null; for (const t of TARGETS) if (t.alive && (!b || Math.abs(t.x - p.x) < Math.abs(b.x - p.x))) b = t; return b ? b.x : ship.x + 130; }
+function focusX() { let b = null; for (const t of TARGETS) if (t.alive && (!b || Math.abs(t.x - p.x) < Math.abs(b.x - p.x))) b = t; return b ? b.x : ship.x + DECK_L / 2; }
 function missionLines() {
   const M = G.cur, m = G.m, out = [], rw = TARGETS.filter(t => t.type === 'runway');
   if (M.goal === 'train') out.push('Landings ' + Math.min(1, m.landings) + '/1 · Targets ' + Math.min(3, m.kills) + '/3');
@@ -1712,6 +1712,7 @@ function carrierBody(c) {
   const rect = (x, y, w, h, fill) => { c.fillStyle = fill; c.fillRect(x, y, w, h); };
   const disc = (x, y, r, fill) => { c.fillStyle = fill; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill(); };
   const line = (x1, y1, x2, y2, col, w) => { c.strokeStyle = col; c.lineWidth = w; c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke(); };
+  c.save(); c.scale(CS, 1);   // 선체·갑판 아래쪽은 가로로 늘인다
   // 항적
   for (let i = 0; i < 16; i++) { const wx = 4 - i * 9 - ((G.t * 15) % 9); c.fillStyle = 'rgba(255,255,255,' + (0.6 * (1 - i / 16)) + ')'; c.beginPath(); c.ellipse(wx, 0.4, 6 - i * 0.2, 1.1 + i * 0.08, 0, 0, 7); c.fill(); }
   // 선체
@@ -1741,6 +1742,7 @@ function carrierBody(c) {
     c.fillStyle = '#46515f'; c.beginPath(); c.ellipse(x, DY - 2.4, 2.3, 1.3, 0, 0, 7); c.fill(); line(x + 0.6, DY - 2.2, x + 5.8, DY + 0.9, '#2c333c', 0.55);
   });
   [10, 44, 84, 180, 216, 252].forEach(x => { poly([[x - 1.9, DY - 1.6], [x + 1.9, DY - 1.6], [x + 1.5, DY - 4], [x - 1.5, DY - 4]], '#566170'); [-0.5, 0.5].forEach(o => line(x + o, DY - 2.4, x + o + 2.2, DY - 0.2, '#2c333c', 0.28)); });
+  c.restore(); c.save(); c.translate(ISL_DX, 0);   // 함교는 모양 그대로, 늘어난 갑판 가운데쯤으로 옮긴다
   // 함교 (연통 없음): 1층 갑판실 · 2층 해도실/통신실 · 3층 항해 함교(함장) · 4층 비행 지휘소
   const BX = 136, BW = 24;
   // 1층: 두꺼운 철판 벽, 수밀문 둘, 둥근 창, 리벳 띠
@@ -1790,6 +1792,7 @@ function carrierBody(c) {
   c.fillStyle = '#39424c'; c.beginPath(); c.ellipse(149, DY + 42.2, 1.7, 0.5, 0, 0, 7); c.fill();
   line(144, DY + 33.5, 139, DY + 19, 'rgba(40,48,58,0.85)', 0.12); line(154, DY + 33.5, 160, DY + 19, 'rgba(40,48,58,0.85)', 0.12);
   ['#d9d2c0', '#b23b32', '#2a4f8f', '#d9a42b', '#b23b32', '#d9d2c0', '#2a4f8f'].forEach((col, i) => { const k = 0.15 + i * 0.12, fx = 154 + 6 * k, fy = DY + 33.5 - 14.5 * k; rect(fx - 0.4, fy - 0.9 + Math.sin(G.t * 3 + i) * 0.12, 0.9, 0.75, col); });   // 신호기
+  c.restore();
   // 선미 성조기
   line(-1.2, DY, -1.2, DY + 9, '#d9dde2', 0.3);
   for (let i = 0; i < 7; i++) { const y0 = DY + 8.6 - i * 0.42, w = (x) => Math.sin(G.t * 6 + x * 1.3) * 0.22; c.fillStyle = i % 2 ? '#ffffff' : '#b22234'; c.beginPath(); c.moveTo(-1.4, y0); c.lineTo(-3.2, y0 + w(-3.2)); c.lineTo(-5.8, y0 + w(-5.8)); c.lineTo(-5.8, y0 - 0.42 + w(-5.8)); c.lineTo(-3.2, y0 - 0.42 + w(-3.2)); c.lineTo(-1.4, y0 - 0.42); c.closePath(); c.fill(); }
@@ -1844,7 +1847,7 @@ function deckCrew(c, x, y, aR, aL, item) {
 }
 // 함교 날개 위의 신호장교: 신호에 따라 패들을 든다 (작게)
 function lsoSmall(c) {
-  const x = 160, y = DECK_Y + 12.65, sig = G.lso, t = G.t, PI = Math.PI;
+  const x = 160 + ISL_DX, y = DECK_Y + 12.65, sig = G.lso, t = G.t, PI = Math.PI;
   let L = PI * 1.42, R = -PI * 0.42;   // 신호가 없을 때는 팔을 내린다
   if (sig === 'ROGER') { L = PI; R = 0; }
   else if (sig === 'HIGH') { L = PI * 0.75; R = PI * 0.25; }
@@ -1860,15 +1863,15 @@ function drawShip() {
   world(ship.x, 0, () => {
     carrierBody(c);
     // 비행갑판
-    c.fillStyle = '#2a3654'; c.fillRect(-3, DECK_Y - 1.6, 266, 1.6);
+    c.fillStyle = '#2a3654'; c.fillRect(-3, DECK_Y - 1.6, DECK_L + 6, 1.6);
     c.fillStyle = '#f2b705'; c.fillRect(ZONE_A, DECK_Y - 1.6, ZONE_L, 1.6);   // 어레스팅 구역: 노란 바탕에 검은 줄무늬
     c.fillStyle = '#1b1b1b';
     for (let x = ZONE_A; x + 3.2 <= ZONE_B; x += 4) { c.beginPath(); c.moveTo(x, DECK_Y - 1.6); c.lineTo(x + 2, DECK_Y - 1.6); c.lineTo(x + 3.2, DECK_Y); c.lineTo(x + 1.2, DECK_Y); c.closePath(); c.fill(); }
     [ZONE_A, ZONE_B].forEach((x, i) => { c.fillStyle = '#f2b705'; c.fillRect(x - 0.35, DECK_Y, 0.7, 3.4); c.beginPath(); c.moveTo(x, DECK_Y + 3.4); c.lineTo(x + (i ? -2.6 : 2.6), DECK_Y + 2.6); c.lineTo(x, DECK_Y + 1.8); c.closePath(); c.fill(); });   // 경계 표지
-    c.fillStyle = '#e8ecf0'; for (let x = 4; x < 256; x += 12) { if (x + 6 > ZONE_A && x < ZONE_B) continue; c.fillRect(x, DECK_Y - 0.5, 6, 0.3); }
-    c.fillStyle = '#6b7a90'; c.fillRect(-3, DECK_Y - 0.16, 266, 0.16);   // 갑판 가장자리
+    c.fillStyle = '#e8ecf0'; for (let x = 4; x < DECK_L - 4; x += 12) { if (x + 6 > ZONE_A && x < ZONE_B) continue; c.fillRect(x, DECK_Y - 0.5, 6, 0.3); }
+    c.fillStyle = '#6b7a90'; c.fillRect(-3, DECK_Y - 0.16, DECK_L + 6, 0.16);   // 갑판 가장자리
     c.strokeStyle = 'rgba(36,44,56,0.9)'; c.lineWidth = 0.18;
-    for (let x = 2; x < 262; x += 9) { if (x > ZONE_A - 1 && x < ZONE_B + 1) continue; c.beginPath(); c.moveTo(x, DECK_Y); c.lineTo(x, DECK_Y + 1); c.stroke(); }   // 안전망 지지대
+    for (let x = 2; x < DECK_L + 2; x += 9) { if (x > ZONE_A - 1 && x < ZONE_B + 1) continue; c.beginPath(); c.moveTo(x, DECK_Y); c.lineTo(x, DECK_Y + 1); c.stroke(); }   // 안전망 지지대
     {   // 가운데 엘리베이터와 발진선
       const ey = p.mode === 'lift' && p.el ? p.el.y : 0;
       if (ey < -0.05) {   // 내려가는 중: 승강기 통로 단면을 보여 준다
@@ -1926,7 +1929,7 @@ function drawShip() {
   }
   {   // 선체 번호 (CV-6)
     c.font = '800 ' + Math.round(8 * cam.z) + 'px Arial, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = 'rgba(240,244,248,0.92)';
-    c.fillText('6', sx(ship.x + 237), sy(9.5)); c.textBaseline = 'alphabetic';
+    c.fillText('6', sx(ship.x + DECK_L - 23), sy(9.5)); c.textBaseline = 'alphabetic';
   }
 }
 
@@ -2004,8 +2007,8 @@ function hint() {
   if (p.turn > 0) return 'Turning — you lose a little speed and height';
   if (G.lso) return '';
   if (G.t - p.liftT < 5) return 'Climbing gently — ▲ to climb more';
-  if (G.m) { const low = p.fuel / p.fuelMax < 0.3, empty = p.ammo.gun <= 0 && p.ammo.rk <= 0 && p.ammo.bm <= 0; if (low || empty) return (low ? 'Fuel' : 'Ammo') + ' is low. Return to the carrier and resupply on the elevator'; if (Math.abs(xr - 130) > 900) return ''; }
-  if (Math.abs(xr - 130) > 900) return 'Press the opposite arrow to turn back to the carrier';
+  if (G.m) { const low = p.fuel / p.fuelMax < 0.3, empty = p.ammo.gun <= 0 && p.ammo.rk <= 0 && p.ammo.bm <= 0; if (low || empty) return (low ? 'Fuel' : 'Ammo') + ' is low. Return to the carrier and resupply on the elevator'; if (Math.abs(xr - DECK_L / 2) > 900) return ''; }
+  if (Math.abs(xr - DECK_L / 2) > 900) return 'Press the opposite arrow to turn back to the carrier';
   return '';
 }
 
@@ -2022,8 +2025,8 @@ function drawMiniMap(c) {
   TARGETS.forEach(t => { if (t.alive) { c.fillStyle = '#ff5a3c'; c.fillRect(mx(t.x) - 1, SHIPS[t.type] ? base - 3 : base - gh(t.x) * vf - 3, 2, 2); } });
   c.fillStyle = '#ff8a5c'; ENE.forEach(e => { if (!e.dead) c.fillRect(mx(e.x) - 1, base - clamp(e.y / CEIL, 0, 1) * (h - 7) - 3, 2, 2); });
   PROJ.forEach(q => { if (q.k !== 'r' && q.k !== 'm') return; c.fillStyle = q.k === 'r' ? '#ffb347' : '#f2f2f2'; c.beginPath(); c.arc(mx(q.x), base - clamp(q.y / CEIL, 0, 1) * (h - 7) - 2, 1.6, 0, 7); c.fill(); });   // 내가 쏜 로켓(주황)과 폭탄(흰색)
-  c.fillStyle = '#c3ccd6'; c.fillRect(mx(ship.x), base - 3, Math.max(8, mx(ship.x + 260) - mx(ship.x)), 3); c.fillRect(mx(ship.x + 130), base - 6, 3, 3);
-  c.fillStyle = '#fff'; c.font = '700 10px system-ui,sans-serif'; c.textAlign = 'center'; c.fillText('Carrier', mx(ship.x + 130), y0 + 9);
+  c.fillStyle = '#c3ccd6'; c.fillRect(mx(ship.x), base - 3, Math.max(8, mx(ship.x + DECK_L) - mx(ship.x)), 3); c.fillRect(mx(ship.x + DECK_L / 2), base - 6, 3, 3);
+  c.fillStyle = '#fff'; c.font = '700 10px system-ui,sans-serif'; c.textAlign = 'center'; c.fillText('Carrier', mx(ship.x + DECK_L / 2), y0 + 9);
   ISLANDS.forEach((s, k) => { if (s.b - s.a > 600 || ISLANDS.length === 1) c.fillText('Island', mx((s.a + s.b) / 2), y0 + 9); });
   const px = mx(p.x), py = base - clamp(p.y / CEIL, 0, 1) * (h - 7) - 2, d = p.s >= 0 ? 1 : -1;
   c.fillStyle = '#ffd23f'; c.beginPath(); c.moveTo(px + 4 * d, py); c.lineTo(px - 3 * d, py - 2.6); c.lineTo(px - 3 * d, py + 2.6); c.closePath(); c.fill();
@@ -2053,7 +2056,7 @@ function drawHUD() {
   c.fillStyle = '#fff'; c.font = '700 13px system-ui,sans-serif'; c.textAlign = 'left'; c.fillText('Fuel', 104, 33);
   // 항모 방향
   if (p.mode === 'air') {
-    const d = (ship.x + 130) - p.x, far = Math.abs(d) > W / cam.z * 0.6;
+    const d = (ship.x + DECK_L / 2) - p.x, far = Math.abs(d) > W / cam.z * 0.6;
     if (far) { panel(250, 10, 100, 36); c.fillStyle = '#fff'; c.textAlign = 'center'; { const ct = (d < 0 ? '◀ ' : '') + 'Carrier ' + Math.round(Math.abs(d)) + 'm' + (d > 0 ? ' ▶' : ''); fitFont(c, ct, 14, '700', 92); c.fillText(ct, 300, 33); } }
   }
   // 성적판
@@ -2130,7 +2133,7 @@ function drawHUD() {
 
 const ZOOM_MIN = 0.6;   // 가장 많이 축소했을 때 (화면에 약 1.6km 폭)
 function updateCam(dt) {
-  const xr = p.x - ship.x, near = Math.abs(xr - 130) < 900 && p.y < 260;
+  const xr = p.x - ship.x, near = Math.abs(xr - DECK_L / 2) < 900 && p.y < 260;
   let zt = p.mode === 'deck' || p.mode === 'taxi' || p.mode === 'lift' || (p.mode === 'down' && !G.result.sea) ? 2.9 : near ? 2.1 : 1.6;
   zt = Math.max(ZOOM_MIN, Math.min(zt, 0.5 * H / Math.max(p.y, 40)));   // 높이 올라가면 바다가 보이도록 축소하되, 너무 작아지지 않게 한계를 둔다
   cam.z = lerp(cam.z, zt, Math.min(1, dt * (zt < cam.z ? 6 : 1.5)));

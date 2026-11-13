@@ -943,6 +943,7 @@ function shellStep(dt) {   // 벙커의 곡사포: 내 비행기가 갈 곳을 �
     }
   }
 }
+const FLAK_R = 50, FLAK_MAX = 5;   // 대공포탄 파편이 닿는 거리(m)와 바로 옆에서 터졌을 때 피해
 function flakStep(dt) {
   for (const t of TARGETS) {
     if (!t.alive || !AA_N[t.type] || (t.type === 'cave' && !isOpen(t))) continue;
@@ -957,7 +958,7 @@ function flakStep(dt) {
   for (let i = FLAK.length - 1; i >= 0; i--) {
     const q = FLAK[i]; q.t -= dt; if (q.t > 0) continue;
     FX.push({ k: 'flak', x: q.x, y: q.y, vx: 0, vy: 1, life: 1.1, t: 0 }); if (Math.abs(q.x - p.x) < 1000 && Math.random() < 0.6) sfx('boom');
-    if (p.mode === 'air' && Math.hypot(p.x - q.x, p.y - q.y) < 16) hurt(5, 'Shot down by flak.');
+    { const fd = Math.hypot(p.x - q.x, p.y - q.y); if (p.mode === 'air' && fd < FLAK_R) hurt(Math.max(0.4, FLAK_MAX * Math.pow(1 - fd / FLAK_R, 1.4)), 'Shot down by flak.'); }   // 터진 곳에서 가까울수록 크게, 멀어도 조금은 피해
     FLAK.splice(i, 1);
   }
 }

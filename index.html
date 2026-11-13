@@ -1034,10 +1034,12 @@ function fireRocket() {
   const dx = Math.cos(p.th), dy = Math.sin(p.th); p.ammo.rk--; p.rkT = G.t + 0.25; sfx('rocket');
   PROJ.push({ k: 'r', x: p.x + dx * 8, y: p.y + dy * 8 - 1, vx: p.vx + dx * 130, vy: p.vy + dy * 130, life: 4 });
 }
+const TORP_H = 60, TORP_ANG = 0.17;   // 어뢰를 떨어뜨릴 수 있는 높이(m)와 기울기(약 10도)
 function fireTorpedo() {   // 어뢰: 물에 떨어진 뒤 수면 아래로 곧게 달려 배 옆구리에 맞는다. 너무 높거나 빠르게 떨어뜨리면 부서진다
   if (gunOn() || p.mode !== 'air' || p.off || p.turn > 0 || !(p.ammo.tp > 0) || G.t < (p.tpT || 0)) return;
   p.ammo.tp--; p.tpT = G.t + 0.8; sfx('bomb');
-  PROJ.push({ k: 't', x: p.x, y: p.y - 2.2, vx: p.vx, vy: p.vy - 2, life: 40, run: false, d: p.vx >= 0 ? 1 : -1 });
+  const ang = Math.abs(Math.atan2(p.vy, Math.abs(p.vx))), hi = p.y - Math.max(0, gh(p.x)) > TORP_H, tilt = ang > TORP_ANG;   // 낮게, 수평으로 날 때만 제대로 들어간다
+  PROJ.push({ k: 't', x: p.x, y: p.y - 2.2, vx: p.vx, vy: p.vy - 2, life: 40, run: false, d: p.vx >= 0 ? 1 : -1, bad: hi ? 'too high' : tilt ? 'not level' : '' });
 }
 function dropBomb() {
   if (gunOn() || p.mode !== 'air' || p.off || p.turn > 0 || p.ammo.bm <= 0 || G.t < p.bmT) return;
@@ -1057,7 +1059,7 @@ function stepProj(dt) {
         const g0 = gh(q.x); if (g0 > 0 && q.y <= g0) { explode(q.x, g0, 8, 'none', false); PROJ.splice(i, 1); continue; }
         if (q.y <= 0) {
           FX.push({ k: 'splash', x: q.x, y: 0, vx: 0, vy: 0, life: 0.8, t: 0 });
-          if (q.vy < -40 || Math.abs(q.vx) > 135) { G.msg = { text: 'The torpedo broke on the water — drop it lower and slower', until: G.t + 2.5 }; PROJ.splice(i, 1); continue; }
+          if (q.bad || q.vy < -40 || Math.abs(q.vx) > 135) { G.msg = { text: 'The torpedo broke on the water (' + (q.bad || 'too fast') + ') — fly level, below ' + TORP_H + ' m', until: G.t + 2.5 }; PROJ.splice(i, 1); continue; }
           q.run = true; q.y = -0.6; q.vy = 0; q.vx = q.d * 46;
         }
         continue;
@@ -1387,7 +1389,7 @@ function drawProj(c) {
     if (q.k === 'b') continue;   // 기관총 탄환은 보이지 않는다 (맞은 곳의 물보라·흙만 보인다)
     if (q.k === 't') {
       if (q.run) { c.strokeStyle = 'rgba(235,245,250,0.8)'; c.lineWidth = Math.max(1.5, 0.5 * cam.z); c.beginPath(); c.moveTo(sx(q.x), sy(0.2)); c.lineTo(sx(q.x - q.d * 22), sy(0.2)); c.stroke(); }
-      else world(q.x, q.y, () => { c.rotate(Math.atan2(q.vy, q.vx)); c.fillStyle = '#3a4048'; c.beginPath(); c.ellipse(0, 0, 3, 0.55, 0, 0, 7); c.fill(); c.fillStyle = '#5a6068'; c.fillRect(-3.4, -0.7, 0.6, 1.4); });
+      else world(q.x, q.y, () => { if (q.d < 0) c.scale(-1, 1); c.fillStyle = '#3a4048'; c.beginPath(); c.ellipse(0, 0, 3, 0.55, 0, 0, 7); c.fill(); c.fillStyle = '#5a6068'; c.fillRect(-3.4, -0.7, 0.6, 1.4); });
       continue;
     }
     world(q.x, q.y, () => {

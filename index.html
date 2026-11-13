@@ -886,6 +886,11 @@ function makeTargets(M) {
   for (const t of TARGETS) { if (SHIPS[t.type] || LAY[t.type] || t.isl < 0) continue; const q = ISLANDS[t.isl], cx = (q.a + q.b) / 2;
     for (let n = 0; n < 40; n++) { const o = TARGETS.find(u => u !== t && !SHIPS[u.type] && Math.abs(u.x - t.x) < (BOX[u.type].w + BOX[t.type].w) / 2 + 16); if (!o) break; t.x = clamp(t.x + (t.x <= o.x ? -18 : 18), q.a + 40, q.b - 40); t.x0 = t.x; }   // 겹친 것에서 멀어지는 쪽으로 비킨다
     t.y = gh(t.x); }
+  for (const rw of TARGETS) if (rw.type === 'runway') for (const t of TARGETS) {   // 활주로 위에는 다른 시설을 두지 않는다 (가장 가까운 끝 바깥으로 비킨다)
+    if (t === rw || SHIPS[t.type] || t.type === 'runway') continue;
+    const half = RUNWAY_L / 2 + BOX[t.type].w / 2 + 6;
+    if (Math.abs(t.x - rw.x) < half) { t.x = rw.x + (t.x >= rw.x ? half : -half); t.x0 = t.x; t.y = gh(t.x); }
+  }
   // 섬의 나무: 해안가(양 끝 10%)는 없음 → 숲(10~38%) → 가운데 평지(38~62%)는 없음 → 숲(62~90%) → 해안가는 없음
   ISLANDS.forEach(s => {
     const w = s.b - s.a;
@@ -1557,7 +1562,8 @@ function drawRuin(c, t) {
       rubble(-5, 5, 4, ['#2a2d22', '#3f4535']);
       break;
     case 'runway': {   // 활주로: 폭탄 구덩이가 파이고 대기하던 비행기가 불에 탔다
-      const H = RUNWAY_L / 2; rect(-H, 0, RUNWAY_L, 0.9, '#44474d');
+      const H = RUNWAY_L / 2, f = rwPk(t).f; rect(-H - 6, -1.4, RUNWAY_L + 12, 1.6, '#5a544c'); rect(-H, -1.2, RUNWAY_L, 2.2, '#2a2b2e'); rect(-H, 0.85, RUNWAY_L, 0.15, '#8a8a82');
+      { const tx = f * (H - 55); rect(tx - 5.2, 1, 10.4, 1.6, '#6b6e66'); poly([[tx - 5.2, 2.6], [tx - 2, 3.8], [tx + 1, 2.4], [tx + 5.2, 2.6], [tx + 5.2, 1]], '#55584f'); poly([[tx - 4, 1], [tx - 3.2, 4.4], [tx - 1.5, 3.4], [tx - 0.4, 1]], '#3d4046'); rect(tx + 2, 2.6, 4.6, 0.5, '#46505a'); }
       [[-220, 3.4], [-140, 2.8], [-60, 3.6], [20, 3.0], [100, 3.4], [180, 2.8], [235, 3.2]].forEach(([x, w]) => { c.fillStyle = '#1b1c1f'; c.beginPath(); c.ellipse(x, 0.9, w, 0.55, 0, Math.PI, 0); c.fill(); rubble(x - w - 1, x + w + 1, 3, ['#5c6068', '#44474d'], 0.5); });
       drawParked(c, t, true);
       break;
@@ -1619,8 +1625,15 @@ function drawTarget(c, t, dead) {
     case 'radar': rect(-0.4, 0, 0.8, 8, '#51585e'); c.strokeStyle = '#51585e'; c.lineWidth = 0.6; c.beginPath(); c.moveTo(-3, 9.4); c.quadraticCurveTo(0, 6.6, 3, 9.4); c.stroke(); break;
     case 'boat': poly([[-13, 3], [11, 3], [14, 4.4], [9, -0.4], [-11, -0.4]], '#5d6b78'); rect(-3, 3, 7, 3.2, '#7b8895'); rect(-0.5, 6, 2, 1.8, '#4a5560'); break;
     case 'runway': {   // 활주로와 대기 중인 제로센
-      const H = RUNWAY_L / 2; rect(-H, 0, RUNWAY_L, 0.9, '#5c6068'); for (let x = -H + 10; x < H - 14; x += 16) rect(x, 0.35, 8, 0.2, '#e8e8e2');
-      rect(-H, 0.9, 2, 0.5, '#d8d8d0'); rect(H - 2, 0.9, 2, 0.5, '#d8d8d0');
+      const H = RUNWAY_L / 2, f = rwPk(t).f;   // 눈에 띄게: 땅보다 두껍게 솟은 짙은 아스팔트에 흰 가장자리선과 굵은 중앙선, 양 끝 황색 표지
+      rect(-H - 6, -1.4, RUNWAY_L + 12, 1.6, '#7d756a');   // 포장 가장자리(흙색 둔덕)
+      rect(-H, -1.2, RUNWAY_L, 2.2, '#2f3238'); rect(-H, 0.85, RUNWAY_L, 0.15, '#f2f2ea'); rect(-H, -1.2, RUNWAY_L, 0.15, '#f2f2ea');
+      for (let x = -H + 24; x < H - 40; x += 20) rect(x, 0.2, 11, 0.32, '#f4f4ec');
+      [-H + 3, H - 7].forEach(x => { for (let k = 0; k < 4; k++) rect(x, -0.9 + k * 0.55, 4, 0.3, '#f4f4ec'); });
+      [-H, H - 1.2].forEach(x => rect(x, 1, 1.2, 2.2, '#ff8a1e')); for (let x = -H + 20; x < H; x += 40) { rect(x - 0.2, 1, 0.4, 3.2, '#f4f4ec'); rect(x - 0.5, 4.2, 1, 0.9, '#ff7a1a'); } for (let x = -H + 40; x < H; x += 80) { rect(x, 1, 0.45, 1.2, '#ff8a1e'); rect(x, 2.2, 0.45, 0.3, '#fff2a0'); }   // 활주로 등화 기둥
+      // 간이 관제탑: 활주로 앞쪽 끝 (이륙 방향)
+      { const tx = f * (H - 55); rect(tx - 5.2, 1, 10.4, 4.6, '#9a9f94'); rect(tx - 5.2, 1, 10.4, 0.5, '#6f746a'); rect(tx - 3.4, 1.4, 2.2, 3, '#4a4f45'); rect(tx + 0.6, 2.6, 3.2, 1.5, '#3a566a');
+        poly([[tx - 5.8, 5.6], [tx + 5.8, 5.6], [tx + 4.6, 9.9], [tx - 4.6, 9.9]], '#7c8a92'); rect(tx - 4, 6.3, 8, 2.6, '#9fd0e6'); rect(tx - 0.2, 6.3, 0.4, 2.6, '#5b6a72'); rect(tx - 6.4, 9.9, 12.8, 0.7, '#4a4f55'); rect(tx - 0.15, 10.6, 0.3, 4.2, '#46505a'); rect(tx - 0.5, 14.5, 1, 0.8, '#e02828'); }
       drawParked(c, t, false);
       break;
     }
@@ -2413,6 +2426,7 @@ function drawMiniMap(c) {
   ISLANDS.forEach(s => { c.fillStyle = s.cleared ? '#ffffff' : '#4f8a45'; c.beginPath(); c.moveTo(mx(s.a), base + 1); for (let x = s.a; x <= s.b; x += Math.max(20, (s.b - s.a) / 12)) c.lineTo(mx(x), base - gh(x) * vf); c.lineTo(mx(s.b), base + 1); c.closePath(); c.fill(); });
   c.fillStyle = '#2f8f3c'; TREES.forEach(t => { if (t.alive) c.fillRect(mx(t.x) - 0.5, base - gh(t.x) * vf - 2.6, 1, 2.6); });   // 나무: 땅 위로 살짝 솟은 아주 작은 초록 눈금
   ISLANDS.forEach(s => { c.fillStyle = s.cleared ? '#ffffff' : '#e03030'; c.fillRect(mx(s.fx) - 1.5, base - gh(s.fx) * vf - 8, 3, 4); });   // 섬의 깃발
+  TARGETS.forEach(t => { if (t.type === 'runway' && t.alive) { c.fillStyle = '#ffe14a'; c.fillRect(mx(t.x - RUNWAY_L / 2), base - gh(t.x) * vf - 2, Math.max(3, mx(t.x + RUNWAY_L / 2) - mx(t.x - RUNWAY_L / 2)), 1.6); } });   // 비행장 활주로: 노란 띠
   TARGETS.forEach(t => { if (t.alive) { c.fillStyle = '#ff5a3c'; c.fillRect(mx(t.x) - 1, SHIPS[t.type] ? base - 3 : base - gh(t.x) * vf - 3, 2, 2); } });
   c.fillStyle = '#ffe14a'; SOLD.forEach(o => { if (o.alive && o.st !== 'enter') c.fillRect(mx(o.x) - 0.75, base - gh(o.x) * vf - 4.5, 1.5, 2.5); });   // 일본군 병사: 노란 작은 점
   c.fillStyle = '#ffe14a'; TARGETS.forEach(t => { if (t.inside > 0) c.fillRect(mx(t.x) - 0.75, base - gh(t.x) * vf - 6.5, 1.5, 2.5); });   // 벙커 안에서 수리 중인 병사

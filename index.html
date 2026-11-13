@@ -170,7 +170,7 @@ function deckStep(dt) {
   p.x = ship.x + p.xr; p.y = DECK_Y + WH; p.vx = p.vr + ship.v; p.vy = 0;
   if (p.xr > DECK_L + 1 || p.xr < -1) {   // 갑판 끝: 속도가 충분하면 떠오르고, 모자라면 떨어진다
     const V2 = p.vr + ship.v;
-    if (Math.abs(V2) * KT >= TAKEOFF_KT && Math.sign(V2) === d) { p.mode = 'air'; p.vx = V2; p.vy = 0.5; p.a = 0.06; p.tookOff = true; p.liftT = G.t; p.y = DECK_Y + WH + 0.05; p.x = ship.x + p.xr; }
+    if (Math.abs(V2) * KT >= TAKEOFF_KT && Math.sign(V2) === d) { p.mode = 'air'; p.vx = V2; p.vy = 0.5; p.a = 0.06 * d; p.tookOff = true; p.liftT = G.t; p.y = DECK_Y + WH + 0.05; p.x = ship.x + p.xr; p.turnPend = false; p.stalled = false; p.slowTurn = false; }
     else { p.mode = 'air'; p.a = 0.035; p.vy = -2; p.off = true; p.offWhy = 'Not enough takeoff speed, dropped off the end of the deck.'; }
   }
 }
@@ -274,12 +274,12 @@ function boom(x, y, vx, vy, sea) {
     vx: vx * 0.45 + (Math.random() - 0.5) * 34, vy: 7 + Math.random() * 17, r: Math.random() * 6, vr: (Math.random() - 0.5) * 14, life: 9, t: 0 }));
   for (let i = 0; i < 18; i++) FX.push({ k: 'fire', x: x + (Math.random() - 0.5) * 9, y: y + Math.random() * 3, vx: vx * 0.3 + (Math.random() - 0.5) * 14, vy: 3 + Math.random() * 12, life: 0.7 + Math.random() * 1.0, t: 0, s: 2 + Math.random() * 3.5 });
   FX.push({ k: 'flash', x, y, vx: 0, vy: 0, life: 0.28, t: 0 });
-  G.burn = sea ? null : { xr: x - ship.x, y, until: G.t + 7, next: 0 };
+  G.burn = sea ? null : { xr: x - ship.x, x, ship: x - ship.x > -6 && x - ship.x < DECK_L + 6 && y < DECK_Y + 12, y, until: G.t + 7, next: 0 };
 }
 function stepFx(dt) {
   if (G.burn && G.t < G.burn.until && G.t >= G.burn.next) {   // 잔해에서 연기와 불이 계속 오른다
-    G.burn.next = G.t + 0.07; const bx = ship.x + G.burn.xr + (Math.random() - 0.5) * 6;
-    FX.push({ k: !G.burn.smokeOnly && Math.random() < 0.35 ? 'fire' : 'smoke', x: bx, y: G.burn.y + Math.random() * 2, vx: ship.v - 4 + Math.random() * 3, vy: 5 + Math.random() * 5, life: 1.4 + Math.random(), t: 0, s: 2 + Math.random() * 3 });
+    G.burn.next = G.t + 0.07; const onShip = G.burn.ship !== false, bx = (onShip ? ship.x + G.burn.xr : G.burn.x) + (Math.random() - 0.5) * 6;
+    FX.push({ k: !G.burn.smokeOnly && Math.random() < 0.35 ? 'fire' : 'smoke', x: bx, y: G.burn.y + Math.random() * 2, vx: (onShip ? ship.v : 0) - 4 + Math.random() * 3, vy: 5 + Math.random() * 5, life: 1.4 + Math.random(), t: 0, s: 2 + Math.random() * 3 });
   }
   for (let i = FX.length - 1; i >= 0; i--) {
     const q = FX[i]; q.t += dt; q.life -= dt;
@@ -866,7 +866,7 @@ function missionStep(dt) {
     spawnEnemy(ZR, t.x - dir * 22, t.y + 2.2); const e = ENE[ENE.length - 1]; e.h = dir > 0 ? 0.1 : Math.PI - 0.1; e.v = 50; e.tm = 0;
     G.msg = { text: 'Zeros taking off from the enemy airfield!', until: G.t + 2.5 };
   }
-  if (M.goal === 'fleet') for (const t of TARGETS) if (t.type === 'cv' && t.alive) { t.launch -= dt; if (t.launch <= 0) { t.launch = 22 + Math.random() * 10; if (ENE.length < 6) spawnEnemy(ZR, t.x, 22); } }   // 적 항모가 전투기를 발진
+  for (const t of TARGETS) if (t.type === 'cv' && t.alive) { t.launch -= dt; if (t.launch <= 0) { t.launch = 22 + Math.random() * 10; if (ENE.length < 6) spawnEnemy(ZR, t.x, 22); } }   // 적 항모가 전투기를 발진
   G.dark = M.tint === 'night' ? clamp((m.t - 40) / 160, 0, 0.5) : M.tint === 'dusk' ? 0.1 + clamp(m.t / 600, 0, 0.2) : 0;
   if (G.land) landStep(dt, M);
   soldierStep(dt); islandStep();
@@ -1584,7 +1584,7 @@ function update(dt) {
 // ↑↓ 기수, 진행 방향 키 = 출력 최대, 반대 방향 키 = 선회. 출력·바퀴·후크는 자동.
 const keys = {}, ctl = { up: false, down: false, left: false, right: false };
 function startTurn() {
-  if (p.mode !== 'air' || p.turn > 0 || p.off || p.y <= 12) return;
+  if (p.mode !== 'air' || p.turn > 0 || p.off || p.y <= 12) { p.turnPend = false; return; }
   p.slowTurn = kts() < TURN_KT;   // 느릴 때도 돌 수는 있지만, 다 돌고 나면 실속한다
   if (Math.abs(Math.atan2(p.vy, Math.abs(p.vx))) > 0.14) { if (!p.turnPend) G.msg = { text: 'Leveling out before the turn', until: G.t + 1.5 }; p.turnPend = true; return; }   // 급상승·급강하 중이면 먼저 수평으로
   p.turnPend = false; p.turn = TURN_T; p.v0 = p.vx; p.flipped = false; sfx('turn');

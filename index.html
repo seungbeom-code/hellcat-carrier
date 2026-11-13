@@ -97,7 +97,10 @@ function airStep(dt) {
   if (p.neutral) {   // 손을 뗀 상태: 흔들림 없이 천천히 내려가고 속도도 안정된다
     const xr = p.x - ship.x, over = xr > 0 && xr < DECK_L && p.y - WH - DECK_Y < 22;   // 갑판 위에 들어서면 조금 더 빨리 내려앉는다
     const app = (p.s > 0 && xr < 0 && xr > -900) || (p.s < 0 && xr > DECK_L && xr < DECK_L + 900), fy = DECK_Y + WH + 5;   // 갑판 쪽으로 다가오는 중
-    let vt = G.t - p.liftT < 5 ? 3 : over ? -5 : -2.5;
+    const hold = p.holdG !== null && p.holdG !== undefined && G.t - p.liftT >= 5;
+    if (hold && p.holdG > 0 && V * KT < stallKt() * 1.15) p.holdG = Math.max(0, p.holdG - 0.3 * dt);   // 너무 느려지면 기수가 서서히 내려간다
+    let vt = G.t - p.liftT < 5 ? 3 : hold ? Math.tan(p.holdG) * Math.abs(p.vx) : over ? -5 : -2.5;   // 오르거나 내려가던 중에 손을 떼면 그 방향 그대로 부드럽게 난다
+    if (hold && (app || over)) vt = Math.max(vt, -(2.5 + Math.max(0, p.y - fy) * 0.25));   // 항모로 내려가던 중 손을 떼면 갑판에 가까울수록 천천히 내려앉는다
     if (app && G.t - p.liftT >= 5 && p.y < fy + 10) vt = clamp((fy - p.y) * 0.8, -2.5, 6);   // 손을 떼고 낮게 다가오면 갑판 높이 바로 위에서 수평을 지켜 선미에 부딪히지 않는다
     p.vy += (vt - p.vy) * Math.min(1, (over ? 6 : 4) * dt);
     const farC = Math.abs(p.x - ship.x - DECK_L / 2), kV = Math.max(clamp((p.y - 45) / 90, 0, 1), clamp((farC - 500) / 700, 0, 1));   // 항모에서 멀거나 높으면 빠르게, 항모 근처에서 낮게 날 때만 천천히
@@ -1408,7 +1411,9 @@ function autoFly(dt) {
     else if (ctl.up) tgt = 0.85;               // 올라갈 때는 출력을 보탠다
     else if (ctl.down) tgt = 0.1;
     else tgt = 0.25;
-    p.neutral = p.turn <= 0 && !fwd && !ctl.up && !ctl.down;   // 손을 떼면 초당 2.5m쯤 천천히 내려간다 (airStep에서 처리)
+    const nn = p.turn <= 0 && !fwd && !ctl.up && !ctl.down;
+    if (nn && !p.neutral && p.mode === 'air') { const gm = Math.atan2(p.vy, Math.abs(p.vx)); p.holdG = Math.abs(gm) > 0.05 ? gm : null; }   // 손을 뗀 순간의 비행 방향을 기억한다 (수평에 가까우면 예전처럼 천천히 내려간다)
+    p.neutral = nn;
     const far = Math.abs(p.x - ship.x - DECK_L / 2);   // 바퀴는 항모 가까이에서 낮게 날 때만 내린다
     const since = G.t - p.liftT;   // 이륙한 지 몇 초째인가
     const climbed = since > 2.5 && since < 15 && p.y > DECK_Y + WH + 15;   // 이륙하고 어느 정도 날아오른 뒤에 바퀴를 접는다

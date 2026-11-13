@@ -34,6 +34,7 @@ const TAKEOFF_KT = 100, TURN_KT = 100;   // 이륙과 선회에 필요한 최소
 const LAND_KT = 125, LAND_SINK = 8, LAND_PITCH = 0.22;   // 착함 허용 한계: 속도, 가라앉는 속도, 기울기
 const MAX_ALT = 600;   // 최고 고도: 나도 적기도 이 위로는 못 올라간다
 const CEIL = 500;   // 지도에서 고도를 그리는 기준(m). 실제 고도 제한은 없고 높이 올라가면 실속한다
+const MAX_LVL = 20;   // 마지막 레벨
 const CARRIER_MIN = 1500;   // 항모 중심에서 가장 가까운 섬·적함까지 최소 거리(m)
 const START_XR = 312, LAUNCH_XR = 312;   // 발진선
 const ELEV_A = 236, ELEV_W = 24, ELEV_C = ELEV_A + ELEV_W / 2, ELEV_DEPTH = 14, TAXI_V = 13, ELEV_R = 16;
@@ -644,21 +645,21 @@ function gh(x) {
   }
   return 0;
 }
-const HP = { aa: 4, bunker: 10, fuel: 3, radar: 4, boat: 8, runway: 14, tank: 6, cave: 14, dd: 16, tr: 10, bb: 60, cv: 40 };
+const HP = { aa: 4, bunker: 10, fuel: 3, radar: 4, boat: 8, runway: 14, tank: 6, cave: 14, dd: 16, tr: 10, bm: 20, bb: 60, cv: 40 };   // 소형 전함은 어뢰 1발(22), 대형 전함은 3발에 가라앉는다
 const BOX = { aa: { w: 6, h: 5 }, bunker: { w: 12, h: 6 }, fuel: { w: 6, h: 6 }, radar: { w: 6, h: 10 }, boat: { w: 26, h: 7 }, runway: { w: 60, h: 3 }, tank: { w: 9, h: 4 }, cave: { w: 8, h: 7 }, dd: { w: 44, h: 14 }, tr: { w: 36, h: 10 }, bb: { w: 84, h: 20 }, cv: { w: 96, h: 14 } };
-const SK = { boat: 1.5, dd: 2.6, tr: 3.2, bb: 2.6, cv: 2.4 }, SP = { boat: 5, dd: 9, tr: 4, bb: 6, cv: 7 };   // 배의 크기 배율, 순항 속도(m/s)
-Object.assign(BOX, { runway: { w: RUNWAY_L, h: 3 }, boat: { w: 40, h: 11 }, dd: { w: 115, h: 36 }, tr: { w: 115, h: 32 }, bb: { w: 220, h: 52 }, cv: { w: 230, h: 34 } });
+const SK = { boat: 1.5, dd: 2.6, tr: 3.2, bm: 2.6, bb: 2.6, cv: 2.4 }, SP = { boat: 5, dd: 9, tr: 4, bm: 6, bb: 5, cv: 7 };   // 배의 크기 배율, 순항 속도(m/s)
+Object.assign(BOX, { runway: { w: RUNWAY_L, h: 3 }, boat: { w: 40, h: 11 }, dd: { w: 115, h: 36 }, tr: { w: 115, h: 32 }, bm: { w: 260, h: 52 }, bb: { w: 390, h: 52 }, cv: { w: 230, h: 34 } });   // 전함 길이: 우리 항모(520m)의 1/2과 3/4
 const DMG = {
-  gun: { aa: 0.35, bunker: 0.08, fuel: 0.5, radar: 0.35, boat: 0.3, runway: 0.03, tank: 0.15, cave: 0, dd: 0.06, tr: 0.12, bb: 0.02, cv: 0.03 },
-  rocket: { aa: 5, bunker: 7, fuel: 6, radar: 5, boat: 6, runway: 4, tank: 6, cave: 5, dd: 6, tr: 6, bb: 3.5, cv: 5 },
-  bomb: { aa: 10, bunker: 14, fuel: 10, radar: 10, boat: 12, runway: 10, tank: 10, cave: 8, dd: 14, tr: 14, bb: 12, cv: 16 }
+  gun: { aa: 0.35, bunker: 0.08, fuel: 0.5, radar: 0.35, boat: 0.3, runway: 0.03, tank: 0.15, cave: 0, dd: 0.06, tr: 0.12, bm: 0.02, bb: 0.02, cv: 0.03 },
+  rocket: { aa: 5, bunker: 7, fuel: 6, radar: 5, boat: 6, runway: 4, tank: 6, cave: 5, dd: 6, tr: 6, bm: 3.5, bb: 3.5, cv: 5 },
+  bomb: { aa: 10, bunker: 14, fuel: 10, radar: 10, boat: 12, runway: 10, tank: 10, cave: 8, dd: 14, tr: 14, bm: 12, bb: 12, cv: 16 }
 };
 Object.assign(HP, { barracks: 12, pill: 14 }); BOX.pill = { w: 28, h: 13 }; DMG.gun.pill = 0; DMG.rocket.pill = 5; DMG.bomb.pill = 0; DMG.gun.bunker = 0;
 Object.assign(HP, { barracks: 12 }); Object.assign(BOX, { barracks: { w: 26, h: 9 }, aa: { w: 11, h: 9 } }); DMG.gun.barracks = 0.15; DMG.rocket.barracks = 4; DMG.bomb.barracks = 10;
 const JP = { pill: 1, aa: 1, bunker: 1, cave: 1, radar: 1, barracks: 1, tank: 1 };   // 일본군이 있는 시설
-const SHIPS = { boat: 1, dd: 1, tr: 1, bb: 1, cv: 1 }, DEF_W = { pill: 2, aa: 1, bunker: 1.5, cave: 2, radar: 1 }, AA_N = { pill: 1, aa: 1, dd: 2, bb: 4, cv: 3, tr: 1, cave: 1 }, AA_R = { pill: 500, aa: 500, cave: 500, dd: 500, bb: 500, cv: 500, tr: 500 };
-const HULL_H = { boat: 4.5, dd: 6.5, tr: 16, bb: 5.2, cv: 14.5 };   // 적 함정 선체(갑판) 높이(m)
-const SHIP_GUNS = { dd: { gy: 3.2, xs: [-15, -5, 10] }, bb: { gy: 3.4, xs: [-34, -26, -18, 18, 26, 34] }, cv: { gy: 8.2, xs: [-42, -30, -18, 28, 38, 45] }, tr: { gy: 5.2, xs: [-12, 12] } };   // 함정의 대공포 자리
+const SHIPS = { boat: 1, dd: 1, tr: 1, bm: 1, bb: 1, cv: 1 }, DEF_W = { pill: 2, aa: 1, bunker: 1.5, cave: 2, radar: 1 }, AA_N = { pill: 1, aa: 1, dd: 2, bm: 3, bb: 5, cv: 3, tr: 1, cave: 1 }, AA_R = { pill: 500, aa: 500, cave: 500, dd: 500, bm: 500, bb: 500, cv: 500, tr: 500 };
+const HULL_H = { boat: 4.5, dd: 6.5, tr: 16, bm: 5.2, bb: 5.2, cv: 14.5 };   // 적 함정 선체(갑판) 높이(m)
+const SHIP_GUNS = { dd: { gy: 3.2, xs: [-15, -5, 10] }, bm: { gy: 3.4, xs: [-38, -28, -18, 20, 30, 40], mg: [1, 4] }, bb: { gy: 3.4, xs: [-60, -50, -40, -30, -20, 22, 32, 42, 52, 62], mg: [1, 3, 6, 8] }, cv: { gy: 8.2, xs: [-42, -30, -18, 28, 38, 45] }, tr: { gy: 5.2, xs: [-12, 12] } };   // 함정의 대공포 자리
 const TARGETS = [], PROJ = [], TREES = [], ENE = [], EB = [], FLAK = [], SOLD = [];
 const ES = { zero: { v: 125, n: 5.0, hp: 4 }, ace: { v: 140, n: 6.0, hp: 8 }, n1k: { v: 145, n: 5.5, hp: 9 }, d4y: { v: 105, n: 2.6, hp: 6 }, b6n: { v: 100, n: 2.2, hp: 7 } };   // 속도(m/s), 견딜 수 있는 선회 g, 체력
 const TINTS = { day: ['#4f9ad6', '#bfe4f5'], dawn: ['#3b5f99', '#f0b49a'], dusk: ['#4a4f8c', '#f2a65a'], night: ['#0b1430', '#2a3f66'] };
@@ -711,16 +712,26 @@ const mLabel = M => M.gen ? 'Op ' + M.lvl + ' — ' + M.name : (G.mi + 1) + '. '
 function rngOf(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 // 레벨 1~10은 정해진 순서로 조금씩 어렵게, 11부터는 무작위로 점점 어렵게 (s 작은 섬, b 큰 섬, 함정 dd 구축함·tr 수송선·bb 전함·cv 항모)
 const LEVEL_PLAN = [null,
-  { isl: ['s'], ships: [], goal: 'capture', waves: 0 },               // 1: 작은 섬 1
-  { isl: ['s', 's'], ships: [], goal: 'capture', waves: 1 },          // 2: 작은 섬 2
-  { isl: ['b'], ships: [], goal: 'capture', waves: 1 },               // 3: 큰 섬 1 (비행장에서 적기 이륙)
-  { isl: ['s'], ships: ['bb'], goal: 'capture', waves: 1 },           // 4: 작은 섬 1 + 전함 1
-  { isl: ['s', 'b'], ships: [], goal: 'capture', waves: 2 },          // 5: 작은 섬 1 + 큰 섬 1
-  { isl: ['s'], ships: ['cv', 'dd'], goal: 'capture', waves: 2 },     // 6: 작은 섬 1 + 항모 1 + 구축함 1
-  { isl: [], ships: [], goal: 'defend', waves: 3 },                   // 7: 함대 방어
-  { isl: ['s', 's', 'b'], ships: [], goal: 'capture', waves: 3 },     // 8: 작은 섬 2 + 큰 섬 1
-  { isl: ['b'], ships: ['bb', 'dd', 'dd'], goal: 'capture', waves: 3 }, // 9: 큰 섬 1 + 전함 1 + 구축함 2
-  { isl: ['b', 'b'], ships: ['cv'], goal: 'capture', waves: 4 }       // 10: 큰 섬 2 + 항모 1
+  { isl: ['s'], ships: [], goal: 'capture', waves: 0 },                              // 1
+  { isl: ['s', 's'], ships: [], goal: 'capture', waves: 1 },                         // 2
+  { isl: ['b'], ships: [], goal: 'capture', waves: 1 },                              // 3
+  { isl: ['s', 's', 'b'], ships: [], goal: 'capture', waves: 2 },                    // 4
+  { isl: ['b', 'b'], ships: [], goal: 'capture', waves: 2 },                         // 5
+  { isl: ['s', 's'], ships: ['bm'], goal: 'capture', waves: 2 },                     // 6: 첫 전함 (소형)
+  { isl: [], ships: [], goal: 'defend', waves: 3 },                                  // 7: 함대 방어
+  { isl: ['s', 'b', 'b'], ships: ['bm'], goal: 'capture', waves: 3 },                // 8
+  { isl: ['b', 'b'], ships: ['bb'], goal: 'capture', waves: 3 },                     // 9: 첫 대형 전함
+  { isl: ['s', 's', 'b'], ships: ['bm', 'dd'], goal: 'capture', waves: 4 },          // 10
+  { isl: ['s', 'b', 'b'], ships: ['bb', 'dd'], goal: 'capture', waves: 4 },          // 11
+  { isl: ['b', 'b', 'b'], ships: ['bm', 'bb'], goal: 'capture', waves: 4 },          // 12
+  { isl: ['s', 's', 'b', 'b'], ships: ['bb'], goal: 'capture', waves: 5 },           // 13
+  { isl: [], ships: ['bm', 'bb', 'dd'], goal: 'fleet', waves: 5 },                   // 14: 함대 공격
+  { isl: ['s', 'b', 'b', 'b'], ships: ['bb', 'dd'], goal: 'capture', waves: 5 },     // 15
+  { isl: ['b', 'b', 'b'], ships: ['bm', 'bb', 'dd'], goal: 'capture', waves: 5 },    // 16
+  { isl: ['s', 's', 'b', 'b'], ships: ['bb', 'bm'], goal: 'capture', waves: 6 },     // 17
+  { isl: [], ships: ['bb', 'bm', 'cv', 'dd'], goal: 'fleet', waves: 6 },             // 18
+  { isl: ['s', 'b', 'b', 'b'], ships: ['bb', 'bm', 'dd'], goal: 'capture', waves: 6 }, // 19
+  { isl: ['b', 'b', 'b', 'b'], ships: ['bb', 'bb', 'bm', 'cv'], goal: 'capture', waves: 6 } // 20
 ];
 function genMission(L, seed) {
   const R = rngOf(seed), pick = a => a[Math.floor(R() * a.length)], ri = (a, b) => a + Math.floor(R() * (b - a + 1));
@@ -728,7 +739,7 @@ function genMission(L, seed) {
   if (!spec) {   // 11레벨부터: 섬 수·크기, 함정, 작전 종류를 무작위로, 레벨이 오를수록 많이
     const r = R(), pBig = clamp(0.3 + L * 0.02, 0.3, 0.7), nI = ri(1, Math.min(4, 1 + Math.floor(L / 4))), isl = [];
     for (let k = 0; k < nI; k++) isl.push(R() < pBig ? 'b' : 's');
-    const ships = []; if (R() < 0.55) for (let k = 0, n = ri(1, Math.min(5, 1 + Math.floor(L / 5))); k < n; k++) ships.push(pick(['dd', 'dd', 'tr', 'bb', 'cv']));
+    const ships = []; if (R() < 0.55) for (let k = 0, n = ri(1, Math.min(5, 1 + Math.floor(L / 5))); k < n; k++) ships.push(pick(['dd', 'dd', 'tr', 'bb', 'bm', 'cv']));
     if (r < 0.1) spec = { isl: [], ships: [], goal: 'defend', waves: Math.min(6, 2 + Math.floor(L / 4)) };
     else if (r < 0.2) spec = { isl: ['b', 's', 'b'].slice(0, Math.max(2, nI)), ships: [], goal: 'air', waves: Math.min(6, Math.floor(L / 2)) };
     else if (r < 0.32) spec = { isl: [], ships: ships.length ? ships.concat(['dd']) : ['cv', 'dd', 'bb'], goal: 'fleet', waves: Math.min(6, Math.floor(L / 2)) };
@@ -756,14 +767,14 @@ function genMission(L, seed) {
   // 함정: 섬이 있으면 섬 앞바다에, 바다 작전이면 멀리 함대로
   const ships = spec.ships.map((t, j) => [t, M.islands.length ? 4700 - j * 650 : 6900 + j * 700]);
   M.build = (add, P) => { extra.forEach(([ty, k, f]) => add(ty, P(k, f))); boats.forEach(bx => add('boat', bx)); ships.forEach(([ty, sx]) => add(ty, sx)); };
-  const nBig = spec.isl.filter(t => t === 'b').length, nSm = spec.isl.length - nBig, SN = { cv: 'carrier', bb: 'battleship', tr: 'transport', dd: 'destroyer' };
+  const nBig = spec.isl.filter(t => t === 'b').length, nSm = spec.isl.length - nBig, SN = { cv: 'carrier', bb: 'large battleship', bm: 'small battleship', tr: 'transport', dd: 'destroyer' };
   const shipTxt = ships.length ? Object.entries(ships.reduce((o, [t]) => (o[t] = (o[t] || 0) + 1, o), {})).map(([t, n]) => n + ' ' + SN[t] + (n > 1 ? 's' : '')).join(', ') : '';
   M.isl = [nSm ? nSm + ' small island' + (nSm > 1 ? 's' : '') : '', nBig ? nBig + ' large island' + (nBig > 1 ? 's' : '') : '', shipTxt].filter(Boolean).join(' · ') || ('Air raids ' + spec.waves);
   const fleetT = [...new Set(ships.map(q => q[0]))];
   if (goal === 'capture') {
     M.kind = ships.length ? 'Island + fleet' : 'Island assault';
     if (ships.length) { M.fleet = fleetT; M.landAfter = true; }
-    M.brief = (spec.isl.length === 2 ? 'Clear both islands' : spec.isl.length > 2 ? 'Clear all ' + spec.isl.length + ' islands' : 'Clear the island') + ' of every building and soldier' + (ships.length ? ' and sink ' + shipTxt + ' with torpedoes' : ' to force a surrender');
+    M.brief = (spec.isl.length === 2 ? 'Clear both islands' : spec.isl.length > 2 ? 'Clear all ' + spec.isl.length + ' islands' : 'Clear the island') + ' of every building and soldier' + (ships.length ? ' and sink ' + shipTxt + ' with torpedoes' + (fleetT.includes('bb') || fleetT.includes('bm') ? ' (strip a battleship of every AA gun and machine gun first)' : '') : ' to force a surrender');
     M.bonus = m => !m.revived; M.bonusTxt = 'no wrecked bunker or AA gun gets restored';
   } else if (goal === 'air') {
     M.kind = 'Airbase strike'; M.zeroN = 5 + L; M.brief = 'Shoot down ' + M.zeroN + ' Zeros and destroy every airfield on the large islands';
@@ -790,7 +801,7 @@ const GOALS = {
   defend: (m, M) => m.wave >= M.waves.length && !(m.queue && m.queue.length) && !ENE.some(e => !e.dead && (e.type === 'd4y' || e.type === 'b6n')),
   fleet: (m, M) => !TARGETS.some(t => M.fleet.includes(t.type) && t.alive)
 };
-function loadSave() { let v = null; try { v = JSON.parse(localStorage.getItem('hellcat-save')); } catch (_) {} if (!v || !Array.isArray(v.stars)) v = { stars: Array(10).fill(0) }; v.lvl = v.lvl || 1; v.best = v.best || 0; v.sum = v.sum || 0; if (!v.st) { v.st = {}; v.base = v.sum; } return v; }
+function loadSave() { let v = null; try { v = JSON.parse(localStorage.getItem('hellcat-save')); } catch (_) {} if (!v || !Array.isArray(v.stars)) v = { stars: Array(10).fill(0) }; v.lvl = Math.min(20, v.lvl || 1); v.best = v.best || 0; v.sum = v.sum || 0; if (!v.st) { v.st = {}; v.base = v.sum; } return v; }
 function saveProg() { try { localStorage.setItem('hellcat-save', JSON.stringify(G.save)); } catch (_) {} }
 const unlocked = i => i === 0 || (G.save.stars[i - 1] || 0) > 0;
 const rankOf = n => n < 3 ? 'Ensign' : n < 6 ? 'Lt (jg)' : n < 10 ? 'Lieutenant' : n < 15 ? 'Lt Cmdr' : n < 20 ? 'Commander' : n < 30 ? 'Captain' : 'Admiral';   // 깬 최고 레벨로 정하는 계급
@@ -807,14 +818,19 @@ function startMission(i) {
   M.islands.forEach(([a, w], k) => { const na = k === 0 ? a : BP[BP.length - 1][1] + (a - BP[BP.length - 1][0]) * GAP; BP.push([a, na], [a + w, na + ISW(w)]); });
   G.isx = x => { if (!BP.length || x <= BP[0][0]) return x; for (let j = 1; j < BP.length; j++) if (x <= BP[j][0]) { const [r0, n0] = BP[j - 1], [r1, n1] = BP[j]; return n0 + (x - r0) / (r1 - r0) * (n1 - n0); } const [rl, nl] = BP[BP.length - 1]; return nl + (x - rl) * SC; };
   ISLANDS = M.islands.map(([a, w, pk], k) => { const big = w >= 1500, q = mkIsland(G.isx(a) - OFF, ISW(w), (big ? 38 : 20) * 1.15, (M.seed ? M.seed % 9973 : i * 10) + k + 1); q.big = big; return q; });
-  // 항모 기준 배치: 가장 가까운 섬·함정이 항모 중심에서 CARRIER_MIN 이상. 섬과 함정은 항모 양쪽에 번갈아 놓는다
-  G.HC = null; G.shipN = 0;
+  // 항모를 가운데 두고 섬부터 가까운 곳에 번갈아 양옆으로 놓은 뒤 함정을 이어서 놓는다. 항모와 가장 가까운 것까지, 그리고 서로의 간격은 최소 1500m (군함이 90m쯤 순찰하므로 100m 여유)
+  G.HC = null; G.shipN = 0; G.shipX = []; G.boatN = {};
   {
-    const xs = ISLANDS.map(q => q.a), P0 = (k, f) => ISLANDS[k].a + (ISLANDS[k].b - ISLANDS[k].a) * f + OFF;
-    M.build((type, x0) => { if (SHIPS[type]) xs.push(G.isx(x0) - OFF); return null; }, P0);   // 함정 자리 미리 보기
-    if (xs.length) {
-      G.HC = Math.min(...xs) - CARRIER_MIN - 100;   // 군함이 제자리를 순찰하며 90m쯤 움직이므로 여유를 둔다
-      ISLANDS.forEach((q, k) => { if (k % 2 === 1) { const a = 2 * G.HC - q.b, b = 2 * G.HC - q.a; q.a = a; q.b = b; q.fx = 2 * G.HC - q.fx; q.hills.forEach(h => { h.c = 1 - h.c; }); } });   // 홀수 번째 섬은 왼쪽으로
+    const shipTypes = []; M.build((type, x0) => { if (SHIPS[type] && type !== 'boat') shipTypes.push(type); return null; }, (k, f) => 0);
+    const items = ISLANDS.map((q, k) => ({ k, w: q.b - q.a })).concat(shipTypes.map((ty, j) => ({ j, w: BOX[ty].w })));
+    if (items.length) {
+      G.HC = 4400; const edge = { r: G.HC + CARRIER_MIN + 100, l: G.HC - CARRIER_MIN - 100 }, sx = [];
+      items.forEach((it, i) => {
+        const right = i % 2 === 0;
+        if (right) { const near = edge.r; edge.r = near + it.w + CARRIER_MIN + 100; if (it.k !== undefined) { const q = ISLANDS[it.k]; q.a = near; q.b = near + it.w; q.fx = near + it.w / 2; } else sx[it.j] = near + it.w / 2; }
+        else { const far = edge.l; edge.l = far - it.w - CARRIER_MIN - 100; if (it.k !== undefined) { const q = ISLANDS[it.k]; q.b = far; q.a = far - it.w; q.fx = far - it.w / 2; q.hills.forEach(h => { h.c = 1 - h.c; }); } else sx[it.j] = far - it.w / 2; }
+      });
+      G.shipX = sx;
     }
   }
   makeTargets(M);
@@ -836,15 +852,16 @@ function endMission(win, why) {
   if (G.scene === 'title') return;
   const m = G.m; if (!m || m.done) return; m.done = true;
   let stars = 0;
-  if (win) { stars = 1 + (G.lives >= 2 ? 1 : 0) + (G.lives === 3 && G.cur.bonus(m) ? 1 : 0); if (G.cur.gen) { G.save.lvl = Math.max(G.save.lvl, G.cur.lvl + 1); G.save.best = Math.max(G.save.best, G.cur.lvl); G.save.st[G.cur.lvl] = Math.max(G.save.st[G.cur.lvl] || 0, stars); G.save.sum = starSum(); G.next = null; G.pick = G.cur.lvl + 1; } else G.save.stars[G.mi] = Math.max(G.save.stars[G.mi] || 0, stars); saveProg(); }
+  if (win) { stars = 1 + (G.lives >= 2 ? 1 : 0) + (G.lives === 3 && G.cur.bonus(m) ? 1 : 0); if (G.cur.gen) { G.save.lvl = Math.min(MAX_LVL, Math.max(G.save.lvl, G.cur.lvl + 1)); G.save.best = Math.max(G.save.best, G.cur.lvl); G.save.st[G.cur.lvl] = Math.max(G.save.st[G.cur.lvl] || 0, stars); G.save.sum = starSum(); G.next = null; G.pick = Math.min(MAX_LVL, G.cur.lvl + 1); } else G.save.stars[G.mi] = Math.max(G.save.stars[G.mi] || 0, stars); saveProg(); }
   G.res = { win, why: why || '', stars }; G.scene = 'result';
 }
 function makeTargets(M) {
   TARGETS.length = 0; TREES.length = 0;
   const P = (k, f) => ISLANDS[k].a + (ISLANDS[k].b - ISLANDS[k].a) * f + OFF;
   const add = (type, x0, raw) => { let x = (SHIPS[type] && !raw ? G.isx(x0) : x0) - OFF;
-    if (SHIPS[type] && type !== 'boat' && G.HC !== null && G.shipN++ % 2 === 1) x = 2 * G.HC - x;   // 큰 배는 번갈아 항모 왼쪽에
-    const t = { type, x, y: SHIPS[type] ? 0 : gh(x), hp: HP[type], hp0: HP[type], alive: true, burn: 0, fire: Math.random() * 2, deadT: 0, x0: x, dir: TARGETS.length % 2 ? -1 : 1, launch: 10 + Math.random() * 12 }; t.isl = ISLANDS.findIndex(s => x > s.a && x < s.b); if (SHIP_GUNS[type]) t.guns = SHIP_GUNS[type].xs.map(lx => ({ lx, hp: 2, alive: true })); TARGETS.push(t); return t; };
+    if (SHIPS[type] && type !== 'boat' && G.HC !== null) x = G.shipX[G.shipN++];   // 함정 자리는 위에서 정해 둔 순서대로
+    else if (type === 'boat' && !raw && G.HC !== null && ISLANDS.length) { const k = (G.boatK = (G.boatK || 0) + 1) % ISLANDS.length, q = ISLANDS[k], out = (q.a + q.b) / 2 > G.HC ? 1 : -1, n = G.boatN[k] = (G.boatN[k] || 0) + 1; x = (out > 0 ? q.b + 90 + 70 * n : q.a - 90 - 70 * n); }   // 작은 배는 섬 바깥쪽 바다에
+    const t = { type, x, y: SHIPS[type] ? 0 : gh(x), hp: HP[type], hp0: HP[type], alive: true, burn: 0, fire: Math.random() * 2, deadT: 0, x0: x, dir: TARGETS.length % 2 ? -1 : 1, launch: 10 + Math.random() * 12 }; t.isl = ISLANDS.findIndex(s => x > s.a && x < s.b); if (SHIP_GUNS[type]) t.guns = SHIP_GUNS[type].xs.map((lx, gi) => { const mg = (SHIP_GUNS[type].mg || []).includes(gi); return { lx, hp: mg ? 1 : 2, alive: true, mg, cd: 1 + Math.random() * 3, bn: 0, bt: 0 }; }); TARGETS.push(t); return t; };
   const rwIsl = new Set();
   const CREW_W = { barracks: 1 };   // 일본군은 병영(집)에만 산다
   M.build((type, x0) => { const k = ISLANDS.findIndex(q => x0 - OFF > q.a && x0 - OFF < q.b); if (k >= 0 && (type === 'bunker' || type === 'barracks' || type === 'runway')) { if (type === 'runway') rwIsl.add(k); return null; } return add(type, x0); }, P);
@@ -1094,6 +1111,20 @@ function ebStep(dt) {
   }
 }
 const SHELL = [], HOW = {};   // 곡사포는 이제 쓰지 않는다 (일반 벙커는 4연장 기관포)
+function shipMgStep(dt) {   // 전함의 대공기관총: 가까이 오면 짧게 연사한다
+  if (p.mode !== 'air') return;
+  for (const t of TARGETS) {
+    if (!t.alive || !t.guns || !SHIP_GUNS[t.type].mg) continue;
+    const dr = t.dir < 0 ? -1 : 1, sk = SK[t.type];
+    for (const g of t.guns) {
+      if (!g.alive || !g.mg) continue;
+      const gx = t.x + g.lx * sk * dr, gy = t.y + SHIP_GUNS[t.type].gy * sk, d = Math.hypot(p.x - gx, p.y - gy);
+      if (d > 650 || d < 30) continue;
+      if (g.bn > 0) { g.bt -= dt; if (g.bt <= 0) { g.bt = 0.1; g.bn--; const tf = d / 520, a = Math.atan2(p.y + p.vy * tf - gy, p.x + p.vx * tf - gx) + (Math.random() - 0.5) * 0.1; EB.push({ x: gx, y: gy + 3, vx: Math.cos(a) * 520, vy: Math.sin(a) * 520, life: 1.6, why: 'Shot down by ship machine-gun fire.', dmg: 0.5 }); g.fl = G.t; } }
+      else { g.cd -= dt; if (g.cd <= 0) { g.cd = 2.5 + Math.random() * 2; g.bn = 6; } }
+    }
+  }
+}
 function quadStep(dt) {   // 일반 벙커의 4연장 기관포: 포신이 내 비행기를 따라 돌고, 맞춰지면 짧게 연사한다 (탄은 보이지 않는다)
   for (const t of TARGETS) {
     if (t.type !== 'bunker' || !t.alive) continue;
@@ -1174,7 +1205,7 @@ function applyDmg(t, d) {
   if (t.type === 'bunker' && t.inside > 0) { const n = t.inside - 1; t.inside = 0; t.repT = 0; if (n > 0) { const k0 = SOLD.length; spawnSoldiers(t, n); for (let j = k0; j < SOLD.length; j++) SOLD[j].cool = G.t + 8; } }   // 부서지면 남은 일본군이 모두 뛰어나온다
   t.alive = false; t.burn = G.t + 9; t.deadT = G.t; if (G.m) G.m.kills++;
   explode(t.x, t.y + 2, t.type === 'fuel' ? 30 : SHIPS[t.type] ? 18 : 10, t.type === 'fuel' ? 'bomb' : 'none', false);
-  if (t.type === 'bb' || t.type === 'cv') G.toast = { text: (t.type === 'cv' ? 'Enemy carrier' : 'Enemy battleship') + ' sunk!', grade: 'green', until: G.t + 3.5 };
+  if (t.type === 'bb' || t.type === 'bm' || t.type === 'cv') G.toast = { text: (t.type === 'cv' ? 'Enemy carrier' : 'Enemy battleship') + ' sunk!', grade: 'green', until: G.t + 3.5 };
 }
 function damageAt(x, y, r, kind) {
   if (kind === 'none') return;
@@ -1257,6 +1288,7 @@ function stepProj(dt) {
   const viewR = W / cam.z + 100;   // 화면에서 먼 곳의 연기는 만들지 않는다
   for (const t of TARGETS) {
     if (Math.abs(t.x - cam.x) > viewR) continue;
+    if (t.alive && t.hits) { const fr = 1 - t.hp / t.hp0; for (const dx of t.hits) if (Math.random() < dt * (6 + 22 * fr)) FX.push({ k: Math.random() < fr * 0.5 ? 'fire' : 'smoke', x: t.x + dx + (Math.random() - 0.5) * 6, y: t.y + 5 + Math.random() * 3, vx: -3, vy: 5 + fr * 9 + Math.random() * 4, life: 1.5 + fr * 1.5, t: 0, s: 1.8 + fr * 4.5 }); }   // 맞은 만큼 연기가 짙어진다
     if (!t.alive && t.burn > G.t && Math.random() < dt * 9) FX.push({ k: Math.random() < 0.3 ? 'fire' : 'smoke', x: t.x + (Math.random() - 0.5) * 4, y: t.y + 2, vx: -3, vy: 5 + Math.random() * 5, life: 1.3 + Math.random(), t: 0, s: 1.6 + Math.random() * 2.4 });
     else if (t.alive && t.hp < t.hp0 * (t.type === 'barracks' ? 1 : 0.5) && Math.random() < dt * (t.type === 'barracks' ? 9 : 5)) FX.push({ k: 'smoke', x: t.x, y: t.y + 3, vx: -3, vy: 5, life: 1.2, t: 0, s: 1.5 });
   }
@@ -1278,7 +1310,8 @@ function stepProj(dt) {
       if (Math.abs(q.x - q.sx) > TORP_RANGE) { FX.push({ k: 'splash', x: q.x, y: 0, vx: 0, vy: 0, life: 0.6, t: 0 }); PROJ.splice(i, 1); continue; }   // 사거리 끝: 가라앉는다
       if (gh(q.x) > 0) { explode(q.x, 0.5, 10, 'none', true); PROJ.splice(i, 1); continue; }
       const sh = TARGETS.find(t => t.alive && SHIPS[t.type] && Math.abs(q.x - t.x) < BOX[t.type].w / 2);
-      if (sh) { applyDmg(sh, 22); explode(q.x, 0, 18, 'none', true); FX.push({ k: 'flash', x: q.x, y: 3, vx: 0, vy: 0, life: 0.3, t: 0 }); sfx('boom'); PROJ.splice(i, 1); continue; }
+      if (sh && (sh.type === 'bb' || sh.type === 'bm') && sh.guns.some(g => g.alive)) { explode(q.x, 0, 10, 'none', true); G.toast = { text: 'The battleship shrugs it off — knock out every AA gun and machine gun first', grade: 'yellow', until: G.t + 3.5 }; PROJ.splice(i, 1); continue; }
+      if (sh) { if (sh.type === 'bb' || sh.type === 'bm') (sh.hits = sh.hits || []).push(q.x - sh.x); applyDmg(sh, 22); explode(q.x, 0, 18, 'none', true); FX.push({ k: 'flash', x: q.x, y: 3, vx: 0, vy: 0, life: 0.3, t: 0 }); sfx('boom'); PROJ.splice(i, 1); continue; }
       if (q.life <= 0) PROJ.splice(i, 1);
       continue;
     }
@@ -1594,16 +1627,28 @@ function drawTarget(c, t, dead) {
     case 'cave': c.fillStyle = '#0c0e0d'; c.beginPath(); c.arc(0, 2.6, 3.6, 0, Math.PI); c.fill(); rect(-3.6, 0, 7.2, 2.6, isOpen(t) ? '#0c0e0d' : '#6f7468'); if (isOpen(t)) { rect(0, 2.2, 5, 0.7, '#2c2f2a'); rect(-1, 1.6, 2.4, 1.6, '#3a3d38'); } break;
     case 'dd': poly([[-22, 2.5], [20, 2.5], [24, 5], [16, -0.5], [-20, -0.5]], '#5d6b78'); rect(-4, 2.5, 9, 4, '#7b8895'); rect(-10, 2.5, 3, 3.6, '#4a5560'); rect(10, 2.5, 4, 1.4, '#3a4550'); break;
     case 'tr': poly([[-18, 0], [17, 0], [19, 5], [-18, 5]], '#6b5a4a'); rect(-4, 5, 8, 4, '#8a7a66'); rect(8, 5, 0.6, 7, '#4a4036'); rect(-12, 5, 0.6, 6, '#4a4036'); break;
-    case 'bb': poly([[-42, 2], [38, 2], [44, 8], [34, -0.4], [-40, -0.4]], '#66737f'); rect(-8, 2, 14, 5, '#7d8a96'); rect(-5, 7, 8, 5, '#8794a1'); rect(-3, 12, 4, 5, '#8794a1'); rect(-0.4, 17, 0.8, 5, '#46505a'); rect(-14, 2, 4, 6, '#3f4852'); [-30, -20, 22, 30].forEach(x => { rect(x - 2.5, 2, 5, 2, '#5a6672'); rect(x, 3, 7 * (x < 0 ? -1 : 1), 0.7, '#2c333c'); }); break;
+    case 'bm': case 'bb': {   // 전함: 길고 낮은 선체, 가운데 함교와 굴뚝, 양 끝의 주포탑 (길이: 소형 260m, 대형 390m)
+      const big = t.type === 'bb', hl = big ? 75 : 50;
+      poly([[-hl + 2, 2], [hl - 6, 2], [hl, 8], [hl - 10, -0.4], [-hl, -0.4]], '#66737f');
+      rect(-8, 2, 14, 5, '#7d8a96'); rect(-5, 7, 8, 5, '#8794a1'); rect(-3, 12, 4, 5, '#8794a1'); rect(-0.4, 17, 0.8, 5, '#46505a'); rect(-14, 2, 4, 6, '#3f4852'); if (big) rect(9, 2, 4, 6, '#3f4852');
+      (big ? [-72, -66, 67, 73] : [-47, 46]).forEach(x => { rect(x - 2.5, 2, 5, 2, '#5a6672'); rect(x, 3, 7 * (x < 0 ? -1 : 1), 0.7, '#2c333c'); });
+      break;
+    }
     case 'cv': poly([[-46, 0], [46, 0], [48, 6], [-48, 6]], '#6f7b87'); rect(-48, 6, 96, 1.4, '#3a4350'); rect(12, 7.4, 12, 6, '#8794a1'); rect(15, 13.4, 5, 3, '#8794a1'); rect(-0.4, 13.4, 0.8, 4, '#46505a'); [-30, -18, -6].forEach(x => rect(x, 7.4, 7, 0.9, '#2f3a2c')); break;
   }
   if (!dead && !SHIPS[t.type]) drawLife(c, t);
   if (SHIPS[t.type] && !dead && AA_N[t.type]) {
-    const gy = { dd: 3.2, bb: 3.4, cv: 8.2, tr: 5.2 }[t.type], xs = { dd: [-15, -5, 10], bb: [-34, -26, -18, 18, 26, 34], cv: [-42, -30, -18, 28, 38, 45], tr: [-12, 12] }[t.type], dr = t.dir < 0 ? -1 : 1;
+    const SG = SHIP_GUNS[t.type], gy = SG.gy, xs = SG.xs, dr = t.dir < 0 ? -1 : 1;
     xs.forEach((lx, gi) => {
       if (t.guns && t.guns[gi] && !t.guns[gi].alive) { c.fillStyle = '#2a2622'; c.beginPath(); c.arc(lx, gy, 1.3, 0, 7); c.fill(); c.fillStyle = 'rgba(80,80,80,0.5)'; c.beginPath(); c.arc(lx + 0.6, gy + 1.6 + Math.sin(G.t * 3 + gi) * 0.3, 1, 0, 7); c.fill(); return; }   // 부서진 함포
       const wx = t.x + lx * SK[t.type] * dr, wy = t.y + gy * SK[t.type];
       const an = p.mode === 'air' ? clamp(Math.atan2(p.y - wy, p.x - wx), 0.15, Math.PI - 0.15) : 1.1, ca = Math.cos(an) * dr, sa = Math.sin(an);
+      if (t.guns && t.guns[gi] && t.guns[gi].mg) {   // 대공기관총: 작은 4연장
+        c.fillStyle = '#3d4650'; c.beginPath(); c.arc(lx, gy, 1.0, 0, 7); c.fill();
+        c.strokeStyle = '#1a1f24'; c.lineWidth = 0.22; [-0.5, -0.17, 0.17, 0.5].forEach(o => { c.beginPath(); c.moveTo(lx + o, gy + 0.3); c.lineTo(lx + o + ca * 3.4, gy + 0.3 + sa * 3.4); c.stroke(); });
+        if (G.t - (t.guns[gi].fl || -9) < 0.06) { c.fillStyle = 'rgba(255,230,140,0.95)'; c.beginPath(); c.arc(lx + ca * 4, gy + sa * 4, 1.1, 0, 7); c.fill(); }
+        return;
+      }
       c.fillStyle = '#4a5560'; c.beginPath(); c.arc(lx, gy, 1.5, 0, 7); c.fill();
       c.strokeStyle = '#1f252b'; c.lineWidth = 0.6; [-0.45, 0.45].forEach(o => { c.beginPath(); c.moveTo(lx + o, gy); c.lineTo(lx + o + ca * 4.6, gy + sa * 4.6); c.stroke(); });
       if (G.t - (t.flashT || -9) < 0.12) { c.fillStyle = 'rgba(255,220,120,0.95)'; c.beginPath(); c.arc(lx + ca * 5.2, gy + sa * 5.2, 1.8, 0, 7); c.fill(); }
@@ -1871,7 +1916,7 @@ function update(dt) {
   else if (p.mode === 'down' && G.result && G.result.kind === 'wreck' && G.result.deck) { p.x = ship.x + p.xr; p.y = DECK_Y + WH - 0.4; p.vx = ship.v; }   // 갑판 위 잔해는 배와 함께 간다
   else if (p.mode === 'down') { p.y = Math.max(1, p.y - 6 * dt); p.x += p.vx * dt; p.vx *= 1 - Math.min(1, 2 * dt); }
   if (p.mode === 'air' || (p.mode === 'deck' && !p.held)) p.fuel = Math.max(0, p.fuel - (0.03 + 0.25 * p.thr) * dt);
-  G.lso = lsoSignal(); fireStep(dt); stepProj(dt); missionStep(dt); enemyStep(dt); ebStep(dt); flakStep(dt); shellStep(dt); quadStep(dt); stepFx(dt);
+  G.lso = lsoSignal(); fireStep(dt); stepProj(dt); missionStep(dt); enemyStep(dt); ebStep(dt); flakStep(dt); shellStep(dt); quadStep(dt); shipMgStep(dt); stepFx(dt);
 }
 
 // ───────── 입력: 방향키 네 개 ─────────

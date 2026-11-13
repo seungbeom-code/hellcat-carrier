@@ -484,7 +484,10 @@ function hangarOpen() { return p.mode === 'lift' && !!p.el && p.el.st === 'pick'
 function pickLoad(i) {   // 무장을 고르면 실고 올라간다
   const e = p.el; if (!e || e.st !== 'pick') return;
   G.loadout = i; G.pickSel = i; p.ammo = { ...LOAD_AMMO[i] }; p.fuelMax = LOADS[i].fuel; p.fuel = p.fuelMax; p.hp = 100;
-  e.st = 'up'; e.t = 0; sfx('lift'); G.toast = { text: 'Refueled, repaired, loaded: ' + LOADS[i].name, grade: 'green', until: G.t + 2.5 };
+  e.st = 'up'; e.t = 0; sfx('lift'); G.toast = G.brief ? { text: G.brief, grade: 'green', until: G.t + 7 } : { text: 'Refueled, repaired, loaded: ' + LOADS[i].name, grade: 'green', until: G.t + 2.5 }; G.brief = null;
+}
+function startInHangar() {   // 작전 시작·새 항공기: 엘리베이터 아래 격납고에서 무장부터 고른다
+  reset(); p.mode = 'lift'; p.xr = ELEV_C; p.x = ship.x + p.xr; p.vr = 0; p.el = { st: 'pick', t: 0, y: -ELEV_DEPTH, sv: 0, fuel0: p.fuel, hp0: p.hp }; p.y = DECK_Y + WH - ELEV_DEPTH; G.pickSel = G.loadout;
 }
 function startLift() { if (!overElev()) return; p.mode = 'lift'; p.vr = 0; p.el = { st: 'slide', t: 0, y: 0, sv: 0, fuel0: p.fuel, hp0: p.hp }; sfx('clunk'); }
 function liftUp() {
@@ -509,7 +512,7 @@ function liftStep(dt) {
 }
 const PICK_CARDS = [0, 1, 2].map(i => ({ x: 165 + i * 215, y: 150, w: 200, h: 200 }));
 function drawPick(c) {   // 격납고: 무장 세 가지 중 하나 고르기
-  c.fillStyle = 'rgba(6,14,26,0.82)'; c.fillRect(140, 70, 680, 330);
+  c.fillStyle = '#0b1726'; c.fillRect(140, 70, 680, 330);
   c.textAlign = 'center'; c.fillStyle = '#ffd23f'; c.font = '800 24px system-ui,sans-serif'; c.fillText('Hangar — choose your load', 480, 108);
   c.fillStyle = '#b9c7d8'; c.font = '600 13px system-ui,sans-serif'; c.fillText('Refueled and repaired · every load carries 2,400 gun rounds · ships sink only to torpedoes', 480, 132);
   PICK_CARDS.forEach((r, i) => {
@@ -732,12 +735,12 @@ function startMission(i) {
     ISLANDS.forEach(q => { a = Math.min(a, q.a); b = Math.max(b, q.b); }); TARGETS.forEach(t => { a = Math.min(a, t.x - BOX[t.type].w); b = Math.max(b, t.x + BOX[t.type].w); });
     G.map = { a: a - 200, b: b + 300 };
   }
-  reset();
-  G.toast = { text: mLabel(M) + ' — ' + M.brief, grade: 'green', until: G.t + 7 };
+  startInHangar();
+  G.toast = null; G.brief = mLabel(M) + ' — ' + M.brief;   // 작전 설명은 무장을 고른 뒤에 보여 준다
 }
 function goMenu() { const fromTitle = G.scene === 'title'; G.paused = false; G.askQuit = false; G.help = false; G.scene = 'menu'; G.sel = fromTitle ? 0 : (G.mi || 0); G.menuMsg = ''; G.demoFire = false; for (const k in keys) keys[k] = false; }
 function tryStart(i) { if (unlocked(i)) startMission(i); else G.menuMsg = 'Finish the previous operation first'; }
-function afterCrash() { if (G.lives <= 0) endMission(false, 'All aircraft lost'); else reset(); }
+function afterCrash() { if (G.lives <= 0) endMission(false, 'All aircraft lost'); else startInHangar(); }   // 새 항공기도 격납고에서 무장을 고르고 올라온다
 function endMission(win, why) {
   if (G.scene === 'title') return;
   const m = G.m; if (!m || m.done) return; m.done = true;
@@ -1498,7 +1501,7 @@ const FIRE = [{ k: 'gun', x: 250, y: 456, w: 105, h: 60, label: 'Gun', key: 'Spa
 const LANDBTN = { x: 330, y: 392, w: 300, h: 50 };
 
 // 첫 화면: 2번 작전 섬 위에서 자동으로 날아다니며 싸우는 데모
-function startDemo() { startMission(1); G.scene = 'title'; G.toast = null; G.lives = 99; G.demo = { t: 0, ct: 0, z: 0 }; }
+function startDemo() { startMission(1); reset(); G.scene = 'title'; G.toast = null; G.lives = 99; G.demo = { t: 0, ct: 0, z: 0 }; }
 function demoBot(dt) {
   const D = G.demo; D.t += dt;
   const K = (u, l, r, f) => { keys.ArrowUp = u > 0; keys.ArrowDown = u < 0; keys.ArrowLeft = !!l; keys.ArrowRight = !!r; G.demoFire = !!f; };
@@ -1680,8 +1683,7 @@ addEventListener('keydown', e => {
   if (G.paused) { G.paused = false; G.askQuit = false; return; }
   if (e.code === 'KeyV') fireTorpedo();
   if (e.code === 'KeyM') setMuted(!sound.muted);
-  if (e.code === 'KeyR' && G.result) afterCrash();
-  if (e.code === 'Enter' && G.result) afterCrash();
+  if ((e.code === 'KeyR' || e.code === 'Enter') && G.result) { afterCrash(); return; }   // 결과창을 닫는 키는 다른 동작(무장 고르기 등)을 하지 않는다
   if (hangarOpen()) {
     if (e.code === 'Digit1' || e.code === 'KeyX') pickLoad(0); else if (e.code === 'Digit2' || e.code === 'KeyC') pickLoad(1); else if (e.code === 'Digit3' || e.code === 'KeyV') pickLoad(2);
     else if (e.code === 'ArrowLeft') G.pickSel = (G.pickSel + 2) % 3; else if (e.code === 'ArrowRight') G.pickSel = (G.pickSel + 1) % 3;

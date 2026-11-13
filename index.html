@@ -184,6 +184,27 @@ function lsoSignal() {
 }
 
 // ───────── 접지, 충돌, 판정 ─────────
+// 갑판에서 착함 실패: 아주 빠르거나 아주 세게 부딪히면 폭발, 아니면 미끄러지며 부서지고 연기만 난다
+function deckFail(why) {
+  if (kts() > LAND_KT + 30 || p.vy < -LAND_SINK * 2) return crash(why);
+  G.lives--; if (G.m) G.m.crashes++; p.crashWhy = why;
+  p.mode = 'dslide'; p.xr = p.x - ship.x; p.vr = p.vx - ship.v; p.y = DECK_Y + WH; p.vy = 0; p.turn = 0; p.slT = 0; p.gear = false; p.hook = false;
+  p.wreckTilt = (Math.random() < 0.5 ? -1 : 1) * 0.12; sfx('thump'); sfx('hit');
+  for (let i = 0; i < 14; i++) FX.push({ k: 'spark', x: p.x, y: DECK_Y + 0.3, vx: p.vx * 0.3 + (Math.random() - 0.5) * 20, vy: 3 + Math.random() * 9, life: 0.4, t: 0 });
+}
+function dslideStep(dt) {   // 동체로 갑판 위를 미끄러진다: 불꽃, 연기, 날개 쪽이 기운다
+  p.slT += dt; const d = Math.sign(p.vr) || 1;
+  p.vr -= d * 15 * dt; if (p.vr * d < 0) p.vr = 0;
+  p.xr += p.vr * dt; p.x = ship.x + p.xr; p.y = DECK_Y + WH - 0.4; p.vx = p.vr + ship.v; p.vy = 0;
+  p.th = (p.s > 0 ? 0 : Math.PI) + p.wreckTilt;
+  if (Math.random() < dt * 30) FX.push({ k: 'spark', x: p.x, y: DECK_Y + 0.3, vx: ship.v - p.vr * 0.3 + (Math.random() - 0.5) * 10, vy: 2 + Math.random() * 6, life: 0.35, t: 0 });
+  if (Math.random() < dt * 14) FX.push({ k: 'smoke', x: p.x, y: DECK_Y + 2, vx: ship.v - 3, vy: 3, life: 1.2, t: 0, s: 2 });
+  if (p.xr < -4 || p.xr > DECK_L + 4) { p.mode = 'fall'; p.vy = -2; p.slHit = new Set(); return; }   // 갑판 밖으로 미끄러져 바다로
+  if (p.vr === 0) {   // 멈춤: 부서진 기체가 갑판 위에 남아 연기를 낸다 (폭발하지 않는다)
+    p.mode = 'down'; G.result = { kind: 'wreck', why: p.crashWhy, at: G.t, sea: false };
+    G.burn = { xr: p.xr, y: DECK_Y + 1.5, until: G.t + 14, next: 0, smokeOnly: true };
+  }
+}
 function crash(why, ditch) {
   const xr = p.x - ship.x, onShip = xr > -12 && xr < DECK_L + 12 && p.y < DECK_Y + 30;
   if (!ditch && p.mode === 'air' && !onShip && p.y > 3) {   // 바로 터지지 않는다: 떨어지거나(공중) 땅에 닿으면 관성으로 미끄러진다
@@ -249,7 +270,7 @@ function boom(x, y, vx, vy, sea) {
 function stepFx(dt) {
   if (G.burn && G.t < G.burn.until && G.t >= G.burn.next) {   // 잔해에서 연기와 불이 계속 오른다
     G.burn.next = G.t + 0.07; const bx = ship.x + G.burn.xr + (Math.random() - 0.5) * 6;
-    FX.push({ k: Math.random() < 0.35 ? 'fire' : 'smoke', x: bx, y: G.burn.y + Math.random() * 2, vx: ship.v - 4 + Math.random() * 3, vy: 5 + Math.random() * 5, life: 1.4 + Math.random(), t: 0, s: 2 + Math.random() * 3 });
+    FX.push({ k: !G.burn.smokeOnly && Math.random() < 0.35 ? 'fire' : 'smoke', x: bx, y: G.burn.y + Math.random() * 2, vx: ship.v - 4 + Math.random() * 3, vy: 5 + Math.random() * 5, life: 1.4 + Math.random(), t: 0, s: 2 + Math.random() * 3 });
   }
   for (let i = FX.length - 1; i >= 0; i--) {
     const q = FX[i]; q.t += dt; q.life -= dt;
@@ -309,16 +330,16 @@ function checkContact() {
     if (G.t < (p.bounceT || 0)) { p.y = DECK_Y + WH; p.prevY = p.y; if (p.vy < 0) p.vy = 0; return; }   // 튕기는 동안에는 갑판이 받쳐 준다 (갑판을 뚫고 내려가지 않는다)
     const wasAbove = p.prevY - WH >= DECK_Y - 0.6 && xr >= 0 && xr <= DECK_L;
     if (!wasAbove) return crash('선체에 부딪혔다. 너무 낮았다.');
-    if (p.turn > 0) return crash('선회 중에 날개가 갑판에 부딪혔다. 선회하는 동안은 착함할 수 없다.');
+    if (p.turn > 0) return deckFail('선회 중에 날개가 갑판에 부딪혔다. 선회하는 동안은 착함할 수 없다.');
     const kt = kts(), pitch = levelPitch();
-    if (!p.gear || p.s * p.vx <= 0) return crash('바퀴가 아닌 곳으로 내렸다.');
-    if (p.vy < -LAND_SINK) return crash('너무 세게 내려앉았다. 천천히 내려와야 한다.');
+    if (!p.gear || p.s * p.vx <= 0) return deckFail('바퀴가 아닌 곳으로 내렸다.');
+    if (p.vy < -LAND_SINK) return deckFail('너무 세게 내려앉았다. 천천히 내려와야 한다.');
     if (kt > LAND_KT) {   // 너무 빠르면 부서지지 않고 튕겨 오른다
       p.vy = Math.min(12, 5 + (kt - LAND_KT) * 0.15); p.vx *= 0.96; p.y = DECK_Y + WH + 0.4; p.prevY = p.y; p.bounceT = G.t + 0.6; p.hp = Math.max(30, p.hp - 10);
       sfx('thump'); for (let i = 0; i < 10; i++) FX.push({ k: 'spark', x: p.x, y: DECK_Y + 0.3, vx: p.vx * 0.3 + (Math.random() - 0.5) * 20, vy: 3 + Math.random() * 10, life: 0.4, t: 0 });
       return;
     }
-    if (Math.abs(pitch) > LAND_PITCH) return crash('수평이 아니었다. 기수를 너무 ' + (pitch > 0 ? '들었다.' : '숙였다.'));
+    if (Math.abs(pitch) > LAND_PITCH) return deckFail('수평이 아니었다. 기수를 너무 ' + (pitch > 0 ? '들었다.' : '숙였다.'));
     p.td = { kt, sink: -p.vy, pitch }; sfx('thump');
     p.ld = p.s > 0 ? 1 : -1; const hx0 = xr - p.ld * HOOK_BACK;   // 후크가 처음 닿을 와이어: 진행 방향 앞쪽 첫 번째
     p.wx = p.ld > 0 ? (WIRES.find(w => w >= hx0) ?? null) : ([...WIRES].reverse().find(w => w <= hx0) ?? null);
@@ -1433,6 +1454,8 @@ function update(dt) {
   else if (p.mode === 'taxi') taxiStep(dt);
   else if (p.mode === 'lift') liftStep(dt);
   else if (p.mode === 'fall' || p.mode === 'slide') crashStep(dt);
+  else if (p.mode === 'dslide') dslideStep(dt);
+  else if (p.mode === 'down' && G.result && G.result.kind === 'wreck') { p.x = ship.x + p.xr; p.y = DECK_Y + WH - 0.4; p.vx = ship.v; }   // 갑판 위 잔해는 배와 함께 간다
   else if (p.mode === 'down') { p.y = Math.max(1, p.y - 6 * dt); p.x += p.vx * dt; p.vx *= 1 - Math.min(1, 2 * dt); }
   if (p.mode === 'air' || (p.mode === 'deck' && !p.held)) p.fuel = Math.max(0, p.fuel - (0.03 + 0.25 * p.thr) * dt);
   G.lso = lsoSignal(); fireStep(dt); stepProj(dt); missionStep(dt); enemyStep(dt); ebStep(dt); flakStep(dt); shellStep(dt); stepFx(dt);
@@ -1841,7 +1864,7 @@ function drawWorld() {
   drawIsland(c); drawTargets(c); drawSoldiers(c); drawLanding(c);
   drawShip();
   // 플레이어 기체
-  if (p.mode !== 'down' || G.result.kind === 'ditch') {
+  if (p.mode !== 'down' || G.result.kind === 'ditch' || G.result.kind === 'wreck') {
     world(p.x, p.y, () => {
       if (p.flip > 0) { const f = clamp(1 - p.flip / DECK_FLIP_T, 0, 1); drawPlane3D((p.flipFrom > 0 ? 0 : Math.PI) + Math.PI * f, 0, true); }
       else if (p.turn > 0) {
@@ -1994,7 +2017,7 @@ function drawHUD() {
   const hm = G.paused ? '' : hint();
   if (hm) { const tw = fitFont(c, hm, 16, '700', MSG_W - 30); panel(MSG_CX - tw / 2 - 14, 96, tw + 28, 34, 0.7); c.fillStyle = '#fff'; c.textAlign = 'center'; c.fillText(hm, MSG_CX, 119); }
   // 결과
-  if (G.result && (G.result.kind !== 'crash' || G.t - G.result.at > 2.6)) {
+  if (G.result && ((G.result.kind !== 'crash' && G.result.kind !== 'wreck') || G.t - G.result.at > 2.6)) {
     const r = G.result; panel(250, 150, 460, 250, 0.86); c.textAlign = 'center';
     const col = { green: '#59d37a', yellow: '#ffd23f', brown: '#a9793f', red: '#ff5a3c', barrier: '#8a94a0' };
     const name = { green: '완벽', yellow: '양호', brown: '미흡', red: '위험', barrier: '방벽' };

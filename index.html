@@ -1451,7 +1451,7 @@ function demoBot(dt) {
   for (const e of ENE) if (!e.dead && (e.type === 'd4y' || e.type === 'b6n') && !e.rel && Math.hypot(e.x - p.x, e.y - p.y) < 2500) { en = e; if (p.turn <= 0 && kts() > TURN_KT + 5 && (e.x - p.x) * (p.s > 0 ? 1 : -1) < -150) D.turnB = true; break; }   // 폭격기를 먼저 잡는다
   if (D.turnB) { D.turnB = false; if (dir > 0) l = 1; else r = 1; }   // 폭격기가 뒤에 있으면 돌아선다
   let ground = 0; for (let k = 0; k <= 8; k++) ground = Math.max(ground, gh(p.x + dir * k * 45));   // 앞쪽 언덕까지 본다
-  let alt = en ? en.y : tgt ? (SHIPS[tgt.type] ? 40 : tgt.y + 70) : 150;   // 배를 노릴 때는 낮게 (어뢰) alt = Math.max(alt, ground + 55);
+  let alt = en ? en.y : tgt ? (SHIPS[tgt.type] ? 28 : tgt.y + 70) : 150;   // 배를 노릴 때는 낮게 (어뢰) alt = Math.max(alt, ground + 55);
   let u = p.y < alt - 6 ? 1 : p.y > alt + 10 ? -1 : 0;
   if (tgt && !en && Math.abs(tgt.x - p.x) < 450 && p.y - tgt.y > 35) u = -1;   // 표적으로 얕게 내려간다
   if (p.y - ground < 50 || (p.vy < -10 && p.y - ground < 140) || (p.vy < -25 && p.y - ground < 220)) u = 1;           // 땅이 가까우면 올라간다
@@ -1462,7 +1462,7 @@ function demoBot(dt) {
   if (!fire) for (const o of SOLD) if (o.alive && o.st !== 'enter' && (o.x - p.x) * dir > 30 && (o.x - p.x) * dir < 500 && aim(o.x, o.y + 3)) { fire = true; break; }
   K(u, l, r, fire);
   if (!fire && tgt) {
-    if (SHIPS[tgt.type] && p.y < 70 && Math.abs(tgt.x - p.x) < 600 && G.t > (D.tpT || 0)) { fireTorpedo(); D.tpT = G.t + 3; }   // 배는 어뢰로
+    if (SHIPS[tgt.type] && p.y < TORP_H - 3 && Math.abs(tgt.x - p.x) < 600 && G.t > (D.tpT || 0)) { fireTorpedo(); D.tpT = G.t + 3; }   // 배는 어뢰로
     else if (aim(tgt.x, tgt.y + 2) && G.t > (D.rkT || 0) && (!SHIPS[tgt.type] || (tgt.guns && tgt.guns.some(g => g.alive)))) { fireRocket(); D.rkT = G.t + 0.7; }
     else if (tgt.type !== 'pill' && !SHIPS[tgt.type] && p.y > tgt.y + 15) { const h = p.y - 2.5 - tgt.y, gg = GRAV * 2.4, v0 = p.vy - 15, tf = (v0 + Math.sqrt(Math.max(0, v0 * v0 + 2 * gg * h))) / gg, lead = (tgt.x - p.x) - p.vx * tf; if (Math.abs(lead) < 12 && G.t > (D.bmT || 0)) { dropBomb(); D.bmT = G.t + 1.2; } }
   }

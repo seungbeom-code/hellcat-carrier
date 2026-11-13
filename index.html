@@ -420,7 +420,8 @@ function updateSound(dt) {
 }
 
 // ───────── 갑판 위 이동과 엘리베이터 ─────────
-function startFlip(dir) { p.flipFrom = p.s; p.flipTo = dir; p.flip = 0.6; p.vr = 0; }
+const DECK_FLIP_T = 1.8;   // 갑판에서 돌아서는 시간(초): 전보다 3배 느리게
+function startFlip(dir) { p.flipFrom = p.s; p.flipTo = dir; p.flip = DECK_FLIP_T; p.vr = 0; }
 function startTakeoff() { p.mode = 'deck'; p.landing = false; p.held = false; p.go = true; p.flagT = 0; p.vr = Math.max(0, p.vr); p.pushT = 0; }
 function taxiStep(dt) {
   p.y = DECK_Y + WH; p.vy = 0;
@@ -1843,7 +1844,7 @@ function drawWorld() {
   // 플레이어 기체
   if (p.mode !== 'down' || G.result.kind === 'ditch') {
     world(p.x, p.y, () => {
-      if (p.flip > 0) { const f = clamp(1 - p.flip / 0.6, 0, 1); drawPlane3D((p.flipFrom > 0 ? 0 : Math.PI) + Math.PI * f, 0, true); }
+      if (p.flip > 0) { const f = clamp(1 - p.flip / DECK_FLIP_T, 0, 1); drawPlane3D((p.flipFrom > 0 ? 0 : Math.PI) + Math.PI * f, 0, true); }
       else if (p.turn > 0) {
         const f = clamp(1 - p.turn / TURN_T, 0, 1);
         drawPlane3D((p.v0 > 0 ? 0 : Math.PI) + Math.PI * f, Math.sin(Math.PI * f) * 1.0, p.gear);

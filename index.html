@@ -499,7 +499,7 @@ const DMG = {
 Object.assign(HP, { barracks: 12, pill: 14 }); BOX.pill = { w: 28, h: 13 }; DMG.gun.pill = 0; DMG.rocket.pill = 5; DMG.bomb.pill = 0; DMG.gun.bunker = 0;
 Object.assign(HP, { barracks: 12 }); Object.assign(BOX, { barracks: { w: 26, h: 9 }, aa: { w: 11, h: 9 } }); DMG.gun.barracks = 0.15; DMG.rocket.barracks = 4; DMG.bomb.barracks = 10;
 const JP = { pill: 1, aa: 1, bunker: 1, cave: 1, radar: 1, barracks: 1, tank: 1 };   // 일본군이 있는 시설
-const SHIPS = { boat: 1, dd: 1, tr: 1, bb: 1, cv: 1 }, DEF_W = { pill: 2, aa: 1, bunker: 1.5, cave: 2, radar: 1 }, AA_N = { aa: 1, dd: 2, bb: 4, cv: 3, tr: 1, cave: 1 }, AA_R = { aa: 1500, cave: 1200, dd: 1100, bb: 1200, cv: 1100, tr: 1000 };
+const SHIPS = { boat: 1, dd: 1, tr: 1, bb: 1, cv: 1 }, DEF_W = { pill: 2, aa: 1, bunker: 1.5, cave: 2, radar: 1 }, AA_N = { pill: 2, aa: 1, dd: 2, bb: 4, cv: 3, tr: 1, cave: 1 }, AA_R = { pill: 1500, aa: 1500, cave: 1200, dd: 1100, bb: 1200, cv: 1100, tr: 1000 };
 const TARGETS = [], PROJ = [], TREES = [], ENE = [], EB = [], FLAK = [], SOLD = [];
 const ES = { zero: { v: 125, n: 5.0, hp: 4 }, ace: { v: 140, n: 6.0, hp: 8 }, n1k: { v: 145, n: 5.5, hp: 9 }, d4y: { v: 105, n: 2.6, hp: 6 }, b6n: { v: 100, n: 2.2, hp: 7 } };   // 속도(m/s), 견딜 수 있는 선회 g, 체력
 const TINTS = { day: ['#4f9ad6', '#bfe4f5'], dawn: ['#3b5f99', '#f0b49a'], dusk: ['#4a4f8c', '#f2a65a'], night: ['#0b1430', '#2a3f66'] };
@@ -791,7 +791,7 @@ function ebStep(dt) {
     if (b.life <= 0 || b.y <= gh(b.x)) EB.splice(i, 1);
   }
 }
-const SHELL = [], HOW = { pill: { cd: 7, r: 1600, n: 1 }, bunker: { cd: 9, r: 1200, n: 1 } };
+const SHELL = [], HOW = { bunker: { cd: 9, r: 1200, n: 1 } }   // 곡사포는 일반 벙커만;
 function shellStep(dt) {   // 벙커의 곡사포: 내 비행기가 갈 곳을 내다보고 포물선으로 쏜다, 가까이에서 터지면 피해
   for (const t of TARGETS) {
     const H = HOW[t.type]; if (!H || !t.alive) continue;
@@ -823,7 +823,7 @@ function flakStep(dt) {
     if (p.mode !== 'air') continue;
     const d = Math.hypot(p.x - t.x, p.y - t.y); if (d > (AA_R[t.type] || 1100) || d < 25) continue;
     t.flashT = G.t; if (d < 1300 && Math.random() < 0.5) sfx('gun');
-    const hy = t.y + (SHIPS[t.type] ? BOX[t.type].h * 0.7 : t.type === 'aa' ? 7 : 4);
+    const hy = t.y + (SHIPS[t.type] ? BOX[t.type].h * 0.7 : t.type === 'aa' ? 7 : t.type === 'pill' ? 14 : 4);
     for (let k = 0; k < AA_N[t.type]; k++) { const f = 0.4 + Math.random() * 0.4, err = 35 + d * 0.04; FLAK.push({ x0: t.x, y0: hy, x: p.x + p.vx * f + (Math.random() - 0.5) * err * 2, y: p.y + p.vy * f + (Math.random() - 0.5) * err, t: f, life: f }); }
   }
   for (let i = FLAK.length - 1; i >= 0; i--) {
@@ -1084,7 +1084,13 @@ function drawTarget(c, t, dead) {
       rect(-3.4, 2.1, 6.8, 0.8, '#121410'); rect(-0.4, 2.3, 3.6, 0.35, '#2a2c28');
       poly([[-7, 0], [-9.5, 0], [-7, 2.6]], '#8a8a80'); poly([[7, 0], [9.5, 0], [7, 2.6]], '#8a8a80');
       c.fillStyle = 'rgba(0,0,0,0.18)'; c.beginPath(); c.arc(-4, 3.2, 0.5, 0, 7); c.arc(4.5, 1.2, 0.4, 0, 7); c.fill();
-      drawHowitzer(c, t, 1.5, 5.75, 1);
+      {   // 지붕 위 고사포: 쌍포신이 내 비행기를 따라 돌고, 쏠 때 섬광
+        const an = p.mode === 'air' ? clamp(Math.atan2(p.y - t.y - 13, p.x - t.x), 0.2, Math.PI - 0.2) : 1.1, ca = Math.cos(an), sa = Math.sin(an);
+        c.fillStyle = '#5d6650'; c.fillRect(-1, 5.75, 5, 1); c.beginPath(); c.arc(1.5, 7.2, 1.5, 0, 7); c.fill();
+        c.fillStyle = '#47503d'; c.fillRect(-0.4, 6.6, 3.8, 1.3);
+        c.strokeStyle = '#262b20'; c.lineWidth = 0.38; [-0.3, 0.3].forEach(o => { c.beginPath(); c.moveTo(1.5 + o, 7.3); c.lineTo(1.5 + o + ca * 4.2, 7.3 + sa * 4.2); c.stroke(); });
+        if (G.t - (t.flashT || -9) < 0.12) { c.fillStyle = 'rgba(255,220,120,0.95)'; c.beginPath(); c.arc(1.5 + ca * 4.7, 7.3 + sa * 4.7, 1.1, 0, 7); c.fill(); }
+      }
       break;
     }
     case 'bunker': {   // 일반 벙커: 통나무 지붕과 모래주머니

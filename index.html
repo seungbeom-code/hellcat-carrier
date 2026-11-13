@@ -618,48 +618,71 @@ const OPS = ['Storm', 'Lightning', 'Hammer', 'Spear', 'Wave', 'Eagle', 'Hawk', '
 const TINT_KO = { day: 'Day', dawn: 'Dawn', dusk: 'Dusk', night: 'Night' };
 const mLabel = M => M.gen ? 'Op ' + M.lvl + ' — ' + M.name : (G.mi + 1) + '. ' + M.name;
 function rngOf(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+// 레벨 1~10은 정해진 순서로 조금씩 어렵게, 11부터는 무작위로 점점 어렵게 (s 작은 섬, b 큰 섬, 함정 dd 구축함·tr 수송선·bb 전함·cv 항모)
+const LEVEL_PLAN = [null,
+  { isl: ['s'], ships: [], goal: 'capture', waves: 0 },               // 1: 작은 섬 1
+  { isl: ['s', 's'], ships: [], goal: 'capture', waves: 1 },          // 2: 작은 섬 2
+  { isl: ['b'], ships: [], goal: 'capture', waves: 1 },               // 3: 큰 섬 1 (비행장에서 적기 이륙)
+  { isl: ['s'], ships: ['bb'], goal: 'capture', waves: 1 },           // 4: 작은 섬 1 + 전함 1
+  { isl: ['s', 'b'], ships: [], goal: 'capture', waves: 2 },          // 5: 작은 섬 1 + 큰 섬 1
+  { isl: ['s'], ships: ['cv', 'dd'], goal: 'capture', waves: 2 },     // 6: 작은 섬 1 + 항모 1 + 구축함 1
+  { isl: [], ships: [], goal: 'defend', waves: 3 },                   // 7: 함대 방어
+  { isl: ['s', 's', 'b'], ships: [], goal: 'capture', waves: 3 },     // 8: 작은 섬 2 + 큰 섬 1
+  { isl: ['b'], ships: ['bb', 'dd', 'dd'], goal: 'capture', waves: 3 }, // 9: 큰 섬 1 + 전함 1 + 구축함 2
+  { isl: ['b', 'b'], ships: ['cv'], goal: 'capture', waves: 4 }       // 10: 큰 섬 2 + 항모 1
+];
 function genMission(L, seed) {
   const R = rngOf(seed), pick = a => a[Math.floor(R() * a.length)], ri = (a, b) => a + Math.floor(R() * (b - a + 1));
-  let goal = 'capture';
-  if (L >= 2) { const r = R(); goal = r < 0.55 ? 'capture' : r < 0.7 ? 'air' : r < 0.85 ? 'fleet' : L >= 3 ? 'defend' : 'capture'; }
-  const tint = L < 3 ? 'day' : pick(L >= 5 ? ['day', 'day', 'dawn', 'dusk', 'night'] : ['day', 'day', 'dawn', 'dusk']);
+  let spec = LEVEL_PLAN[L];
+  if (!spec) {   // 11레벨부터: 섬 수·크기, 함정, 작전 종류를 무작위로, 레벨이 오를수록 많이
+    const r = R(), pBig = clamp(0.3 + L * 0.02, 0.3, 0.7), nI = ri(1, Math.min(4, 1 + Math.floor(L / 4))), isl = [];
+    for (let k = 0; k < nI; k++) isl.push(R() < pBig ? 'b' : 's');
+    const ships = []; if (R() < 0.55) for (let k = 0, n = ri(1, Math.min(5, 1 + Math.floor(L / 5))); k < n; k++) ships.push(pick(['dd', 'dd', 'tr', 'bb', 'cv']));
+    if (r < 0.1) spec = { isl: [], ships: [], goal: 'defend', waves: Math.min(6, 2 + Math.floor(L / 4)) };
+    else if (r < 0.2) spec = { isl: ['b', 's', 'b'].slice(0, Math.max(2, nI)), ships: [], goal: 'air', waves: Math.min(6, Math.floor(L / 2)) };
+    else if (r < 0.32) spec = { isl: [], ships: ships.length ? ships.concat(['dd']) : ['cv', 'dd', 'bb'], goal: 'fleet', waves: Math.min(6, Math.floor(L / 2)) };
+    else spec = { isl, ships, goal: 'capture', waves: Math.min(6, Math.floor(L / 2)) };
+  }
+  const goal = spec.goal, tint = L < 3 ? 'day' : pick(L >= 5 ? ['day', 'day', 'dawn', 'dusk', 'night'] : ['day', 'day', 'dawn', 'dusk']);
   const place = pick(PLACES), M = { gen: true, lvl: L, seed, name: 'Operation ' + pick(OPS) + ' · ' + place, place, tint, goal, islands: [], waves: [] };
   const fighters = () => { const l = []; for (let k = 0, n = Math.min(7, 2 + Math.floor(L / 3) + ri(0, 1)); k < n; k++) l.push(L >= 7 && R() < 0.2 ? 'n1k' : L >= 4 && R() < 0.15 ? 'ace' : ZR); return l; };
-  const nW = goal === 'defend' ? Math.min(6, 2 + Math.floor(L / 3)) : L === 1 ? 0 : Math.min(6, 1 + Math.floor(L / 2));
-  for (let k = 0; k < nW; k++) {
+  for (let k = 0; k < spec.waves; k++) {
     if (goal === 'defend') { const l = []; for (let j = 0, nb = Math.min(8, 2 + Math.floor(L / 2) + ri(0, 1)); j < nb; j++) l.push(R() < 0.5 ? 'd4y' : 'b6n'); M.waves.push({ t: 25 + k * 70, l: l.concat(fighters().slice(0, ri(1, 3))) }); }
-    else M.waves.push({ t: 40 + k * 95 + ri(0, 20), l: fighters() });
+    else M.waves.push({ t: 40 + k * 95 + ri(0, 20), l: L <= 2 ? [ZR, ZR] : fighters() });
   }
-  if (goal === 'capture' || goal === 'air') {
-    const n = goal === 'air' ? ri(2, Math.min(4, 2 + Math.floor(L / 3))) : ri(1, Math.min(4, 1 + Math.floor(L / 3))), pBig = clamp(0.15 + L * 0.05, 0.15, 0.6);
-    let x = 6000; for (let k = 0; k < n; k++) { const big = goal === 'air' ? k % 2 === 0 : L >= 3 && R() < pBig; M.islands.push([x, big ? 1700 : 1000, 20]); x += (big ? 1700 : 1000) + 300; }
-    const extra = [];
-    M.islands.forEach(([a, w], k) => {
-      const big = w >= 1500;
-      for (let j = 0, na = Math.min(big ? 7 : 4, (big ? 2 : 1) + Math.floor(L / (big ? 2.5 : 3.5)) + ri(0, 1)); j < na; j++) extra.push(['aa', k, 0.2 + R() * 0.6]);
-      if (R() < 0.5) extra.push(['radar', k, 0.3 + R() * 0.4]);
-      if (R() < 0.6) extra.push(['fuel', k, 0.3 + R() * 0.4]);
-      if (big && L >= 4) for (let j = 0, nt = ri(0, Math.min(4, Math.floor(L / 3))); j < nt; j++) extra.push(['tank', k, 0.2 + R() * 0.6]);
-      if (big && L >= 6 && R() < 0.5) for (let j = 0, nc = ri(2, 4); j < nc; j++) extra.push(['cave', k, 0.15 + R() * 0.7]);
-    });
-    const boats = []; for (let j = 0, nb = ri(0, 2 + Math.floor(L / 4)); j < nb; j++) boats.push(5300 + R() * 600);
-    M.build = (add, P) => { extra.forEach(([ty, k, f]) => add(ty, P(k, f))); boats.forEach(bx => add('boat', bx)); };
-    const nBig = M.islands.filter(q => q[1] >= 1500).length;
-    M.isl = 'Small islands ' + (n - nBig) + ' · Large ' + nBig;
-    if (goal === 'air') { M.kind = 'Airbase strike'; M.zeroN = 5 + L; M.brief = 'Shoot down ' + M.zeroN + ' Zeros and destroy every airfield on the large islands'; }
-    else { M.kind = 'Island assault'; M.brief = (n > 1 ? 'Clear all ' + n + ' islands' : 'Clear the island') + ' of every building and soldier to force a surrender'; }
+  // 섬
+  let x = 6000; spec.isl.forEach(t => { const w = t === 'b' ? 1700 : 1000; M.islands.push([x, w, 20]); x += w + 300; });
+  const extra = [];
+  M.islands.forEach(([a, w], k) => {
+    const big = w >= 1500;
+    for (let j = 0, na = Math.min(big ? 7 : 4, (big ? 2 : 1) + Math.floor(L / (big ? 2.5 : 3.5)) + (L > 2 ? ri(0, 1) : 0)); j < na; j++) extra.push(['aa', k, 0.2 + R() * 0.6]);
+    if (R() < 0.5) extra.push(['radar', k, 0.3 + R() * 0.4]);
+    if (R() < 0.6) extra.push(['fuel', k, 0.3 + R() * 0.4]);
+    if (big && L >= 5) for (let j = 0, nt = ri(0, Math.min(4, Math.floor(L / 3))); j < nt; j++) extra.push(['tank', k, 0.2 + R() * 0.6]);
+    if (big && L >= 8 && R() < 0.5) for (let j = 0, nc = ri(2, 4); j < nc; j++) extra.push(['cave', k, 0.15 + R() * 0.7]);
+  });
+  const boats = []; if (M.islands.length && L >= 3) for (let j = 0, nb = ri(0, 1 + Math.floor(L / 5)); j < nb; j++) boats.push(5300 + R() * 500);
+  // 함정: 섬이 있으면 섬 앞바다에, 바다 작전이면 멀리 함대로
+  const ships = spec.ships.map((t, j) => [t, M.islands.length ? 4700 - j * 650 : 6900 + j * 700]);
+  M.build = (add, P) => { extra.forEach(([ty, k, f]) => add(ty, P(k, f))); boats.forEach(bx => add('boat', bx)); ships.forEach(([ty, sx]) => add(ty, sx)); };
+  const nBig = spec.isl.filter(t => t === 'b').length, nSm = spec.isl.length - nBig, SN = { cv: 'carrier', bb: 'battleship', tr: 'transport', dd: 'destroyer' };
+  const shipTxt = ships.length ? Object.entries(ships.reduce((o, [t]) => (o[t] = (o[t] || 0) + 1, o), {})).map(([t, n]) => n + ' ' + SN[t] + (n > 1 ? 's' : '')).join(', ') : '';
+  M.isl = [nSm ? nSm + ' small island' + (nSm > 1 ? 's' : '') : '', nBig ? nBig + ' large island' + (nBig > 1 ? 's' : '') : '', shipTxt].filter(Boolean).join(' · ') || ('Air raids ' + spec.waves);
+  const fleetT = [...new Set(ships.map(q => q[0]))];
+  if (goal === 'capture') {
+    M.kind = ships.length ? 'Island + fleet' : 'Island assault';
+    if (ships.length) { M.fleet = fleetT; M.landAfter = true; }
+    M.brief = (spec.isl.length === 2 ? 'Clear both islands' : spec.isl.length > 2 ? 'Clear all ' + spec.isl.length + ' islands' : 'Clear the island') + ' of every building and soldier' + (ships.length ? ' and sink ' + shipTxt + ' with torpedoes' : ' to force a surrender');
+    M.bonus = m => !m.revived; M.bonusTxt = 'no wrecked bunker or AA gun gets restored';
+  } else if (goal === 'air') {
+    M.kind = 'Airbase strike'; M.zeroN = 5 + L; M.brief = 'Shoot down ' + M.zeroN + ' Zeros and destroy every airfield on the large islands';
     M.bonus = m => !m.revived; M.bonusTxt = 'no wrecked bunker or AA gun gets restored';
   } else if (goal === 'fleet') {
-    const main = []; if (L >= 3 && R() < 0.7) main.push('cv'); if (L >= 5 && R() < 0.6) main.push('bb'); if (!main.length) main.push('tr');
-    const ships = []; let x = 6900;
-    for (let j = 0, nm = main[0] === 'tr' && main.length === 1 ? ri(2, 3) : ri(1, Math.min(4, 1 + Math.floor(L / 4))); j < nm; j++) { ships.push([pick(main), x]); x += 700; }
-    for (let j = 0, nd = ri(1, Math.min(4, 1 + Math.floor(L / 3))); j < nd; j++) ships.push(['dd', 7250 + j * 700]);
-    M.fleet = [...new Set(ships.filter(q => q[0] !== 'dd').map(q => q[0]))]; M.landAfter = true;
-    M.build = add => ships.forEach(([ty, sx]) => add(ty, sx));
-    M.kind = 'Fleet strike'; M.isl = 'Enemy ships ' + ships.length + ''; M.brief = 'Sink every enemy ' + M.fleet.map(t => ({ cv: 'Carrier', bb: 'Battleship', tr: 'Transport' })[t]).join('·') + ' with torpedoes';
+    M.fleet = fleetT.filter(t => t !== 'dd').length ? fleetT.filter(t => t !== 'dd') : fleetT; M.landAfter = true;
+    M.kind = 'Fleet strike'; M.brief = 'Sink ' + shipTxt + ' with torpedoes';
     M.bonus = () => p.fuel >= 10; M.bonusTxt = 'return with over 10% fuel';
   } else {
-    M.build = () => {}; M.kind = 'Fleet defense'; M.isl = 'Air raids ' + nW + ''; M.brief = 'Stop the incoming bombers and torpedo planes to protect the carrier';
+    M.kind = 'Fleet defense'; M.brief = 'Stop the incoming bombers and torpedo planes to protect the carrier';
     M.bonus = () => G.carrierHp >= 70; M.bonusTxt = 'carrier above 70%';
   }
   return M;
@@ -669,7 +692,7 @@ function nextMission() { if (!G.next || G.next.lvl !== G.save.lvl) G.next = genM
 function launchLevel(L) { G.save.lvl = L; G.next = genMission(L, newSeed()); startMission(G.next); }
 const GOALS = {
   train: m => m.landings >= 1 && m.kills >= 3,
-  capture: () => ISLANDS.length > 0 && ISLANDS.every(s => s.cleared) && G.t - Math.max(...ISLANDS.map(s => s.clearT)) > 3 && !(G.tick && G.tick.length),   // 속보가 다 지나간 뒤 끝낸다
+  capture: (m, M) => ISLANDS.length > 0 && ISLANDS.every(s => s.cleared) && !(M.fleet && TARGETS.some(t => M.fleet.includes(t.type) && t.alive)) && G.t - Math.max(...ISLANDS.map(s => s.clearT)) > 3 && !(G.tick && G.tick.length),   // 속보가 다 지나간 뒤 끝낸다
   air: (m, M) => m.zeros >= (M.zeroN || 12) && !TARGETS.some(t => t.type === 'runway' && t.alive),
   defend: (m, M) => m.wave >= M.waves.length && !(m.queue && m.queue.length) && !ENE.some(e => !e.dead && (e.type === 'd4y' || e.type === 'b6n')),
   fleet: (m, M) => !TARGETS.some(t => M.fleet.includes(t.type) && t.alive)
@@ -1124,7 +1147,7 @@ function focusX() { let b = null; for (const t of TARGETS) if (t.alive && (!b ||
 function missionLines() {
   const M = G.cur, m = G.m, out = [], rw = TARGETS.filter(t => t.type === 'runway');
   if (M.goal === 'train') out.push('Landings ' + Math.min(1, m.landings) + '/1 · Targets ' + Math.min(3, m.kills) + '/3');
-  else if (M.goal === 'capture') out.push('Retaken ' + ISLANDS.filter(q => q.cleared).length + '/' + ISLANDS.length + ' islands · Troops ' + SOLD.filter(o => o.alive).length + ' · Buildings ' + TARGETS.filter(t => t.alive && t.isl >= 0 && !SHIPS[t.type]).length + '');
+  else if (M.goal === 'capture') { if (M.fleet) { const fl = TARGETS.filter(t => M.fleet.includes(t.type)); out.push('Ships sunk ' + fl.filter(t => !t.alive).length + '/' + fl.length); } out.push('Retaken ' + ISLANDS.filter(q => q.cleared).length + '/' + ISLANDS.length + ' islands · Troops ' + SOLD.filter(o => o.alive).length + ' · Buildings ' + TARGETS.filter(t => t.alive && t.isl >= 0 && !SHIPS[t.type]).length + ''); }
   else if (M.goal === 'air') out.push('Kills ' + m.zeros + '/' + (M.zeroN || 12) + ' · Airfields ' + rw.filter(t => !t.alive).length + '/' + rw.length);
   else if (M.goal === 'defend') out.push('Air raids ' + Math.min(m.wave, M.waves.length) + '/' + M.waves.length + ' · Carrier ' + Math.round(G.carrierHp) + '%');
   else { const fl = TARGETS.filter(t => M.fleet.includes(t.type)); out.push('Capital ships ' + fl.filter(t => !t.alive).length + '/' + fl.length); }

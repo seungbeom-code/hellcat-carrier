@@ -237,13 +237,22 @@ function endCrash(sea) {
   G.result = { kind: 'crash', why: p.crashWhy || 'Crashed.', at: G.t, sea };
   boom(p.x, Math.max(p.y, 1), p.vx * 0.3, 0, sea);
 }
+function crashBuildings(o, hitSet) {   // 떨어지는 비행기가 건물 몸체에 닿으면 건물이 부서지고 비행기는 속도를 잃는다
+  let hit = false;
+  for (const t of TARGETS) {
+    if (!t.alive || SHIPS[t.type] || hitSet.has(t) || Math.abs(t.x - o.x) > BOX[t.type].w / 2 + 2 || o.y > t.y + BOX[t.type].h + 1 || o.y < t.y - 3) continue;
+    hitSet.add(t); applyDmg(t, 999); hit = true; sfx('hit'); FX.push({ k: 'flash', x: o.x, y: o.y, vx: 0, vy: 0, life: 0.2, t: 0 });
+  }
+  if (hit) { o.vx *= 0.5; o.vy *= 0.5; }
+  return hit;
+}
 function plowThrough(o, x, y, vx, hitSet) {   // 미끄러지는 기체가 지나가며 주는 피해. 반환값: 속도에 곱할 값
   const sp = Math.abs(vx); let k = 1;
   for (const t of TREES) if (t.alive && Math.abs(t.x - x) < 3) { t.alive = false; chips(t.x, t.y + 2, 10, ['#4f8a3c', '#7a5a36', '#4b3621']); k *= 0.85; }
   for (const q of SOLD) if (q.alive && Math.abs(q.x - x) < 5) killSoldier(q);
   for (const t of TARGETS) {
     if (!t.alive || SHIPS[t.type] || hitSet.has(t) || Math.abs(t.x - x) > BOX[t.type].w / 2 + 3 || y > t.y + BOX[t.type].h + 2) continue;
-    hitSet.add(t); applyDmg(t, clamp(sp / 8, 2, 10)); k *= t.type === 'runway' ? 0.9 : 0.45; sfx('hit');
+    hitSet.add(t); applyDmg(t, 999); k *= t.type === 'runway' ? 0.9 : 0.45; sfx('hit');   // 추락한 비행기에 부딪힌 건물은 완전히 부서진다
     FX.push({ k: 'flash', x, y: y + 1, vx: 0, vy: 0, life: 0.2, t: 0 });
   }
   return k;
@@ -254,6 +263,7 @@ function crashStep(dt) {
   if (p.mode === 'fall') {
     p.vy -= GRAV * dt; p.vx *= 1 - 0.15 * dt; p.x += p.vx * dt; p.y += p.vy * dt;
     p.th = Math.atan2(p.vy, p.vx);
+    if (!p.slHit) p.slHit = new Set(); crashBuildings(p, p.slHit);
     const xr = p.x - ship.x;
     if (xr > -4 && xr < DECK_L + 4 && p.y <= DECK_Y + WH) { p.y = DECK_Y + WH; return endCrash(false); }   // 항모 갑판에 떨어짐
     const g = gh(p.x);
@@ -921,6 +931,7 @@ function enemyStep(dt) {
         continue;
       }
       e.vy -= 24 * dt; e.x += e.vx * dt; e.y += e.vy * dt;
+      if (!e.hit) e.hit = new Set(); crashBuildings(e, e.hit);
       if (Math.random() < dt * 20) FX.push({ k: Math.random() < 0.4 ? 'fire' : 'smoke', x: e.x, y: e.y, vx: 0, vy: 2, life: 0.9, t: 0, s: 1.6 });
       const g = gh(e.x); if (g > 0 && e.y <= g + 1) { e.slide = true; e.slT = 0; e.hit = new Set(); e.y = g + 1; e.vx *= 0.7; dirtBurst(e.x, g, 2); }
       else if (e.y <= g || e.y <= 0) { explode(e.x, Math.max(e.y, g), 10, 'none', g <= 0); ENE.splice(i, 1); }

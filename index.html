@@ -2383,6 +2383,22 @@ function autoFly(dt) {
 const sx = x => (x - cam.x) * cam.z + W / 2, sy = y => H / 2 - (y - cam.y) * cam.z;
 function world(x, y, fn) { ctx.save(); ctx.translate(sx(x), sy(y)); ctx.scale(cam.z, -cam.z); fn(); ctx.restore(); }
 
+function drawPlaneFront(c) {   // 정면에서 본 아군기: 날개 끝을 위로 접고 갑판에 서 있다 (원점: 기체 중심)
+  const navy = '#3f72b8', dk = '#2a4d84', lt = '#86b0e2';
+  c.strokeStyle = '#9aa3ad'; c.lineWidth = 0.35; c.beginPath(); c.moveTo(-1.5, -1.0); c.lineTo(-1.9, -2.4); c.moveTo(1.5, -1.0); c.lineTo(1.9, -2.4); c.stroke();
+  c.fillStyle = '#222'; [-1.9, 1.9].forEach(x => { c.beginPath(); c.ellipse(x, -2.5, 0.38, 0.7, 0, 0, 7); c.fill(); });
+  [-1, 1].forEach(sd => {   // 접힌 날개: 안쪽 날개는 옆으로, 바깥쪽은 위로 꺾여 올라간다
+    c.fillStyle = dk; c.beginPath(); c.moveTo(sd * 1.0, -0.2); c.lineTo(sd * 2.5, -0.4); c.lineTo(sd * 2.5, -1.1); c.lineTo(sd * 1.0, -1.0); c.closePath(); c.fill();
+    c.fillStyle = navy; c.beginPath(); c.moveTo(sd * 2.2, -0.5); c.lineTo(sd * 2.9, -0.7); c.lineTo(sd * 3.4, 3.6); c.lineTo(sd * 2.7, 3.6); c.closePath(); c.fill();
+    c.fillStyle = '#e9edf0'; c.beginPath(); c.moveTo(sd * 3.4, 3.6); c.lineTo(sd * 2.7, 3.6); c.lineTo(sd * 2.8, 2.7); c.lineTo(sd * 3.35, 2.7); c.closePath(); c.fill();
+  });
+  c.fillStyle = navy; c.beginPath(); c.ellipse(0, 0.2, 1.55, 1.9, 0, 0, 7); c.fill();
+  c.fillStyle = lt; c.beginPath(); c.ellipse(0, -1.0, 1.1, 0.7, 0, 0, 7); c.fill();
+  c.fillStyle = '#bfe3f2'; c.beginPath(); c.ellipse(0, 1.9, 0.7, 0.55, 0, 0, 7); c.fill();
+  c.fillStyle = dk; c.beginPath(); c.arc(0, 0, 1.4, 0, 7); c.fill(); c.fillStyle = '#4a5f7a'; c.beginPath(); c.arc(0, 0, 0.55, 0, 7); c.fill();
+  c.fillStyle = '#c9ced4'; c.beginPath(); c.arc(0, 0, 0.3, 0, 7); c.fill();
+  c.strokeStyle = '#2b2b2b'; c.lineWidth = 0.38; c.lineCap = 'round'; c.beginPath(); c.moveTo(-0.9, 2.4); c.lineTo(0.9, -2.4); c.stroke(); c.lineCap = 'butt';   // 멈춘 프로펠러
+}
 function drawPlane(o) {   // 원점: 기체 중심, 오른쪽이 기수, 단위 m
   const c = ctx;
   if (o.hook) { c.strokeStyle = '#333'; c.lineWidth = 0.28; c.beginPath(); c.moveTo(-5.5, -0.8); c.lineTo(-7.5, -2.95); c.lineTo(-7.0, -3.05); c.stroke(); }
@@ -2658,7 +2674,7 @@ function drawShip() {
     c.strokeStyle = '#d9dde2'; c.lineWidth = 0.4;
     lsoSmall(c);   // 함교 날개에 선 신호장교
     // 남은 예비 항공기: 날개 끝을 위로 접어 갑판 뒤쪽에 세워 둔다 (잃을 때마다 하나씩 줄어든다)
-    for (let i = 0; i < Math.min(2, Math.max(0, G.lives - 1)); i++) { c.save(); c.translate(i ? 480 : 18, DECK_Y + WH); drawPlane({ fold: true, gear: true, hook: true, flaps: false, thr: 0 }); c.restore(); }
+    for (let i = 0; i < Math.min(2, Math.max(0, G.lives - 1)); i++) { c.save(); c.translate(i ? 214 : 266, DECK_Y + 3.1); drawPlaneFront(c); c.restore(); }
     // 발진 장교와 깃발
     {   // 갑판 신호수: ① 엘리베이터에서 멀면 엘리베이터 쪽으로 깃발을 가리키며 유도 ② 엘리베이터 위에서는 멈춤 ③ 출발할 때는 이륙 신호만
       const t = G.t, side = 30;

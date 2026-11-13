@@ -150,25 +150,23 @@ function deckStep(dt) {
     if (p.vr === 0) finish();
     return;
   }
-  const V = p.vr + ship.v;
-  if (p.held) {
-    p.vr = 0; p.th = tailSit(ship.v);
-    if (p.thr > 0.8) { p.flagT += dt; if (p.flagT > 0.8) { p.held = false; sfx('flag'); } } else p.flagT = 0;
-  } else {
-    const alpha = 0.035 + Math.max(0, p.in) * 0.19;
-    const f = aero(V, alpha);
-    let acc = f.aT * 1.55 * LOADS[G.loadout].accel - f.aD - 0.4;
-    if (!ctl.right) acc = -4;   // ▶ 를 놓으면 가속을 멈추고 천천히 선다
-    if (ctl.left) acc = -12;    // ◀: 브레이크
-    p.vr = Math.max(0, p.vr + acc * dt);
-    if (p.vr < TAXI_V && !ctl.right) { p.mode = 'taxi'; p.go = false; p.lock = 0; }   // 멈출 만큼 느려지면 다시 갑판 이동
-    p.th = tailSit(V) + Math.max(0, p.in) * 0.12;
+  // 이륙 활주: ◀·▶ 어느 쪽이든 바라보는 방향 키를 누르고 있으면 점점 빨라지고, 꼬리가 들리고, 갑판 끝에서 뜬다
+  const d = p.s > 0 ? 1 : -1, V = Math.abs(p.vr + ship.v), fwdK = d > 0 ? ctl.right : ctl.left, backK = d > 0 ? ctl.left : ctl.right;
+  p.rollT = fwdK ? (p.rollT || 0) + dt : 0;
+  {
+    const f = aero(V, 0.035 + Math.max(0, p.in) * 0.19);
+    let acc = (f.aT * 1.55 * LOADS[G.loadout].accel - f.aD - 0.4) * clamp(0.3 + p.rollT / 2.5, 0.3, 1);   // 처음엔 천천히, 누르고 있을수록 힘차게
+    if (!fwdK) acc = -4;    // 키를 놓으면 천천히 선다
+    if (backK) acc = -12;   // 반대 키: 브레이크
+    const sp = Math.max(0, p.vr * d + acc * dt); p.vr = sp * d;
+    if (backK ? sp <= 0 : sp < TAXI_V && !fwdK) { p.mode = 'taxi'; p.go = false; p.lock = 0; if (backK) p.vr = 0; }   // 반대 키로 완전히 멈추면(돌아설 차례) 또는 손을 떼고 느려지면 갑판 이동으로
+    const tail = tailSit(V) + Math.max(0, p.in) * 0.12; p.th = d > 0 ? tail : Math.PI - tail;   // 빨라지면 꼬리가 들린다
   }
   p.xr += p.vr * dt;
   p.x = ship.x + p.xr; p.y = DECK_Y + WH; p.vx = p.vr + ship.v; p.vy = 0;
-  if (p.xr > DECK_L + 1) {   // 갑판 끝: 속도가 충분하면 떠오르고, 모자라면 떨어진다 (▲ 를 눌러도 갑판 위에서는 뜨지 않는다)
+  if (p.xr > DECK_L + 1 || p.xr < -1) {   // 갑판 끝: 속도가 충분하면 떠오르고, 모자라면 떨어진다
     const V2 = p.vr + ship.v;
-    if (V2 * KT >= TAKEOFF_KT) { p.mode = 'air'; p.vx = V2; p.vy = 0.5; p.a = 0.06; p.tookOff = true; p.liftT = G.t; p.y = DECK_Y + WH + 0.05; p.x = ship.x + p.xr; }
+    if (Math.abs(V2) * KT >= TAKEOFF_KT && Math.sign(V2) === d) { p.mode = 'air'; p.vx = V2; p.vy = 0.5; p.a = 0.06; p.tookOff = true; p.liftT = G.t; p.y = DECK_Y + WH + 0.05; p.x = ship.x + p.xr; }
     else { p.mode = 'air'; p.a = 0.035; p.vy = -2; p.off = true; p.offWhy = 'Not enough takeoff speed, dropped off the end of the deck.'; }
   }
 }
@@ -449,18 +447,18 @@ function updateSound(dt) {
 // ───────── 갑판 위 이동과 엘리베이터 ─────────
 const DECK_FLIP_T = 1.8;   // 갑판에서 돌아서는 시간(초): 전보다 3배 느리게
 function startFlip(dir) { p.flipFrom = p.s; p.flipTo = dir; p.flip = DECK_FLIP_T; p.vr = 0; }
-function startTakeoff() { p.mode = 'deck'; p.landing = false; p.held = false; p.go = true; p.flagT = 0; p.vr = Math.max(0, p.vr); p.pushT = 0; }
+function startTakeoff() { p.mode = 'deck'; p.landing = false; p.held = false; p.go = true; p.flagT = 0; p.vr = Math.sign(p.vr) === p.s ? p.vr : 0; p.pushT = 0; p.rollT = 0; }
 function taxiStep(dt) {
   p.y = DECK_Y + WH; p.vy = 0;
   if (G.t < p.lock) p.vr = 0;
   else if (p.flip > 0) { p.flip -= dt; p.vr = 0; if (p.flip <= 0) { p.flip = 0; p.s = p.flipTo; } }
   else {
     const dir = ctl.right ? 1 : ctl.left ? -1 : 0, x0 = p.xr;
-    if (dir && dir !== p.s) startFlip(dir);   // 반대 방향 키: 먼저 몸을 돌린다
+    if (dir && dir !== p.s) { if (Math.abs(p.vr) > 0.3) { p.vr -= Math.sign(p.vr) * Math.min(Math.abs(p.vr), 12 * dt); p.xr += p.vr * dt; } else startFlip(dir); }   // 반대 방향 키: 먼저 멈추고, 멈추면 돌아선다
     else {
       p.vr += (dir * TAXI_V - p.vr) * Math.min(1, dt * 3); p.xr += p.vr * dt;
       if (p.xr < 6) { p.xr = 6; p.vr = 0; } if (p.xr > DECK_L - 4) { p.xr = DECK_L - 4; p.vr = 0; }
-      if (dir > 0 && p.s > 0 && !overElev()) startTakeoff();   // ▶ 를 누르면 그 자리에서 바로 가속한다 (엘리베이터 위만 빼고)
+      if (dir && dir === p.s && !overElev()) startTakeoff();   // ▶ 를 누르면 그 자리에서 바로 가속한다 (엘리베이터 위만 빼고)
     }
   }
   const tail = tailSit(Math.abs(p.vr + ship.v)); p.th = p.s > 0 ? tail : Math.PI - tail;
@@ -1967,8 +1965,7 @@ function hint() {
   if (p.mode === 'taxi') {
     if (G.t < p.lock) return '';
     if (overElev()) return 'Space: elevator down (repair and rearm)';
-    if (p.s > 0) return 'Hold ▶ to take off · Space on elevator: service · Air: Space gun, X rocket, C bomb, V torpedo';
-    return '▶ turns around, keep holding to take off · Space on elevator: service';
+    return 'Hold ◀ or ▶ to speed up and take off · Space on elevator: service · Air: Space gun, X rocket, C bomb, V torpedo';
   }
   if (p.mode === 'lift') return p.el && p.el.st === 'svc' ? '' : 'Elevator moving';
   const xr = p.x - ship.x;

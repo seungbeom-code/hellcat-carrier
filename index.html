@@ -439,8 +439,8 @@ function gh(x) {
 }
 const HP = { aa: 4, bunker: 10, fuel: 3, radar: 4, boat: 8, runway: 14, tank: 6, cave: 14, dd: 16, tr: 10, bb: 60, cv: 40 };
 const BOX = { aa: { w: 6, h: 5 }, bunker: { w: 12, h: 6 }, fuel: { w: 6, h: 6 }, radar: { w: 6, h: 10 }, boat: { w: 26, h: 7 }, runway: { w: 60, h: 3 }, tank: { w: 9, h: 4 }, cave: { w: 8, h: 7 }, dd: { w: 44, h: 14 }, tr: { w: 36, h: 10 }, bb: { w: 84, h: 20 }, cv: { w: 96, h: 14 } };
-const SK = { boat: 2.8, dd: 4.0, tr: 3.6, bb: 4.5, cv: 4.5 }, SP = { boat: 5, dd: 9, tr: 4, bb: 6, cv: 7 };   // 배의 크기 배율, 순항 속도(m/s)
-Object.assign(BOX, { boat: { w: 73, h: 20 }, dd: { w: 176, h: 56 }, tr: { w: 130, h: 36 }, bb: { w: 378, h: 90 }, cv: { w: 432, h: 63 } });
+const SK = { boat: 1.5, dd: 2.6, tr: 3.2, bb: 2.6, cv: 2.4 }, SP = { boat: 5, dd: 9, tr: 4, bb: 6, cv: 7 };   // 배의 크기 배율, 순항 속도(m/s)
+Object.assign(BOX, { boat: { w: 40, h: 11 }, dd: { w: 115, h: 36 }, tr: { w: 115, h: 32 }, bb: { w: 220, h: 52 }, cv: { w: 230, h: 34 } });
 const DMG = {
   gun: { aa: 0.35, bunker: 0.08, fuel: 0.5, radar: 0.35, boat: 0.3, runway: 0.03, tank: 0.15, cave: 0, dd: 0.06, tr: 0.12, bb: 0.02, cv: 0.03 },
   rocket: { aa: 5, bunker: 7, fuel: 6, radar: 5, boat: 6, runway: 4, tank: 6, cave: 5, dd: 6, tr: 6, bb: 3.5, cv: 5 },
@@ -536,6 +536,7 @@ function makeTargets(M) {
   const P = (k, f) => ISLANDS[k].a + (ISLANDS[k].b - ISLANDS[k].a) * f + OFF;
   const add = (type, x0, raw) => { const x = (SHIPS[type] && !raw ? G.isx(x0) : x0) - OFF; const t = { type, x, y: SHIPS[type] ? 0 : gh(x), hp: HP[type], hp0: HP[type], alive: true, burn: 0, fire: Math.random() * 2, deadT: 0, x0: x, dir: TARGETS.length % 2 ? -1 : 1, launch: 10 + Math.random() * 12 }; t.isl = ISLANDS.findIndex(s => x > s.a && x < s.b); TARGETS.push(t); return t; };
   const rwIsl = new Set();
+  const CREW_W = { barracks: 4, bunker: 2, pill: 2, cave: 2, radar: 1, aa: 1 };
   M.build((type, x0) => { const k = ISLANDS.findIndex(q => x0 - OFF > q.a && x0 - OFF < q.b); if (k >= 0 && (type === 'bunker' || type === 'barracks' || type === 'runway')) { if (type === 'runway') rwIsl.add(k); return null; } return add(type, x0); }, P);
   // 섬마다 양 끝에서 가운데로: 콘크리트 벙커(로켓만) → 일반 벙커(로켓·폭탄) → 병영 → 비행장(있을 때) → 깃발(정중앙)
   ISLANDS.forEach((q, k) => { q.flat = null; if (rwIsl.has(k)) { const w = q.b - q.a, e = 90 / w, cx = q.a + w * Math.max(0.05 + e * 3.1 + 60 / w, 0.5 - 75 / w); q.flat = { a: cx - 38, b: cx + 38, h: 0 }; q.flat.h = (() => { const f = q.flat; q.flat = null; const v = Math.max(gh(cx - 30), gh(cx), gh(cx + 30)) * 0.5 + gh(cx) * 0.5; q.flat = f; return v; })(); } });
@@ -546,6 +547,10 @@ function makeTargets(M) {
     add('bunker', P(k, m(0.05 + e * 2))); add('bunker', P(k, 1 - m(0.05 + e * 2)));
     add('barracks', P(k, m(0.05 + e * 3.1))); add('barracks', P(k, 1 - m(0.05 + e * 3.1)));
     if (q.flat) add('runway', (q.flat.a + q.flat.b) / 2 + OFF);
+  });
+  ISLANDS.forEach((q, k) => {   // 섬마다 30명을 건물 무게에 따라 나눈다
+    const bl = TARGETS.filter(t => t.isl === k && CREW_W[t.type]); const sw = bl.reduce((a, t) => a + CREW_W[t.type], 0); let left = 30;
+    bl.forEach((t, j) => { const n = j === bl.length - 1 ? left : Math.round(30 * CREW_W[t.type] / sw); t.crew = Math.max(0, Math.min(left, n)); left -= t.crew; });
   });
   // 다른 시설이 벙커·병영·비행장과 겹치면 섬 가운데 쪽으로 비켜 놓는다
   const LAY = { pill: 1, bunker: 1, barracks: 1, runway: 1 };
@@ -744,9 +749,9 @@ function dirtBurst(x, y, n) { chips(x, y + 0.3, Math.round(9 * n), ['#6e4e2c', '
 function applyDmg(t, d) {
   if (!t.alive) return;
   if (t.type === 'cave' && !isOpen(t)) d *= 0.15;
-  if (t.type === 'barracks') { t.out = t.out || 0; const n = t.out === 0 ? 3 : (Math.random() < 0.35 ? 1 : 0); if (n && t.out < 10) { spawnSoldiers(t, n); t.out += n; } }   // 맞을 때마다 일본군이 뛰어나온다
+  if (t.type === 'barracks' && t.crew > 0) { t.out = t.out || 0; const n = Math.min(t.crew, t.out === 0 ? 3 : (Math.random() < 0.35 ? 1 : 0)); if (n) { spawnSoldiers(t, n); t.out += n; t.crew -= n; } }   // 맞을 때마다 일본군이 뛰어나온다
   t.hp -= d; if (t.hp > 0) return;
-  if (t.type === 'barracks') spawnSoldiers(t, Math.max(0, Math.min(3, 12 - (t.out || 0))));
+  if (t.crew > 0) { spawnSoldiers(t, t.crew); t.crew = 0; }   // 부서지면 남은 일본군이 모두 뛰어나온다
   t.alive = false; t.burn = G.t + 9; t.deadT = G.t; if (G.m) G.m.kills++;
   explode(t.x, t.y + 2, t.type === 'fuel' ? 30 : SHIPS[t.type] ? 18 : 10, t.type === 'fuel' ? 'bomb' : 'none', false);
   if (t.type === 'bb' || t.type === 'cv') G.toast = { text: (t.type === 'cv' ? '적 항모' : '적 전함') + ' 격침!', grade: 'green', until: G.t + 3.5 };

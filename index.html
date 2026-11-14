@@ -764,14 +764,14 @@ function genMission(L, seed, rnd) {   // rnd: 정해진 레벨 계획 대신 무
     for (let k = 0; k < nI; k++) isl.push(R() < pBig ? 'b' : 's');
     const ships = []; if (R() < 0.55) for (let k = 0, n = ri(1, Math.min(5, 1 + Math.floor(L / 5))); k < n; k++) ships.push(pick(L >= 12 ? ['dd', 'dd', 'tr', 'bb', 'bm', 'cv'] : L >= 6 ? ['dd', 'dd', 'tr', 'bb', 'bm'] : ['dd', 'dd', 'tr']));
     if (r < 0.1) spec = { isl: [], ships: [], goal: 'defend', waves: Math.min(6, 2 + Math.floor(L / 4)) };
-    else if (r < 0.2) spec = { isl: ['b', 's', 'b'].slice(0, Math.max(2, nI)), ships: [], goal: 'air', waves: Math.min(6, Math.floor(L / 2)) };
+    else if (r < 0.2 && L >= 6) spec = { isl: ['b', 's', 'b'].slice(0, Math.max(2, nI)), ships: [], goal: 'air', waves: Math.min(6, Math.floor(L / 2)) };
     else if (r < 0.32) spec = { isl: [], ships: ships.length ? ships.concat(['dd']) : ['cv', 'dd', 'bb'], goal: 'fleet', waves: Math.min(6, Math.floor(L / 2)) };
     else spec = { isl, ships, goal: 'capture', waves: Math.min(6, Math.floor(L / 2)) };
   }
   const goal = spec.goal, tint = L < 3 ? 'day' : pick(L >= 5 ? ['day', 'day', 'dawn', 'dusk', 'night'] : ['day', 'day', 'dawn', 'dusk']);
   const place = pick(PLACES), M = { gen: true, skirmish: !!rnd, lvl: L, seed, name: 'Operation ' + pick(OPS) + ' · ' + place, place, tint, goal, islands: [], waves: [] };
   const fighters = () => { const l = []; for (let k = 0, n = Math.min(7, 2 + Math.floor(L / 3) + ri(0, 1)); k < n; k++) l.push(L >= 7 && R() < 0.2 ? 'n1k' : L >= 4 && R() < 0.15 ? 'ace' : ZR); return l; };
-  for (let k = 0; k < spec.waves; k++) {
+  for (let k = 0; k < (L >= 6 ? spec.waves : 0); k++) {   // 적기는 6레벨부터 나온다
     if (goal === 'defend') { const l = []; for (let j = 0, nb = Math.min(8, 2 + Math.floor(L / 2) + ri(0, 1)); j < nb; j++) l.push(R() < 0.5 ? 'd4y' : 'b6n'); M.waves.push({ t: 25 + k * 70, l: l.concat(fighters().slice(0, ri(1, 3))) }); }
     else M.waves.push({ t: 40 + k * 95 + ri(0, 20), l: L <= 2 ? [ZR, ZR] : fighters() });
   }
@@ -898,7 +898,7 @@ function makeTargets(M) {
   const CREW_W = { barracks: 1 };   // 일본군은 병영(집)에만 산다
   M.build((type, x0) => { const k = ISLANDS.findIndex(q => x0 - OFF > q.a && x0 - OFF < q.b); if (k >= 0 && (type === 'bunker' || type === 'barracks' || type === 'runway')) { if (type === 'runway') rwIsl.add(k); return null; } return add(type, x0); }, P);
   // 섬마다 양 끝에서 가운데로: 콘크리트 벙커(로켓만) → 일반 벙커(로켓·폭탄) → 병영 → 비행장(있을 때) → 깃발(정중앙)
-  ISLANDS.forEach((q, k) => { q.flat = null; if (q.big) { const w = q.b - q.a, e = 90 / w, cx = q.a + w * 0.5 + 60 + RUNWAY_L / 2; q.flat = { a: cx - RUNWAY_L / 2, b: cx + RUNWAY_L / 2, h: 0 }; q.flat.h = (() => { const f = q.flat; q.flat = null; const v = Math.max(gh(cx - RUNWAY_L / 2), gh(cx), gh(cx + RUNWAY_L / 2)) * 0.5 + gh(cx) * 0.5; q.flat = f; return v; })(); } });
+  ISLANDS.forEach((q, k) => { q.flat = null; if (q.big && ((G.cur && G.cur.lvl) || 1) >= 6) {  const w = q.b - q.a, e = 90 / w, cx = q.a + w * 0.5 + 60 + RUNWAY_L / 2; q.flat = { a: cx - RUNWAY_L / 2, b: cx + RUNWAY_L / 2, h: 0 }; q.flat.h = (() => { const f = q.flat; q.flat = null; const v = Math.max(gh(cx - RUNWAY_L / 2), gh(cx), gh(cx + RUNWAY_L / 2)) * 0.5 + gh(cx) * 0.5; q.flat = f; return v; })(); } });   // 적 비행장은 6레벨부터
   for (const t of TARGETS) if (!SHIPS[t.type]) t.y = gh(t.x);
   ISLANDS.forEach((q, k) => {
     const w = q.b - q.a, m = u => Math.min(u, 0.45), e = 90 / w;

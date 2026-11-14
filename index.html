@@ -35,6 +35,8 @@ const TAKEOFF_KT = 100, TURN_KT = 100;   // 이륙과 선회에 필요한 최소
 const LAND_KT = 215, LAND_SINK = 8, LAND_PITCH = 0.22;   // 착함 허용 한계: 속도, 가라앉는 속도, 기울기
 const MAX_ALT = 600;   // 최고 고도: 나도 적기도 이 위로는 못 올라간다
 const CEIL = 500;   // 지도에서 고도를 그리는 기준(m). 실제 고도 제한은 없고 높이 올라가면 실속한다
+const SINK_T = 18, SINK_DEPTH = 74;   // 항모가 가라앉는 데 걸리는 시간(초), 마지막에 함교 꼭대기까지 잠기는 깊이
+const sinkProg = () => G.sink ? clamp((G.t - G.sink.t0) / SINK_T, 0, 1) : 0;
 const MAX_LVL = 20;   // 마지막 레벨
 const CARRIER_MIN = 1500;   // 항모 중심에서 가장 가까운 섬·적함까지 최소 거리(m)
 const START_XR = 312, LAUNCH_XR = 312;   // 발진선
@@ -823,7 +825,7 @@ function saveProg() { try { localStorage.setItem('hellcat-save', JSON.stringify(
 const unlocked = i => i === 0 || (G.save.stars[i - 1] || 0) > 0;
 const rankOf = n => n < 3 ? 'Ensign' : n < 6 ? 'Lt (jg)' : n < 10 ? 'Lieutenant' : n < 15 ? 'Lt Cmdr' : n < 20 ? 'Commander' : n < 30 ? 'Captain' : 'Admiral';   // 깬 최고 레벨로 정하는 계급
 function startMission(i) {
-  const M = typeof i === 'number' ? MISSIONS[i] : i; G.cur = M; G.mi = typeof i === 'number' ? i : -1; G.scene = 'play'; G.res = null; G.lives = 3; G.carrierHp = 100; G.land = null; G.dark = 0;
+  const M = typeof i === 'number' ? MISSIONS[i] : i; G.cur = M; G.mi = typeof i === 'number' ? i : -1; G.scene = 'play'; G.res = null; G.sink = null; G.lives = 3; G.carrierHp = 100; G.land = null; G.dark = 0;
   G.m = { t: 0, kills: 0, zeros: 0, ace: false, landings: 0, greens: 0, crashes: 0, wave: 0, hits: [], done: false, obj: false, flag: 0, runwayFirst: false, revived: 0 };
   G.gunHint = 0; G.gunHintT = 0;
   G.loadout = M.goal === 'fleet' ? 2 : 0;   // 시작 무장: 함대 공격은 어뢰, 나머지는 로켓
@@ -981,7 +983,7 @@ function drawParked(c, t, burnt) {
 }
 function spawnEnemy(type, x, y) { ENE.push({ type, x, y, h: Math.PI, v: ES[type].v, bank: 0, att: false, xt: 0, seeT: 0, sx: x, sy: y, svx: 0, svy: 0, ex: 0, ey: 0, hp: ES[type].hp, st: 'app', tm: 0, bt: 0, cd: 1 + Math.random() * 2, rel: false, dead: false, vx: 0, vy: 0, btm: 0 }); }
 function spawnWave(l) { const m = G.m; (m.queue = m.queue || []).push(...l); }
-function hitCarrier(d) { G.carrierHp = Math.max(0, G.carrierHp - d); explode(ship.x + 60 + Math.random() * (DECK_L - 120), DECK_Y + 2, 18, 'none', false); G.toast = { text: 'The carrier is hit!', grade: 'brown', until: G.t + 3 }; }
+function hitCarrier(d) { if (G.sink) return; G.carrierHp = Math.max(0, G.carrierHp - d); explode(ship.x + 60 + Math.random() * (DECK_L - 120), DECK_Y + 2, 18, 'none', false); G.toast = { text: 'The carrier is hit!', grade: 'brown', until: G.t + 3 }; }
 function hurt(d, why) { if (p.mode !== 'air' || G.result) return; p.hp -= d; sfx('hit'); FX.push({ k: 'spark', x: p.x, y: p.y, vx: 0, vy: 4, life: 0.3, t: 0 }); if (p.hp <= 0) crash(why || 'Shot down.'); }
 function killEnemy(e) {
   if (e.dead) return; e.dead = true; e.vx = Math.cos(e.h) * e.v; e.vy = Math.sin(e.h) * e.v * 0.5;
@@ -1091,7 +1093,18 @@ function missionStep(dt) {
   if (p.mode === 'air' && p.hp < 45 && Math.random() < dt * 12) FX.push({ k: 'smoke', x: p.x - Math.cos(p.th) * 5, y: p.y - Math.sin(p.th) * 5, vx: p.vx * 0.2, vy: 2, life: 1, t: 0, s: 1.4 });
   if (!m.obj && GOALS[M.goal](m, M)) { m.obj = true; G.toast = { text: 'Mission complete! Return, land on the carrier and take the elevator down', grade: 'green', until: G.t + 6 }; }
   if (m.obj && p.mode === 'lift' && p.el && p.el.st === 'svc') endMission(true);   // 귀환해서 엘리베이터로 격납고까지 내려가면 끝
-  else if (G.carrierHp <= 0) endMission(false, 'The carrier sank');
+  else if (G.carrierHp <= 0) {   // 체력이 0이 되면 항모가 서서히 가라앉고, 마지막에 함교만 물 위에 남았다가 사라진다
+    if (!G.sink) { G.sink = { t0: G.t }; sfx('boom'); G.toast = { text: 'The carrier is sinking!', grade: 'red', until: G.t + 5 }; }
+    else {
+      const u = sinkProg(), dk = Math.max(1, DECK_Y - SINK_DEPTH * Math.pow(u, 1.5) + 2);
+      if (u < 1 && Math.abs(ship.x + DECK_L / 2 - cam.x) < W / cam.z + DECK_L) {
+        if (Math.random() < dt * 14) FX.push({ k: 'splash', x: ship.x + Math.random() * DECK_L, y: 0, vx: 0, vy: 0, life: 0.9, t: 0 });
+        if (u < 0.55 && Math.random() < dt * 12) FX.push({ k: Math.random() < 0.4 ? 'fire' : 'smoke', x: ship.x + 20 + Math.random() * (DECK_L - 40), y: dk, vx: -4, vy: 5 + Math.random() * 6, life: 1.4 + Math.random(), t: 0, s: 2 + Math.random() * 3 });
+        if (u > 0.5 && Math.random() < dt * 8) FX.push({ k: 'smoke', x: ship.x + ISL_DX + 148 + (Math.random() - 0.5) * 8, y: Math.max(2, dk + 12), vx: -3, vy: 5, life: 1.2, t: 0, s: 2 + Math.random() * 2 });
+      }
+      if (G.t - G.sink.t0 > SINK_T + 1.5) endMission(false, 'The carrier sank');
+    }
+  }
 }
 function enemyStep(dt) {
   let att = 0; for (const e of ENE) if (!e.dead && e.att) att++;
@@ -2766,7 +2779,11 @@ function lsoSmall(c) {
 function drawShip() {
   const c = ctx;
   { const half = W / cam.z / 2; if (ship.x + DECK_L + 60 < cam.x - half || ship.x - 320 > cam.x + half) return; }   // 화면 밖이면 그리지 않는다
-  world(ship.x, 0, () => {
+  const su = sinkProg(); if (su >= 1) return;   // 완전히 가라앉았다
+  const sinkDy = -SINK_DEPTH * Math.pow(su, 1.5), tilt = 0.1 * clamp(su * 1.6, 0, 1);
+  if (su > 0) { c.save(); c.beginPath(); c.rect(-50, -50, W + 100, sy(0) + 50); c.clip(); }   // 수면 아래는 보이지 않는다
+  world(ship.x, sinkDy, () => {
+    if (su > 0) { c.translate(DECK_L / 2, 10); c.rotate(tilt); c.translate(-DECK_L / 2, -10); }   // 이물이 들리며 기운다
     carrierBody(c);
     // 비행갑판
     c.fillStyle = '#2a3654'; c.fillRect(-3, DECK_Y - 1.6, DECK_L + 6, 1.6);
@@ -2850,6 +2867,7 @@ function drawShip() {
       c.restore();
     }
   });
+  if (su > 0) { c.restore(); return; }
   {   // 구역 이름표 (선체 쪽)
     const lx = sx(ship.x + (ZONE_A + ZONE_B) / 2), ly = sy(DECK_Y - 5.5);
     c.font = '800 13px system-ui,sans-serif'; c.textAlign = 'center'; c.lineJoin = 'round'; c.lineWidth = 4; c.strokeStyle = 'rgba(20,30,45,0.85)';

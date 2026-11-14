@@ -1411,7 +1411,8 @@ function damageAt(x, y, r, kind) {
       if (!G.toast || G.toast.until < G.t) G.toast = { text: 'Ships sink only to torpedoes · rockets knock out their guns', grade: 'yellow', until: G.t + 3 };
       continue;
     }
-    if (d <= r) { if (t.type === 'pill' && kind === 'rocket' && d <= 3) { (t.marks = t.marks || []).push({ x: clamp(x - t.x, -6, 6), y: clamp(y - t.y, 0.8, 5.2), r: 0.8 + Math.random() * 0.7, a: Math.random() * 6 }); if (t.marks.length > 8) t.marks.shift(); if (t.hp > 0 && (!G.toast || G.toast.until < G.t)) G.toast = { text: 'Concrete bunker: it takes 4 rocket hits', grade: 'yellow', until: G.t + 2.5 }; }
+    if (d <= r) { if (t.type === 'pill' && kind === 'rocket' && d <= 3) { (t.marks = t.marks || []).push({ x: clamp(x - t.x, -6, 6), y: clamp(y - t.y, 0.8, 5.2), r: 0.8 + Math.random() * 0.7, a: Math.random() * 6 }); if (t.marks.length > 8) t.marks.shift(); if (t.hp > 0 && (!G.toast || G.toast.until < G.t)) G.toast = { text: 'Concrete bunker: it takes 4 rocket hits', grade: 'yellow', until: G.t + 2.5 };
+        chips(x, y, 16, ['#a3a49c', '#8f908a', '#b9bab3', '#6e6f69', '#7a4a36'], 2.4); FX.push({ k: 'dust', x: x, y: y + 1, vx: -2, vy: 3, life: 1.1, t: 0 }); FX.push({ k: 'dust', x: x + 2, y: y + 1.5, vx: 2, vy: 4, life: 1.3, t: 0 }); }   // 콘크리트 파편이 튀어 나간다
       applyDmg(t, DMG[kind][t.type] * (kind === 'rocket' && d <= 2.5 ? 1 : 1 - 0.6 * d / r)); if (t.type === 'pill' && kind === 'bomb' && (!G.toast || G.toast.until < G.t)) G.toast = { text: 'Bombs do not hurt concrete bunkers — use rockets!', grade: 'yellow', until: G.t + 2.5 }; }
   }
 }
@@ -2082,7 +2083,7 @@ function drawBattleship(c, t, big) {   // 야마토급 전함: 붉은 수선부�
   const bx = big ? -3 : -2, sc = big ? 1 : 0.85, hy = D - 2.1 + 0.0;
   const tiers = [[-4.8, 4.4, 2.1, 6.4, '#7d8a96'], [-4.0, 3.6, 6.4, 10.4, '#86939f'], [-3.3, 3.0, 10.4, 14.2, '#7a8793'], [-2.6, 2.4, 14.2, 17.6, '#8794a1']];   // 4층 구조의 날씬한 관제탑
   tiers.forEach(([x0, x1, y0, y1, col], i) => {
-    const X0 = bx + x0 * sc, X1 = bx + x1 * sc, Y0 = D + (y0 - 2.1) * sc, Y1 = D + (y1 - 2.1) * sc, lean = 0.12 * i;
+    const X0 = bx + x0 * sc, X1 = bx + x1 * sc, Y0 = D + (y0 - 2.1) * sc * 0.5, Y1 = D + (y1 - 2.1) * sc * 0.5, lean = 0.12 * i;
     poly([[X0, Y0], [X1, Y0], [X1 + lean + 0.5, Y1], [X0 + lean, Y1]], col, '#37414a', 0.08);
     rect(X0 + lean - 0.3, Y1 - 0.12, X1 - X0 + 0.9, 0.22, '#aab5bf');
     for (let x = X0 + 1.0 + lean * 0.5; x < X1 - 1.2; x += 1.5) rect(x, Y0 + (Y1 - Y0) * 0.35, 0.85, 0.55 * sc + 0.2, i === 4 ? '#26485f' : '#161d24');   // 창
@@ -2090,7 +2091,7 @@ function drawBattleship(c, t, big) {   // 야마토급 전함: 붉은 수선부�
     if (i === 1) { c.fillStyle = '#6a7783'; c.beginPath(); c.arc(X0 - 0.6 + lean, Y0 + 1.2, 0.7, 0, 7); c.arc(X1 + 0.8 + lean, Y0 + 1.2, 0.7, 0, 7); c.fill(); }   // 측면 관측 장치
   });
   // 마스트·활대·레이더, 이물과 고물로 늘어지는 줄
-  const mx = bx + 0.9 * sc, my = D + 15.6 * sc;
+  const mx = bx + 0.9 * sc, my = D + 7.8 * sc;
   line(mx, my, mx, my + 7.5, '#444f59', 0.36); line(mx - 1.3, my - 0.2, mx - 0.2, my + 6.4, '#444f59', 0.15); line(mx + 1.3, my - 0.2, mx + 0.5, my + 6.4, '#444f59', 0.15);
   line(mx - 3.2, my + 4.2, mx + 3.6, my + 4.2, '#444f59', 0.18); rect(mx - 0.8, my + 7.5, 1.7, 0.9, '#59656f'); rect(mx - 2.0, my + 8.4, 3.4, 0.14, '#7f8c98'); line(mx, my + 8.5, mx, my + 9.8, '#444f59', 0.14);
   rect(mx - 1.8, my + 1.6, 3.6, 0.9, '#4e5a65');
@@ -2184,12 +2185,13 @@ function drawTarget(c, t, dead) {
       rect(-3.4, 2.1, 6.8, 0.8, '#121410'); rect(-0.4, 2.3, 3.6, 0.35, '#2a2c28');
       poly([[-7, 0], [-9.5, 0], [-7, 2.6]], '#8a8a80'); poly([[7, 0], [9.5, 0], [7, 2.6]], '#8a8a80');
       c.fillStyle = 'rgba(0,0,0,0.18)'; c.beginPath(); c.arc(-4, 3.2, 0.5, 0, 7); c.arc(4.5, 1.2, 0.4, 0, 7); c.fill();
-      (t.marks || []).forEach((m, i) => {   // 로켓에 맞을 때마다 남는 흔적: 그을음, 떨어져 나간 콘크리트, 갈라진 금, 드러난 철근
-        c.fillStyle = 'rgba(18,16,12,0.55)'; c.beginPath(); c.ellipse(m.x, m.y, m.r * 1.7, m.r * 1.3, 0, 0, 7); c.fill();
-        c.fillStyle = '#5d5e57'; c.beginPath(); for (let k = 0; k < 7; k++) { const a = m.a + k * 0.9, rr = m.r * (0.7 + 0.45 * ((k * 7) % 3) / 3); c.lineTo(m.x + Math.cos(a) * rr, m.y + Math.sin(a) * rr * 0.85); } c.closePath(); c.fill();
-        c.fillStyle = '#2a2b27'; c.beginPath(); c.arc(m.x, m.y, m.r * 0.45, 0, 7); c.fill();
-        c.strokeStyle = 'rgba(30,30,26,0.7)'; c.lineWidth = 0.12; c.beginPath(); for (let k = 0; k < 3; k++) { const a = m.a + k * 2.1; c.moveTo(m.x, m.y); c.lineTo(m.x + Math.cos(a) * m.r * 2.4, m.y + Math.sin(a) * m.r * 1.9); } c.stroke();
-        if (i % 2) { c.strokeStyle = '#6a3a2a'; c.lineWidth = 0.14; c.beginPath(); c.moveTo(m.x - m.r, m.y + 0.3); c.lineTo(m.x + m.r * 1.2, m.y + m.r * 0.9); c.stroke(); }
+      (t.marks || []).forEach((m, i) => {   // 로켓에 맞은 자리: 콘크리트 덩어리가 떨어져 나가 울퉁불퉁한 구멍이 생기고 철근이 드러난다 (가끔 철근에 매달린 조각도 보인다)
+        const pts = []; for (let k = 0; k < 9; k++) { const a = m.a + k * 0.7, rr = m.r * (1.05 + 0.6 * ((k * 5) % 3) / 3); pts.push([m.x + Math.cos(a) * rr * 1.25, m.y + Math.sin(a) * rr]); }
+        poly(pts, '#34352f'); poly(pts.map(q => [m.x + (q[0] - m.x) * 0.62, m.y + (q[1] - m.y) * 0.62]), '#171813');
+        c.strokeStyle = '#d3d4cc'; c.lineWidth = 0.16; c.beginPath(); pts.forEach((q, k) => k ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1])); c.closePath(); c.stroke();   // 부서진 단면의 밝은 테두리
+        c.strokeStyle = '#7a4a36'; c.lineWidth = 0.14; for (let k = 0; k < 3; k++) { const a = m.a + 0.5 + k * 1.3; c.beginPath(); c.moveTo(m.x + Math.cos(a) * m.r * 0.3, m.y + Math.sin(a) * m.r * 0.25); c.lineTo(m.x + Math.cos(a) * m.r * 1.9, m.y + Math.sin(a) * m.r * 1.5 - 0.2 * k); c.stroke(); }   // 드러난 철근
+        if (i % 3 === 0) { c.save(); c.translate(m.x + m.r * 1.6, m.y - m.r * 1.3); c.rotate(0.5 + m.a * 0.1); poly([[-0.6, -0.4], [0.7, -0.3], [0.5, 0.5], [-0.5, 0.4]], '#9a9b93'); c.restore(); }   // 철근에 매달린 조각
+        c.strokeStyle = 'rgba(30,30,26,0.55)'; c.lineWidth = 0.1; c.beginPath(); for (let k = 0; k < 3; k++) { const a = m.a + 1 + k * 2.1; c.moveTo(m.x + Math.cos(a) * m.r * 1.5, m.y + Math.sin(a) * m.r * 1.2); c.lineTo(m.x + Math.cos(a) * m.r * 3, m.y + Math.sin(a) * m.r * 2.4); } c.stroke();   // 갈라진 금
       });
       {   // 지붕 위 장갑 포탑: 둥글고 낮은 돔형 포탑에 짧고 굵은 쌍기관포, 뒤쪽에 탄창통. 내 비행기를 따라 돌고, 쏠 때 포구 화염
         const an = p.mode === 'air' ? clamp(Math.atan2(p.y - t.y - 13, p.x - t.x), 0.2, Math.PI - 0.2) : 1.1, ca = Math.cos(an), sa = Math.sin(an), nx = -sa, ny = ca;

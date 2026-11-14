@@ -974,7 +974,7 @@ function makeTargets(M) {
       TREES.push(Object.assign({ x: tx, y: gh(tx), hp: 3, hp0: 3, alive: true }, treeSpec(h * 0.72, h2, 3 + h * 2.5)));
     }
   });
-  spawnFauna(); spawnWhales();
+  spawnFauna();
 }
 const isOpen = t => ((G.t + t.x * 0.37) % 9) < 4;   // 동굴 포대 문이 열린 때
 function defPct() { const M = G.cur; let tot = 0, al = 0; for (const t of TARGETS) if (DEF_W[t.type] && t.isl === M.cap) { tot += DEF_W[t.type]; if (t.alive) al += DEF_W[t.type]; } return tot ? al / tot * 100 : 0; }

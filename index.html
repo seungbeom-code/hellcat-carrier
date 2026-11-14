@@ -28,7 +28,7 @@ const SHIP_V = 11;                 // 갑판 맞바람 30노트
 const DECK_Y = 20, DECK_L = 520, WH = 3.2, CS = DECK_L / 260, ISL_DX = 136;   // 갑판 길이는 예전의 2배 (선체 그림은 가로로 2배로 늘이고, 함교는 그대로 두고 자리만 옮긴다)   // 갑판 높이, 길이, 바퀴 밑까지 거리
 const ZONE_B = 196, ZONE_A = 85, ZONE_L = ZONE_B - ZONE_A;   // 어레스팅 와이어 구역: 와이어 3개 (예전 4개에서 선미 쪽 하나를 줄여 함 중앙 쪽으로 좁혔다)
 const WIRES = [0, 1, 2].map(i => ZONE_A + 10 + i * (ZONE_L - 20) / 2);
-const TURN_T = 1.6;   // 선회에 걸리는 시간(초)
+const TURN_T = 3.2;   // 선회에 걸리는 시간(초): 예전의 2배라 회전 반경도 2배
 const HOOK_BACK = 7.5, CRUISE_KT = 270, SLOW_KT = 200;   // 후크 끝 위치, 손을 뗐을 때 순항 속도, 항모 근처 접근 속도
 const MIN_KT = 200;   // 날고 있을 때(바퀴를 올린 상태) 속도는 이 아래로 떨어지지 않는다. 방향 전환 중에도 마찬가지
 const TAKEOFF_KT = 100, TURN_KT = 100;   // 이륙과 선회에 필요한 최소 속도
@@ -96,7 +96,7 @@ function airStep(dt) {
     p.turn -= dt;
     const f = clamp(1 - p.turn / TURN_T, 0, 1);
     p.vx = Math.sign(p.v0) * Math.max(Math.abs(p.v0) * lerp(1, 0.85, f), p.gear ? 0 : MIN_KT / KT) * Math.cos(Math.PI * f);
-    p.vy += (-6 - p.vy) * Math.min(1, 2.5 * dt);
+    p.vy += (-3 - p.vy) * Math.min(1, 2.5 * dt);
     if (f >= 0.5 && !p.flipped) { p.s = -p.s; p.a = -p.a; p.flipped = true; }
     p.th = p.s > 0 ? -0.06 : Math.PI + 0.06;
     if (p.turn <= 0) { p.vx = -Math.sign(p.v0) * Math.max(Math.abs(p.v0) * 0.85, p.gear ? 0 : MIN_KT / KT); p.turn = 0; p.turnEndT = G.t; p.holdG = null; if (p.slowTurn) { p.stalled = true; p.slowTurn = false; G.msg = { text: 'Stalled by turning too slowly! Falling until you gain speed', until: G.t + 2.5 }; sfx('stall'); } }
@@ -645,7 +645,7 @@ function drawHangar(c) {
 
 // ───────── 작전, 섬, 표적, 적기, 무기 ─────────
 const RUNWAY_L = 520;   // 적 비행장 활주로 길이(m): 항모 갑판과 비슷하다
-const SMALL_W = 1500, BIG_W = 3600;   // 작은 섬, 큰 섬 길이(m)
+const SMALL_W = 3000, BIG_W = 7200;   // 작은 섬, 큰 섬 길이(m): 예전의 2배
 const LOAD_AMMO = [{ gun: 2400, rk: 15, bm: 0, tp: 0, lb: 550 }, { gun: 2400, rk: 0, bm: 30, tp: 0, lb: 550 }, { gun: 2400, rk: 0, bm: 0, tp: 2, lb: 550 }];   // 폭탄은 250kg(550파운드) 소형탄
 let ISLANDS = [];
 function mkIsland(a, w, pk, seed) {   // 섬마다 언덕의 위치·폭·높이를 다르게 만든다
@@ -780,7 +780,7 @@ function genMission(L, seed, rnd) {   // rnd: 정해진 레벨 계획 대신 무
   const extra = [];
   M.islands.forEach(([a, w], k) => {
     const big = w >= 1500;
-    for (let j = 0, na = Math.min(big ? 7 : 4, (big ? 2 : 1) + Math.floor(L / (big ? 2.5 : 3.5)) + (L > 2 ? ri(0, 1) : 0)); j < na; j++) extra.push(['aa', k, 0.2 + R() * 0.6]);
+    for (let j = 0, na = Math.min(big ? 11 : 6, Math.round(((big ? 2 : 1) + Math.floor(L / (big ? 2.5 : 3.5)) + (L > 2 ? ri(0, 1) : 0)) * 1.5)); j < na; j++) extra.push(['aa', k, 0.2 + R() * 0.6]);
     if (R() < 0.5) extra.push(['radar', k, 0.3 + R() * 0.4]);
     if (R() < 0.6) extra.push(['fuel', k, 0.3 + R() * 0.4]);
     if (big && L >= 5) for (let j = 0, nt = ri(0, Math.min(4, Math.floor(L / 3))); j < nt; j++) extra.push(['tank', k, 0.2 + R() * 0.6]);
@@ -955,8 +955,8 @@ function makeTargets(M) {
     si.forests = []; let cur = si.a + w * 0.07; const end = si.b - w * 0.07;
     for (const [b0, b1] of blk) { if (b0 - cur >= 50) si.forests.push([cur + 6, Math.min(b0, end) - 6]); cur = Math.max(cur, b1); }
     if (end - cur >= 50) si.forests.push([cur + 6, end - 6]);
-    { const all = si.forests.filter(f => f[1] - f[0] >= 36), sel = [];   // 숲은 섬의 양끝에 하나씩, 짧게
-      for (const side of [0, 1]) { const c0 = all.filter(f => { const m = ((f[0] + f[1]) / 2 - si.a) / w; return side ? m > 0.76 : m < 0.24; }).sort((u, v) => (v[1] - v[0]) - (u[1] - u[0]))[0]; if (c0) { const len = Math.min(320, c0[1] - c0[0]), mid = (c0[0] + c0[1]) / 2; sel.push([mid - len / 2, mid + len / 2]); } }
+    { const all = si.forests.filter(f => f[1] - f[0] >= 36).sort((u, v) => (v[1] - v[0]) - (u[1] - u[0])).slice(0, 5), sel = [];   // 가장 긴 빈 구간부터 숲으로 (섬이 길어진 만큼 여러 곳)
+      for (const c0 of all) { const len = Math.min(520, c0[1] - c0[0]), mid = (c0[0] + c0[1]) / 2; sel.push([mid - len / 2, mid + len / 2]); }
       si.forests = sel; }
     for (const [f0, f1] of si.forests) {
       for (let x = f0, i = 0; x < f1; i++) { const h = hs(x * 0.137 + i), h2 = hs(x * 0.311 + i * 1.7), tx = x, r = 3 + h * 2.5; x += 11 + h2 * 15; TREES.push(Object.assign({ x: tx, y: gh(tx), hp: 3, hp0: 3, alive: true }, treeSpec(h, h2, r))); }
@@ -2862,14 +2862,6 @@ function carrierBody(c) {
   const X = lx => lx * CS;
   rect(-8, DY - 2.5, 540, 0.5, '#2f3a49'); rect(-8, DY - 2.05, 540, 0.12, '#8d9aa8');   // 갑판 가장자리 캣워크
   for (let x = -6; x < 530; x += 6) line(x, DY - 2.05, x, DY - 0.3, 'rgba(210,218,226,0.5)', 0.1);   // 난간 기둥
-  [70, 118, 404, 452].forEach(x => {   // 5인치/38 양용 단장포: 현측으로 튀어나온 둥근 포좌 위의 방패형 포탑
-    poly([[x - 2.1, DY - 2.5], [x - 1.7, DY + 0.2], [x + 1.9, DY + 0.5], [x + 2.4, DY - 2.5]], '#68747f'); poly([[x - 1.7, DY + 0.2], [x + 1.9, DY + 0.5], [x + 1.6, DY + 1.1], [x - 1.3, DY + 0.9]], '#7d8995');   // 방패
-    line(x + 1.2, DY - 0.5, x + 7.4, DY + 1.9, '#232b34', 0.55); rect(x + 6.9, DY + 1.6, 0.9, 0.7, '#171d24');   // 단장 포신
-  });
-  [22, 508, 250, 280].forEach(x => {   // 1.1인치/40mm 4연장 포좌: 둥근 통과 네 개의 포신
-    rect(x - 2.6, DY - 2.6, 5.2, 0.35, '#8d9aa8'); rect(x - 1.2, DY - 2.35, 2.4, 1.5, '#68747f');
-    [-0.5, -0.17, 0.17, 0.5].forEach(o => line(x + 0.5, DY - 1.4 + o, x + 3.2, DY + 0.3 + o * 1.3, '#232b34', 0.2));
-  });
   c.restore();
   c.restore(); c.save(); c.translate(ISL_DX, 0);   // 함교는 모양 그대로, 늘어난 갑판 가운데쯤으로 옮긴다
   // 함교 (연통 없음): 1층 갑판실 · 2층 해도실/통신실 · 3층 항해 함교(함장) · 4층 비행 지휘소

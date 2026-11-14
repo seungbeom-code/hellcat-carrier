@@ -1176,7 +1176,7 @@ function enemyStep(dt) {
 function ebStep(dt) {
   for (let i = EB.length - 1; i >= 0; i--) {
     const b = EB[i]; b.life -= dt; b.x += b.vx * dt; b.y += b.vy * dt;
-    if (p.mode === 'air' && Math.abs(b.x - p.x) < 8 && Math.abs(b.y - p.y) < 3.5) { hurt(b.dmg || 2, b.why || 'Shot down by enemy fighters.'); EB.splice(i, 1); continue; }
+    if (p.mode === 'air' && Math.abs(b.x - p.x) < 8 && Math.abs(b.y - p.y) < 3.5) { hurt((b.dmg || 2) * (b.aa ? altDmgK() : 1), b.why || 'Shot down by enemy fighters.'); EB.splice(i, 1); continue; }
     if (b.life <= 0 || b.y <= gh(b.x)) EB.splice(i, 1);
   }
 }
@@ -1190,7 +1190,7 @@ function shipMgStep(dt) {   // 전함의 대공기관총: 가까이 오면 짧�
       if (!g.alive || !g.mg) continue;
       const gx = t.x + g.lx * sk * dr, gy = t.y + SHIP_GUNS[t.type].gy * sk, d = Math.hypot(p.x - gx, p.y - gy);
       if (d > 650 || d < 30) continue;
-      if (g.bn > 0) { g.bt -= dt; if (g.bt <= 0) { g.bt = 0.1; g.bn--; const tf = d / 520, a = Math.atan2(p.y + p.vy * tf - gy, p.x + p.vx * tf - gx) + (Math.random() - 0.5) * 0.1; EB.push({ x: gx, y: gy + 3, vx: Math.cos(a) * 520, vy: Math.sin(a) * 520, life: 1.6, why: 'Shot down by ship machine-gun fire.', dmg: 0.5 }); g.fl = G.t; } }
+      if (g.bn > 0) { g.bt -= dt; if (g.bt <= 0) { g.bt = 0.1; g.bn--; const tf = d / 520, a = Math.atan2(p.y + p.vy * tf - gy, p.x + p.vx * tf - gx) + (Math.random() - 0.5) * 0.1; EB.push({ x: gx, y: gy + 3, vx: Math.cos(a) * 520, vy: Math.sin(a) * 520, life: 1.6, why: 'Shot down by ship machine-gun fire.', dmg: 0.5, aa: true }); g.fl = G.t; } }
       else { g.cd -= dt; if (g.cd <= 0) { g.cd = 2.5 + Math.random() * 2; g.bn = 6; } }
     }
   }
@@ -1203,7 +1203,7 @@ function quadStep(dt) {   // 일반 벙커의 4연장 기관포: 포신이 내 �
     t.aim = t.aim === undefined ? want : t.aim + clamp(angd(want, t.aim), -1.4 * dt, 1.4 * dt);
     t.qcd = (t.qcd === undefined ? Math.random() * 3 : t.qcd) - dt; t.burst = (t.burst || 0) - dt;
     if (t.burst <= 0 && t.qcd <= 0 && p.mode === 'air' && d < 500 && d > 40 && Math.abs(angd(want, t.aim)) < 0.12) { t.burst = 0.5; alarmFauna(gx, gy, 220); t.qcd = 6.5 + Math.random() * 2; t.qn = 0; t.qe = (Math.random() - 0.5) * (0.1 + d / 8000); if (d < 1200) sfx('gun'); }
-    if (t.burst > 0) { t.qt = (t.qt || 0) - dt; while (t.qt <= 0) { t.qt += 1 / 12; t.qn = (t.qn || 0) + 1; const a = t.aim + t.qe + (Math.random() - 0.5) * 0.12, k = t.qn % 4; EB.push({ x: gx + Math.cos(t.aim) * 6, y: gy + Math.sin(t.aim) * 6 + (k - 1.5) * 0.4, vx: Math.cos(a) * 520, vy: Math.sin(a) * 520, life: 2.2, why: 'Shot down by bunker cannon fire.', dmg: 1 }); t.qf = G.t; } }
+    if (t.burst > 0) { t.qt = (t.qt || 0) - dt; while (t.qt <= 0) { t.qt += 1 / 12; t.qn = (t.qn || 0) + 1; const a = t.aim + t.qe + (Math.random() - 0.5) * 0.12, k = t.qn % 4; EB.push({ x: gx + Math.cos(t.aim) * 6, y: gy + Math.sin(t.aim) * 6 + (k - 1.5) * 0.4, vx: Math.cos(a) * 520, vy: Math.sin(a) * 520, life: 2.2, why: 'Shot down by bunker cannon fire.', dmg: 1, aa: true }); t.qf = G.t; } }
   }
 }
 function shellStep(dt) {   // 벙커의 곡사포: 내 비행기가 갈 곳을 내다보고 포물선으로 쏜다, 가까이에서 터지면 피해
@@ -1232,6 +1232,10 @@ function shellStep(dt) {   // 벙커의 곡사포: 내 비행기가 갈 곳을 �
     }
   }
 }
+function altDmgK() {   // 지상·해상 대공화기의 피해 배율: 저공일수록 크고 고공일수록 작다
+  const h = Math.max(0, p.y - Math.max(0, gh(p.x)));
+  return h <= 40 ? 1.8 : h <= 150 ? lerp(1.8, 1.0, (h - 40) / 110) : h <= 350 ? lerp(1.0, 0.35, (h - 150) / 200) : lerp(0.35, 0.12, clamp((h - 350) / 200, 0, 1));
+}
 const FLAK_R = 50, FLAK_MAX = 5;   // 대공포탄 파편이 닿는 거리(m)와 바로 옆에서 터졌을 때 피해
 function flakStep(dt) {
   for (const t of TARGETS) {
@@ -1247,7 +1251,7 @@ function flakStep(dt) {
   for (let i = FLAK.length - 1; i >= 0; i--) {
     const q = FLAK[i]; q.t -= dt; if (q.t > 0) continue;
     FX.push({ k: 'flak', x: q.x, y: q.y, vx: 0, vy: 1, life: 1.1, t: 0 }); if (Math.abs(q.x - p.x) < 1000 && Math.random() < 0.6) sfx('boom');
-    { const fd = Math.hypot(p.x - q.x, p.y - q.y); if (p.mode === 'air' && fd < FLAK_R) hurt(Math.max(0.4, FLAK_MAX * Math.pow(1 - fd / FLAK_R, 1.4)), 'Shot down by flak.'); }   // 터진 곳에서 가까울수록 크게, 멀어도 조금은 피해
+    { const fd = Math.hypot(p.x - q.x, p.y - q.y); if (p.mode === 'air' && fd < FLAK_R) hurt(Math.max(0.4, FLAK_MAX * Math.pow(1 - fd / FLAK_R, 1.4)) * altDmgK(), 'Shot down by flak.'); }   // 터진 곳에서 가까울수록 크게, 멀어도 조금은 피해
     FLAK.splice(i, 1);
   }
 }
@@ -2150,7 +2154,6 @@ function drawProj(c) {
   }
   c.lineCap = 'round';
   // 적기 탄환도 보이지 않는다 (맞으면 불꽃과 피해만 보인다)
-  c.fillStyle = 'rgba(255,214,150,0.95)'; for (const q of FLAK) { const k = 1 - q.t / q.life; c.beginPath(); c.arc(sx(lerp(q.x0, q.x, k)), sy(lerp(q.y0, q.y, k)), 2.2, 0, 7); c.fill(); }   // 하늘로 올라가는 포탄
   c.lineCap = 'butt';
 }
 const FIRE = [{ k: 'gun', x: 250, y: 456, w: 105, h: 60, label: 'Gun', key: 'Space' }, { k: 'rocket', x: 362, y: 456, w: 105, h: 60, label: 'Rocket', key: 'C' }, { k: 'bomb', x: 474, y: 456, w: 105, h: 60, label: 'Bomb', key: 'C' }, { k: 'torp', x: 586, y: 456, w: 105, h: 60, label: 'Torpedo', key: 'C' }];

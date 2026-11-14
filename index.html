@@ -2606,23 +2606,9 @@ function carrierBody(c) {
   // 선체
   const hull = () => { c.beginPath(); c.moveTo(-3, DY); c.lineTo(-3, DY - 1.6); c.bezierCurveTo(-1, 12, 2, 3, 9, -4); c.lineTo(250, -4); c.bezierCurveTo(254, -1, 259, 8, 263.4, DY); c.closePath(); };
   hull();
-  const g = c.createLinearGradient(0, DY, 0, -4); g.addColorStop(0, '#7b8a9b'); g.addColorStop(0.45, '#566578'); g.addColorStop(1, '#2f3e53');
-  c.fillStyle = g; c.fill();
-  c.save(); hull(); c.clip();
-  [[14, 30, '#8998a8'], [52, 18, '#2a3950'], [92, 34, '#8998a8'], [138, 22, '#2a3950'], [178, 30, '#8998a8'], [214, 20, '#2a3950']].forEach(([x0, w, col]) => poly([[x0, -4], [x0 + w, -4], [x0 + w + 13, DY], [x0 + 13, DY]], col));   // 기만 도장
-  const sh = c.createLinearGradient(0, DY, 0, DY - 7); sh.addColorStop(0, 'rgba(6,10,18,0.6)'); sh.addColorStop(1, 'rgba(6,10,18,0)'); c.fillStyle = sh; c.fillRect(-3, DY - 7, 270, 7);   // 갑판 아래 그림자
-  for (let x0 = 34; x0 < 222; x0 += 22) {   // 격납고 측면 문
-    rect(x0 + 1, 5.5, 20, 9.5, 'rgba(14,22,34,0.5)');
-    for (let y = 6.5; y < 15; y += 1.7) rect(x0 + 1, y, 20, 0.12, 'rgba(255,255,255,0.1)');
-    c.strokeStyle = 'rgba(8,14,24,0.75)'; c.lineWidth = 0.25; c.strokeRect(x0 + 1, 5.5, 20, 9.5);
-  }
-  for (let x = 14; x < 250; x += 5.2) { disc(x, 3.2, 0.42, '#0e1620'); if (x < 30 || x > 232) disc(x, 9.5, 0.42, '#0e1620'); disc(x, 16.9, 0.38, '#0e1620'); }   // 현창
-  rect(-5, -4, 270, 5.4, '#4a2a2d');   // 흘수선 도장
-  c.restore();
+  c.fillStyle = '#6e7885'; c.fill();   // 선체는 단색 회색
   hull(); c.strokeStyle = 'rgba(8,12,20,0.7)'; c.lineWidth = 0.3; c.stroke();
   c.save(); hull(); c.clip(); c.fillStyle = 'rgba(18,100,130,0.62)'; c.fillRect(-8, -6, 290, 6); c.restore();   // 물에 잠긴 부분
-  c.strokeStyle = 'rgba(255,255,255,0.5)'; c.lineWidth = 0.32;
-  for (let x = 12; x < 248; x += 7) { const o = Math.sin(G.t * 2 + x) * 0.3; c.beginPath(); c.moveTo(x, 0.15 + o); c.quadraticCurveTo(x + 2, 0.8 + o, x + 4.6, 0.2 + o); c.stroke(); }
   // 갑판 가장자리 통로(캣워크)와 난간
   rect(-3, DY - 2.3, 270, 0.45, '#3b4757'); rect(-3, DY - 1.85, 270, 0.12, '#8d9aa8');
   for (let x = -2; x < 266; x += 3) line(x, DY - 1.85, x, DY - 0.2, 'rgba(210,218,226,0.55)', 0.1);

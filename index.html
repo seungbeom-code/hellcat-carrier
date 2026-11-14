@@ -2002,12 +2002,18 @@ function drawTarget(c, t, dead) {
       rect(-3.4, 2.1, 6.8, 0.8, '#121410'); rect(-0.4, 2.3, 3.6, 0.35, '#2a2c28');
       poly([[-7, 0], [-9.5, 0], [-7, 2.6]], '#8a8a80'); poly([[7, 0], [9.5, 0], [7, 2.6]], '#8a8a80');
       c.fillStyle = 'rgba(0,0,0,0.18)'; c.beginPath(); c.arc(-4, 3.2, 0.5, 0, 7); c.arc(4.5, 1.2, 0.4, 0, 7); c.fill();
-      {   // 지붕 위 고사포: 쌍포신이 내 비행기를 따라 돌고, 쏠 때 섬광
-        const an = p.mode === 'air' ? clamp(Math.atan2(p.y - t.y - 13, p.x - t.x), 0.2, Math.PI - 0.2) : 1.1, ca = Math.cos(an), sa = Math.sin(an);
-        c.fillStyle = '#5d6650'; c.fillRect(-1, 5.75, 5, 1); c.beginPath(); c.arc(1.5, 7.2, 1.5, 0, 7); c.fill();
-        c.fillStyle = '#47503d'; c.fillRect(-0.4, 6.6, 3.8, 1.3);
-        c.strokeStyle = '#262b20'; c.lineWidth = 0.38; [-0.3, 0.3].forEach(o => { c.beginPath(); c.moveTo(1.5 + o, 7.3); c.lineTo(1.5 + o + ca * 4.2, 7.3 + sa * 4.2); c.stroke(); });
-        if (G.t - (t.flashT || -9) < 0.12) { c.fillStyle = 'rgba(255,220,120,0.95)'; c.beginPath(); c.arc(1.5 + ca * 4.7, 7.3 + sa * 4.7, 1.1, 0, 7); c.fill(); }
+      {   // 지붕 위 장갑 포탑: 둥글고 낮은 돔형 포탑에 짧고 굵은 쌍기관포, 뒤쪽에 탄창통. 내 비행기를 따라 돌고, 쏠 때 포구 화염
+        const an = p.mode === 'air' ? clamp(Math.atan2(p.y - t.y - 13, p.x - t.x), 0.2, Math.PI - 0.2) : 1.1, ca = Math.cos(an), sa = Math.sin(an), nx = -sa, ny = ca;
+        const px = 1.5, py = 6.5;
+        c.fillStyle = '#6f7164'; c.fillRect(-1.0, 5.75, 5.0, 0.55); c.fillStyle = '#8f9086'; c.fillRect(-1.2, 6.2, 5.4, 0.22);   // 회전 링
+        c.fillStyle = '#7e8076'; c.beginPath(); c.ellipse(px, py - 0.1, 2.3, 1.9, 0, 0, Math.PI); c.lineTo(px - 2.3, py - 0.1); c.closePath(); c.fill();   // 돔형 포탑
+        c.strokeStyle = '#4a4d44'; c.lineWidth = 0.14; c.beginPath(); c.ellipse(px, py - 0.1, 2.3, 1.9, 0, 0, Math.PI); c.stroke();
+        c.fillStyle = '#6a6c62'; c.beginPath(); c.arc(px - ca * 1.0, py + 0.2 - sa * 0.1, 0.8, 0, 7); c.fill();   // 뒤쪽 탄창통
+        c.fillStyle = '#3d4036'; for (let k = 0; k < 4; k++) { c.beginPath(); c.arc(px - 1.8 + k * 1.2, py + 1.45, 0.14, 0, 7); c.fill(); }   // 리벳
+        c.strokeStyle = '#2d312a'; c.lineWidth = 0.6; c.lineCap = 'round'; [-0.36, 0.36].forEach(o => { c.beginPath(); c.moveTo(px + nx * o + ca * 1.4, py + 0.5 + ny * o + sa * 1.4); c.lineTo(px + nx * o + ca * 3.3, py + 0.5 + ny * o + sa * 3.3); c.stroke(); });   // 짧고 굵은 쌍포신
+        c.strokeStyle = '#1b1e18'; c.lineWidth = 0.78; [-0.36, 0.36].forEach(o => { c.beginPath(); c.moveTo(px + nx * o + ca * 3.0, py + 0.5 + ny * o + sa * 3.0); c.lineTo(px + nx * o + ca * 3.5, py + 0.5 + ny * o + sa * 3.5); c.stroke(); }); c.lineCap = 'butt';   // 포구 제퇴기
+        c.fillStyle = '#16190f'; c.beginPath(); c.ellipse(px + ca * 1.6, py + 0.5 + sa * 1.6, 0.35, 0.8, an, 0, 7); c.fill();   // 포문
+        if (G.t - (t.flashT || -9) < 0.12) { c.fillStyle = 'rgba(255,220,120,0.95)'; c.beginPath(); c.arc(px + ca * 4.1, py + 0.5 + sa * 4.1, 1.2, 0, 7); c.fill(); }
       }
       break;
     }

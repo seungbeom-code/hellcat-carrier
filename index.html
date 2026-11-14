@@ -676,7 +676,7 @@ const DMG = {
   rocket: { aa: 6, bunker: 13, fuel: 6, radar: 6, boat: 6, runway: 4, tank: 8, cave: 16, dd: 6, tr: 6, bm: 3.5, bb: 3.5, cv: 5 },   // 로켓: 강력한 탄두 — 직격 한 발로 대부분의 시설이 부서진다
   bomb: { aa: 10, bunker: 14, fuel: 10, radar: 10, boat: 12, runway: 10, tank: 10, cave: 8, dd: 14, tr: 14, bm: 12, bb: 12, cv: 16 }
 };
-Object.assign(HP, { barracks: 12, pill: 14, tower: 8 }); BOX.tower = { w: 8, h: 25 }; DMG.gun.tower = 0.3; DMG.rocket.tower = 12; DMG.bomb.tower = 8; BOX.pill = { w: 28, h: 13 }; DMG.gun.pill = 0.05; DMG.rocket.pill = 15; DMG.bomb.pill = 0; DMG.gun.bunker = 0.12;
+Object.assign(HP, { barracks: 12, pill: 14, tower: 8 }); BOX.tower = { w: 8, h: 25 }; DMG.gun.tower = 0.3; DMG.rocket.tower = 12; DMG.bomb.tower = 8; BOX.pill = { w: 28, h: 13 }; DMG.gun.pill = 0.05; DMG.rocket.pill = 4; DMG.bomb.pill = 0; DMG.gun.bunker = 0.12;   // 콘크리트 벙커: 체력 14, 로켓 한 발에 4 → 4발을 맞아야 부서진다
 Object.assign(HP, { barracks: 12 }); Object.assign(BOX, { barracks: { w: 40, h: 7 }, aa: { w: 11, h: 9 } }); DMG.gun.barracks = 0.15; DMG.rocket.barracks = 14; DMG.bomb.barracks = 10;
 const JP = { pill: 1, aa: 1, bunker: 1, cave: 1, radar: 1, barracks: 1, tank: 1 };   // 일본군이 있는 시설
 const SHIPS = { boat: 1, dd: 1, tr: 1, bm: 1, bb: 1, cv: 1 }, DEF_W = { pill: 2, aa: 1, bunker: 1.5, cave: 2, radar: 1 }, AA_N = { pill: 1, aa: 1, dd: 2, bm: 3, bb: 5, cv: 3, tr: 1, cave: 1 }, AA_R = { pill: 500, aa: 500, cave: 500, dd: 500, bm: 500, bb: 500, cv: 500, tr: 500 };
@@ -888,7 +888,8 @@ function endMission(win, why) {
 function makeTargets(M) {
   TARGETS.length = 0; TREES.length = 0; BUSH.length = 0;
   const P = (k, f) => ISLANDS[k].a + (ISLANDS[k].b - ISLANDS[k].a) * f + OFF;
-  const add = (type, x0, raw) => { let x = (SHIPS[type] && !raw ? G.isx(x0) : x0) - OFF;
+  const add = (type, x0, raw) => { if (type === 'pill' && ((G.cur && G.cur.lvl) || 1) < 4) type = 'bunker';   // 콘크리트 벙커는 레벨 4부터
+    let x = (SHIPS[type] && !raw ? G.isx(x0) : x0) - OFF;
     if (SHIPS[type] && type !== 'boat' && G.HC !== null) x = G.shipX[G.shipN++];   // 함정 자리는 위에서 정해 둔 순서대로
     else if (type === 'boat' && !raw && G.HC !== null && ISLANDS.length) { const k = (G.boatK = (G.boatK || 0) + 1) % ISLANDS.length, q = ISLANDS[k], out = (q.a + q.b) / 2 > G.HC ? 1 : -1, n = G.boatN[k] = (G.boatN[k] || 0) + 1; x = (out > 0 ? q.b + 90 + 70 * n : q.a - 90 - 70 * n); }   // 작은 배는 섬 바깥쪽 바다에
     const bvx = Math.abs(Math.sin(x * 0.071 + 7.3) * 9301.7) % 1;
@@ -1414,7 +1415,8 @@ function damageAt(x, y, r, kind) {
       if (!G.toast || G.toast.until < G.t) G.toast = { text: 'Ships sink only to torpedoes · rockets knock out their guns', grade: 'yellow', until: G.t + 3 };
       continue;
     }
-    if (d <= r) { applyDmg(t, DMG[kind][t.type] * (kind === 'rocket' && d <= 2.5 ? 1 : 1 - 0.6 * d / r)); if (t.type === 'pill' && kind === 'bomb' && (!G.toast || G.toast.until < G.t)) G.toast = { text: 'Bombs do not hurt concrete bunkers — use rockets!', grade: 'yellow', until: G.t + 2.5 }; }
+    if (d <= r) { if (t.type === 'pill' && kind === 'rocket' && d <= 3) { (t.marks = t.marks || []).push({ x: clamp(x - t.x, -6, 6), y: clamp(y - t.y, 0.8, 5.2), r: 0.8 + Math.random() * 0.7, a: Math.random() * 6 }); if (t.marks.length > 8) t.marks.shift(); if (t.hp > 0 && (!G.toast || G.toast.until < G.t)) G.toast = { text: 'Concrete bunker: it takes 4 rocket hits', grade: 'yellow', until: G.t + 2.5 }; }
+      applyDmg(t, DMG[kind][t.type] * (kind === 'rocket' && d <= 2.5 ? 1 : 1 - 0.6 * d / r)); if (t.type === 'pill' && kind === 'bomb' && (!G.toast || G.toast.until < G.t)) G.toast = { text: 'Bombs do not hurt concrete bunkers — use rockets!', grade: 'yellow', until: G.t + 2.5 }; }
   }
 }
 function explode(x, y, r, kind, sea) {
@@ -2186,6 +2188,13 @@ function drawTarget(c, t, dead) {
       rect(-3.4, 2.1, 6.8, 0.8, '#121410'); rect(-0.4, 2.3, 3.6, 0.35, '#2a2c28');
       poly([[-7, 0], [-9.5, 0], [-7, 2.6]], '#8a8a80'); poly([[7, 0], [9.5, 0], [7, 2.6]], '#8a8a80');
       c.fillStyle = 'rgba(0,0,0,0.18)'; c.beginPath(); c.arc(-4, 3.2, 0.5, 0, 7); c.arc(4.5, 1.2, 0.4, 0, 7); c.fill();
+      (t.marks || []).forEach((m, i) => {   // 로켓에 맞을 때마다 남는 흔적: 그을음, 떨어져 나간 콘크리트, 갈라진 금, 드러난 철근
+        c.fillStyle = 'rgba(18,16,12,0.55)'; c.beginPath(); c.ellipse(m.x, m.y, m.r * 1.7, m.r * 1.3, 0, 0, 7); c.fill();
+        c.fillStyle = '#5d5e57'; c.beginPath(); for (let k = 0; k < 7; k++) { const a = m.a + k * 0.9, rr = m.r * (0.7 + 0.45 * ((k * 7) % 3) / 3); c.lineTo(m.x + Math.cos(a) * rr, m.y + Math.sin(a) * rr * 0.85); } c.closePath(); c.fill();
+        c.fillStyle = '#2a2b27'; c.beginPath(); c.arc(m.x, m.y, m.r * 0.45, 0, 7); c.fill();
+        c.strokeStyle = 'rgba(30,30,26,0.7)'; c.lineWidth = 0.12; c.beginPath(); for (let k = 0; k < 3; k++) { const a = m.a + k * 2.1; c.moveTo(m.x, m.y); c.lineTo(m.x + Math.cos(a) * m.r * 2.4, m.y + Math.sin(a) * m.r * 1.9); } c.stroke();
+        if (i % 2) { c.strokeStyle = '#6a3a2a'; c.lineWidth = 0.14; c.beginPath(); c.moveTo(m.x - m.r, m.y + 0.3); c.lineTo(m.x + m.r * 1.2, m.y + m.r * 0.9); c.stroke(); }
+      });
       {   // 지붕 위 장갑 포탑: 둥글고 낮은 돔형 포탑에 짧고 굵은 쌍기관포, 뒤쪽에 탄창통. 내 비행기를 따라 돌고, 쏠 때 포구 화염
         const an = p.mode === 'air' ? clamp(Math.atan2(p.y - t.y - 13, p.x - t.x), 0.2, Math.PI - 0.2) : 1.1, ca = Math.cos(an), sa = Math.sin(an), nx = -sa, ny = ca;
         const px = 1.5, py = 6.5;

@@ -681,7 +681,7 @@ Object.assign(HP, { barracks: 12 }); Object.assign(BOX, { barracks: { w: 40, h: 
 const JP = { pill: 1, aa: 1, bunker: 1, cave: 1, radar: 1, barracks: 1, tank: 1 };   // 일본군이 있는 시설
 const SHIPS = { boat: 1, dd: 1, tr: 1, bm: 1, bb: 1, cv: 1 }, DEF_W = { pill: 2, aa: 1, bunker: 1.5, cave: 2, radar: 1 }, AA_N = { pill: 1, aa: 1, dd: 2, bm: 3, bb: 5, cv: 3, tr: 1, cave: 1 }, AA_R = { pill: 500, aa: 500, cave: 500, dd: 500, bm: 500, bb: 500, cv: 500, tr: 500 };
 const HULL_H = { boat: 4.5, dd: 6.5, tr: 16, bm: 7.8, bb: 7.8, cv: 14.5 };   // 적 함정 선체(갑판) 높이(m)
-const SHIP_GUNS = { dd: { gy: 3.2, xs: [-15, -5, 10] }, bm: { gy: 4.3, xs: [-27, -20, -13, -6, 2, 44], mg: [1, 4] }, bb: { gy: 4.3, xs: [-36, -30, -24, -18, -12, -4, 4, 12, 66, 71], mg: [1, 3, 6, 8] }, cv: { gy: 8.2, xs: [-42, -30, -18, 28, 38, 45] }, tr: { gy: 5.2, xs: [-12, 12] } };   // 함정의 대공포 자리
+const SHIP_GUNS = { dd: { gy: 3.2, xs: [-15, -5, 10] }, bm: { gy: 4.3, xs: [-32, -26, 32, 40], mg: [1, 3] }, bb: { gy: 4.3, xs: [-52, -46, -40, 44, 50, 56, 62, 68], mg: [1, 4, 6] }, cv: { gy: 8.2, xs: [-42, -30, -18, 28, 38, 45] }, tr: { gy: 5.2, xs: [-12, 12] } };   // 함정의 대공포 자리
 const BUSH = [];   // 덤불: 숲 바닥을 채우는 장식 (부딪히지 않는다)
 const TARGETS = [], PROJ = [], TREES = [], ENE = [], EB = [], FLAK = [], SOLD = [];
 const ES = { zero: { v: 125, n: 5.0, hp: 4 }, ace: { v: 140, n: 6.0, hp: 8 }, n1k: { v: 145, n: 5.5, hp: 9 }, d4y: { v: 105, n: 2.6, hp: 6 }, b6n: { v: 100, n: 2.2, hp: 7 } };   // 속도(m/s), 견딜 수 있는 선회 g, 체력
@@ -1143,7 +1143,7 @@ function missionStep(dt) {
     if (t.fp > 0 && p.mode === 'air' && Math.abs(p.x - t.x) < 2400) {
       t.fpT = (t.fpT === undefined ? 3 + Math.random() * 5 : t.fpT) - dt;
       if (t.fpT <= 0 && ENE.filter(e => !e.dead).length < 7) {
-        t.fpT = 14 + Math.random() * 8; t.fp--; const dr = t.dir < 0 ? -1 : 1, lx = -(t.type === 'bb' ? 75 : 50) + (t.type === 'bb' ? 9 : 4), wx = t.x + lx * SK[t.type] * dr, wy = t.y + 5.45 * SK[t.type];
+        t.fpT = 14 + Math.random() * 8; t.fp--; const dr = t.dir < 0 ? -1 : 1, lx = -(t.type === 'bb' ? 75 : 50) + (t.type === 'bb' ? 6 : 4), wx = t.x + lx * SK[t.type] * dr, wy = t.y + 5.45 * SK[t.type];
         spawnEnemy(ZR, wx, wy); const e = ENE[ENE.length - 1]; e.h = p.x >= wx ? 0.18 : Math.PI - 0.18; e.v = 75; e.tm = 0;
         if (!G.msg || G.msg.until < G.t) G.msg = { text: 'Enemy floatplane catapulted from a battleship!', until: G.t + 2.5 };
       }
@@ -1354,13 +1354,15 @@ function hitTest(x, y, pad) {
     if (Math.abs(x - t.x) <= b.w / 2 + pad && y >= t.y - pad && y <= t.y + hh + pad) return t; }
   return null;
 }
-const CROWN = { palm: 1, broad: 0.75, banyan: 0.72, tall: 0.88, pine: 0.7, banana: 0.9, bamboo: 0.85 };   // 나무 키에서 우듬지가 있는 높이 비율
-function treeSpec(h, h2, r) {   // h: 0~1 로 종류를 정한다
-  if (h < 0.62) return { kind: 'palm', H: 10 + r * 1.6 + h2 * 4, r, lean: (h2 - 0.5) * 0.45 };   // 야자수 위주
-  if (h < 0.74) return { kind: 'broad', H: 7 + r * 1.3, r, lean: 0 };
-  if (h < 0.80) return { kind: 'banyan', H: 9 + r * 0.6, r: r * 1.7, lean: 0 };
-  if (h < 0.86) return { kind: 'tall', H: 20 + h2 * 9, r: r * 0.9, lean: (h2 - 0.5) * 0.12 };
-  if (h < 0.91) return { kind: 'pine', H: 12 + h2 * 6, r: 2.6 + h2 * 1.2, lean: (h2 - 0.5) * 0.1 };
+const CROWN = { palm: 1, broad: 0.75, royal: 0.96, cluster: 0.9, pandanus: 0.8, fan: 0.85, pine: 0.7, banana: 0.9, bamboo: 0.85 };   // 나무 키에서 우듬지가 있는 높이 비율
+function treeSpec(h, h2, r) {   // h: 0~1 로 종류를 정한다 (열대 나무 위주, 버섯처럼 옆으로 퍼진 나무는 없다)
+  if (h < 0.46) return { kind: 'palm', H: 10 + r * 1.6 + h2 * 4, r, lean: (h2 - 0.5) * 0.45 };
+  if (h < 0.56) return { kind: 'cluster', H: 8 + h2 * 4, r: r * 0.8, lean: 0 };
+  if (h < 0.64) return { kind: 'royal', H: 20 + h2 * 8, r: r * 0.7, lean: (h2 - 0.5) * 0.1 };
+  if (h < 0.71) return { kind: 'broad', H: 7 + r * 1.3, r, lean: 0 };
+  if (h < 0.78) return { kind: 'pandanus', H: 6 + h2 * 3, r: r * 0.9, lean: 0 };
+  if (h < 0.84) return { kind: 'fan', H: 7 + h2 * 3, r: 3.2 + h2 * 1.2, lean: 0 };
+  if (h < 0.90) return { kind: 'pine', H: 12 + h2 * 6, r: 2.6 + h2 * 1.2, lean: (h2 - 0.5) * 0.1 };
   if (h < 0.96) return { kind: 'banana', H: 5 + h2 * 2, r: 2.4 + h2, lean: (h2 - 0.5) * 0.2 };
   return { kind: 'bamboo', H: 11 + h2 * 5, r: 1.8, lean: (h2 - 0.5) * 0.3 };
 }
@@ -1637,7 +1639,7 @@ const fhs = n => Math.abs(Math.sin(n * 12.9898) * 43758.5453) % 1;
 function perchPt(t, k) { const top = t.y + t.H * (CROWN[t.kind] || 0.75) + (t.kind === 'palm' ? 0.5 : t.r * 0.3); return { x: t.x + (t.kind === 'palm' ? t.lean * t.H : 0) + (k % 3 - 1) * t.r * 0.5, y: top }; }
 function spawnFauna() {
   FAUNA.length = 0;
-  const perchable = t => t.kind === 'broad' || t.kind === 'banyan' || t.kind === 'tall' || t.kind === 'palm';
+  const perchable = t => t.kind === 'broad' || t.kind === 'royal' || t.kind === 'cluster' || t.kind === 'palm';
   ISLANDS.forEach((si, k) => {
     for (const side of [-1, 1]) {   // 거북이: 해변에서 쉬거나 느리게 기어 다닌다
       let shore = side < 0 ? si.a : si.b; for (let d = 0; d < 160; d += 2) { const xx = side < 0 ? si.a + d : si.b - d; if (gh(xx) >= 0.9) { shore = xx; break; } }
@@ -1671,7 +1673,7 @@ function alarmFauna(x, y, r) {   // 폭발·총성·낮은 비행에 동물이 �
   }
 }
 function monkeyJump(f, fromX) {   // 원숭이가 놀라 옆 나무로 뛰어 건너간다
-  const P = perchPt(f.tree, f.off + 1), cand = TREES.filter(t => t.alive && t !== f.tree && (t.kind === 'broad' || t.kind === 'banyan' || t.kind === 'tall' || t.kind === 'palm') && Math.abs(t.x - P.x) > 10 && Math.abs(t.x - P.x) < 130).sort((a, b) => Math.abs(b.x - fromX) - Math.abs(a.x - fromX));
+  const P = perchPt(f.tree, f.off + 1), cand = TREES.filter(t => t.alive && t !== f.tree && (t.kind === 'broad' || t.kind === 'royal' || t.kind === 'cluster' || t.kind === 'palm') && Math.abs(t.x - P.x) > 10 && Math.abs(t.x - P.x) < 130).sort((a, b) => Math.abs(b.x - fromX) - Math.abs(a.x - fromX));
   if (!cand.length) { f.st = 'gone'; return; }
   const tg = cand[Math.floor(Math.random() * Math.min(3, cand.length))], Q = perchPt(tg, f.off + 1), dist = Math.hypot(Q.x - P.x, Q.y - P.y);
   f.st = 'jump'; f.from = P; f.to = Q; f.t = 0; f.dur = 0.5 + dist / 70; f.arc = 3 + dist * 0.15; f.next = tg;
@@ -1697,7 +1699,7 @@ function faunaStep(dt) {
       else if (f.st === 'fly') {
         if (f.delay > 0) { f.delay -= dt; const P = perchPt(f.tree, f.slot); f.x = P.x; f.y = P.y; continue; }
         f.t += dt; f.x += f.vx * dt + Math.sin(f.t * 3 + f.ph) * 2 * dt; f.y += f.vy * dt; f.vy += ((f.t < 1.6 ? 6 : 1.5 * Math.sin(f.t * 1.7 + f.ph)) - f.vy) * Math.min(1, 1.5 * dt); f.y = Math.max(f.y, gh(f.x) + 3);
-        if (f.t > f.life) { const cand = TREES.filter(t => t.alive && (t.kind === 'broad' || t.kind === 'banyan' || t.kind === 'tall' || t.kind === 'palm') && Math.abs(t.x - f.x) < 500).sort((a, b) => Math.abs(a.x - f.x) - Math.abs(b.x - f.x)); if (cand.length) { f.tree = cand[Math.floor(Math.random() * Math.min(4, cand.length))]; f.slot = Math.floor(Math.random() * 5); f.st = 'glide'; } else if (Math.abs(f.x - cam.x) > 1800) f.st = 'gone'; }
+        if (f.t > f.life) { const cand = TREES.filter(t => t.alive && (t.kind === 'broad' || t.kind === 'royal' || t.kind === 'cluster' || t.kind === 'palm') && Math.abs(t.x - f.x) < 500).sort((a, b) => Math.abs(a.x - f.x) - Math.abs(b.x - f.x)); if (cand.length) { f.tree = cand[Math.floor(Math.random() * Math.min(4, cand.length))]; f.slot = Math.floor(Math.random() * 5); f.st = 'glide'; } else if (Math.abs(f.x - cam.x) > 1800) f.st = 'gone'; }
       } else if (f.st === 'glide') {
         const P = perchPt(f.tree, f.slot), dx = P.x - f.x, dy = P.y - f.y, d = Math.hypot(dx, dy);
         if (!f.tree.alive) { f.st = 'fly'; f.delay = 0; f.t = 0; f.life = 3; f.vx = 10; f.vy = 6; continue; }
@@ -1788,20 +1790,32 @@ function drawTreeJungle(c, t, sway, hurt) {   // 야자·활엽수 말고 정글
   const H = t.H, r = t.r, X = t.x, Y = t.y, sw = sway * H * 0.25 + t.lean * H, trunk = '#5e4628';
   const dk = hurt ? '#4e5a26' : '#1c4226', md = hurt ? '#66702e' : '#2c6232', lt = hurt ? '#7e8236' : '#4a8f45';
   const blob = (x, y, rx, ry, col) => { c.fillStyle = col; c.beginPath(); c.ellipse(x, y, rx, ry, 0, 0, 7); c.fill(); };
-  if (t.kind === 'banyan') {   // 굵은 줄기, 넓게 퍼진 수관, 땅에 닿은 공기뿌리
-    c.fillStyle = trunk; c.beginPath(); c.moveTo(X - 2.6, Y - 0.3); c.quadraticCurveTo(X - 0.9, Y + H * 0.25, X - 0.8, Y + H * 0.64); c.lineTo(X + 0.8, Y + H * 0.64); c.quadraticCurveTo(X + 0.9, Y + H * 0.25, X + 2.6, Y - 0.3); c.closePath(); c.fill();
-    const top = Y + H * 0.72;
-    [[-1, 0, 1], [-0.5, 0.3, 0.9], [0.5, 0.3, 0.9], [1, 0, 1], [0, 0.4, 1.05], [-0.25, -0.12, 0.8], [0.35, -0.15, 0.8]].forEach(([bx, by, br]) => blob(X + sw + bx * r, top + by * r * 0.5, br * r * 0.62, br * r * 0.42, dk));
-    [[-1, 0.05, 1], [-0.5, 0.35, 0.9], [0.5, 0.35, 0.9], [1, 0.05, 1], [0, 0.45, 1.05], [0, -0.1, 0.8]].forEach(([bx, by, br]) => blob(X + sw + bx * r - 0.3, top + by * r * 0.5 + 0.3, br * r * 0.5, br * r * 0.33, md));
-    [[-0.7, 0.25, 0.9], [0, 0.4, 1], [0.6, 0.3, 0.8]].forEach(([bx, by, br]) => blob(X + sw + bx * r - 0.7, top + by * r * 0.5 + 0.8, br * r * 0.28, br * r * 0.18, lt));
-    c.strokeStyle = '#6b5233'; c.lineWidth = 0.22;
-    for (let k = 0; k < 6; k++) { const rx = X + sw + (k - 2.5) * r * 0.3; c.beginPath(); c.moveTo(rx, top - r * 0.1); c.lineTo(rx + Math.sin(G.t * 1.2 + k) * 0.35, Y + H * 0.22 + (k % 2) * 2); c.stroke(); }
-    c.lineWidth = 0.55; c.beginPath(); c.moveTo(X - r * 0.55, top - 0.5); c.lineTo(X - r * 0.55, Y); c.moveTo(X + r * 0.6, top - 0.5); c.lineTo(X + r * 0.6, Y); c.stroke();
-  } else if (t.kind === 'tall') {   // 키 큰 우림 나무: 매끈한 줄기에 버팀뿌리, 꼭대기에 우산 같은 수관과 덩굴
-    const top = Y + H * 0.84, tx = X + sw * 0.7;
-    c.fillStyle = '#6a5a44'; c.beginPath(); c.moveTo(X - 1.6, Y - 0.3); c.lineTo(X - 0.5, Y + 3.6); c.lineTo(X - 0.45, Y + H * 0.8); c.lineTo(tx + 0.5, top); c.lineTo(X + 0.55, Y + H * 0.8); c.lineTo(X + 0.6, Y + 3.2); c.lineTo(X + 1.7, Y - 0.3); c.closePath(); c.fill();
-    blob(tx + sw * 0.3, top + 0.5, r * 1.8, r * 0.55, dk); blob(tx + sw * 0.3 - 0.3, top + 1.1, r * 1.45, r * 0.45, md); blob(tx + sw * 0.3 - 0.8, top + 1.6, r * 0.95, r * 0.3, lt); blob(tx - r * 1.1, top - 0.3, r * 0.7, r * 0.35, dk); blob(tx + r * 1.2, top - 0.2, r * 0.7, r * 0.35, dk);
-    c.strokeStyle = '#3a6a2c'; c.lineWidth = 0.14; for (let k = 0; k < 3; k++) { const vx = tx + (k - 1) * r * 0.9; c.beginPath(); c.moveTo(vx, top); c.quadraticCurveTo(vx + Math.sin(G.t * 1.5 + k) * 0.5, top - H * 0.25, vx + 0.3, top - H * 0.45); c.stroke(); }
+  const crown = (tx, ty, L, n, sw0) => {   // 야자 수관: 휘어 늘어진 잎
+    for (let k = 0; k < n; k++) { const a = Math.PI * (0.04 + k * (0.92 / (n - 1))) + sw0 * 2, ex = tx + Math.cos(a) * L, ey = ty + Math.sin(a) * L * 0.5 - L * 0.4 * Math.abs(Math.cos(a)); c.fillStyle = k % 2 ? md : lt; c.beginPath(); c.moveTo(tx, ty); c.quadraticCurveTo(tx + Math.cos(a) * L * 0.5, ty + Math.sin(a) * L * 0.55 + L * 0.15, ex, ey); c.quadraticCurveTo(tx + Math.cos(a) * L * 0.5, ty + Math.sin(a) * L * 0.4 - L * 0.04, tx, ty); c.fill(); }
+  };
+  if (t.kind === 'royal') {   // 왕야자: 곧고 매끈한 회백색 줄기, 꼭대기의 초록 줄기깃과 가는 잎 다발
+    const tx = X + sw * 0.5, ty = Y + H;
+    c.fillStyle = '#b9b19d'; c.beginPath(); c.moveTo(X - 0.9, Y - 0.3); c.lineTo(X - 0.55, Y + H * 0.35); c.lineTo(tx - 0.4, ty - 1.4); c.lineTo(tx + 0.4, ty - 1.4); c.lineTo(X + 0.55, Y + H * 0.35); c.lineTo(X + 0.9, Y - 0.3); c.closePath(); c.fill();
+    c.strokeStyle = 'rgba(90,82,68,0.35)'; c.lineWidth = 0.1; for (let k = 1; k < 9; k++) { const yy = Y + H * k / 10; c.beginPath(); c.moveTo(X - 0.7 + sw * 0.5 * k / 10, yy); c.lineTo(X + 0.7 + sw * 0.5 * k / 10, yy); c.stroke(); }
+    c.fillStyle = '#6a9a3a'; c.fillRect(tx - 0.5, ty - 1.9, 1, 1.8);
+    crown(tx, ty, r * 1.7 + 3, 9, sway);
+  } else if (t.kind === 'cluster') {   // 군생 야자: 서로 다른 높이로 모여 자라는 세 줄기
+    [[-1.1, 0.78, 0.18], [0, 1.0, 0], [1.1, 0.66, -0.2]].forEach(([dx, hf, lean], q) => {
+      const bx = X + dx, tx = bx + lean * H * hf + sway * H * 0.2, ty = Y + H * hf;
+      c.strokeStyle = q % 2 ? '#7d6240' : '#6a5134'; c.lineWidth = 0.7; c.lineCap = 'round'; c.beginPath(); c.moveTo(bx, Y - 0.2); c.quadraticCurveTo(bx + lean * H * 0.4, Y + H * hf * 0.55, tx, ty); c.stroke(); c.lineCap = 'butt';
+      crown(tx, ty, r * 1.25 + 1.8, 7, sway);
+    });
+  } else if (t.kind === 'pandanus') {   // 판다누스(스크루파인): 지지근이 땅까지 뻗고 줄기가 갈라져 끝마다 뾰족한 잎 다발
+    c.strokeStyle = '#6a5a3e'; c.lineWidth = 0.28; [[-2.4, 0], [-1.2, 0.4], [1.2, 0.4], [2.4, 0]].forEach(([dx]) => { c.beginPath(); c.moveTo(X + dx, Y - 0.1); c.lineTo(X + dx * 0.35, Y + H * 0.35); c.stroke(); });
+    c.strokeStyle = '#6a5a3e'; c.lineWidth = 0.7; c.beginPath(); c.moveTo(X, Y + H * 0.3); c.lineTo(X, Y + H * 0.55); c.stroke();
+    [[-2.2, 0.95, -0.5], [0.4, 1.15, 0], [2.4, 0.9, 0.5]].forEach(([dx, hf, a], q) => {
+      const bx = X + dx, by = Y + H * hf * 0.95; c.strokeStyle = '#6a5a3e'; c.lineWidth = 0.5; c.beginPath(); c.moveTo(X, Y + H * 0.5); c.lineTo(bx, by - 0.4); c.stroke();
+      for (let k = 0; k < 11; k++) { const ang = Math.PI * (0.05 + k * 0.09) + sway; c.strokeStyle = k % 2 ? '#3f8a35' : '#2f6b2a'; c.lineWidth = 0.22; c.beginPath(); c.moveTo(bx, by); c.quadraticCurveTo(bx + Math.cos(ang) * 1.6, by + Math.sin(ang) * 1.6 + 0.4, bx + Math.cos(ang) * 3.4, by + Math.sin(ang) * 2.4 - 0.2); c.stroke(); }
+    });
+  } else if (t.kind === 'fan') {   // 여행자야자: 짧고 굵은 줄기 위에 세로로 활짝 펼친 부채꼴 잎
+    c.fillStyle = '#7a6240'; c.fillRect(X - 0.5, Y - 0.2, 1, H * 0.55);
+    const fy = Y + H * 0.5;
+    for (let k = 0; k < 11; k++) { const a = Math.PI * (0.12 + k * 0.076) + sway * 0.6, L = r * 1.9 + 2.6, ex = X + Math.cos(a) * L * 0.55, ey = fy + Math.sin(a) * L; c.strokeStyle = '#4a7a2a'; c.lineWidth = 0.18; c.beginPath(); c.moveTo(X, fy); c.lineTo(X + Math.cos(a) * L * 0.25, fy + Math.sin(a) * L * 0.4); c.stroke(); c.fillStyle = k % 2 ? '#2f7a30' : '#3f8f3a'; c.beginPath(); c.moveTo(X + Math.cos(a) * L * 0.25, fy + Math.sin(a) * L * 0.4); c.quadraticCurveTo(ex + Math.cos(a + 1.57) * 0.9, ey + Math.sin(a + 1.57) * 0.9, ex, ey); c.quadraticCurveTo(ex - Math.cos(a + 1.57) * 0.9, ey - Math.sin(a + 1.57) * 0.9, X + Math.cos(a) * L * 0.25, fy + Math.sin(a) * L * 0.4); c.fill(); }
   } else if (t.kind === 'pine') {   // 해안 소나무(카수아리나): 가늘고 길게 늘어진 층
     const tx = X + sw * 0.6; c.strokeStyle = '#5a4630'; c.lineWidth = 0.55; c.beginPath(); c.moveTo(X, Y - 0.3); c.lineTo(tx, Y + H * 0.88); c.stroke();
     for (let k = 0; k < 6; k++) { const u = k / 6, yk = Y + H * (0.3 + u * 0.6), cx = X + (tx - X) * (0.3 + u * 0.7), w = r * (1.9 - u * 1.1) + 0.4; c.fillStyle = k % 2 ? md : dk; c.beginPath(); c.moveTo(cx - w, yk - 1.4); c.quadraticCurveTo(cx - w * 0.3, yk + 1.1 + Math.sin(G.t * 1.6 + k) * 0.15, cx, yk + 0.5); c.quadraticCurveTo(cx + w * 0.3, yk + 1.1, cx + w, yk - 1.4); c.quadraticCurveTo(cx, yk + 0.3, cx - w, yk - 1.4); c.fill(); }
@@ -2074,15 +2088,15 @@ function drawBattleship(c, t, big) {   // 야마토급 전함: 붉은 수선부�
     poly([[x - 3.8 * dirn, y0 + 1.15], [x - 2.8 * dirn, y0 + 2.7], [x + 2.1 * dirn, y0 + 2.8], [x + 3.9 * dirn, y0 + 1.15]], '#6a7783', '#37414a', 0.1);
     poly([[x - 3.0 * dirn, y0 + 2.7], [x + 2.1 * dirn, y0 + 2.8], [x + 2.1 * dirn, y0 + 3.15], [x - 2.6 * dirn, y0 + 3.05]], '#808d99');
     rect(x - 1.2, y0 + 3.1, 2.4, 0.25, '#4a5560');   // 조준경 덮개
-    for (let b = 0; b < 3; b++) { const by = y0 + 1.35 + b * 0.55; line(x + 3.6 * dirn, by, x + 8.0 * dirn, by + 0.6 + 0.03 * b, '#2e373f', 0.42); rect(x + 8.0 * dirn - (dirn > 0 ? 0.6 : 0), by + 0.5 + 0.03 * b, 0.6, 0.38, '#1f262d'); }
+    for (let b = 0; b < 2; b++) { const by = y0 + 1.55 + b * 0.7; line(x + 3.6 * dirn, by, x + 8.0 * dirn, by + 0.6 + 0.03 * b, '#2e373f', 0.42); rect(x + 8.0 * dirn - (dirn > 0 ? 0.6 : 0), by + 0.5 + 0.03 * b, 0.6, 0.38, '#1f262d'); }
   };
-  if (big) { turret(hl - 20, 1, 0); turret(hl - 35, 1, 1.4); turret(-hl + 22, -1, 0); } else { turret(hl - 15, 1, 0); turret(-hl + 16, -1, 0); }
+  if (big) { turret(12, 1, 0); turret(-3, 1, 1.4); turret(-18, -1, 1.4); turret(-33, -1, 0); } else { turret(0, 1, 0); turret(-14, -1, 0); }   // 주포탑: 대형 4기, 소형 2기 (배의 가운데 쪽)
   // ── 사출기와 수상기
-  { const cx = -hl + (big ? 9 : 4);
+  { const cx = -hl + (big ? 6 : 4);
     line(cx - 7.5, D + 0.9, cx + 7.5, D + 0.9, '#7f8c98', 0.16); line(cx - 6.5, D, cx - 6.5, D + 0.9, '#7f8c98', 0.1); line(cx + 6.5, D, cx + 6.5, D + 0.9, '#7f8c98', 0.1);
     const nfp = t.fp === undefined ? (big ? 2 : 1) : t.fp;   // 갑판에 남은 수상기 수 (발진하면 줄어든다)
     if (nfp >= 1) drawFloatPlane(c, cx, D + 2.45);
-    if (nfp >= 2) { line(cx + 14.5, D + 0.9, cx + 29.5, D + 0.9, '#7f8c98', 0.16); drawFloatPlane(c, cx + 22, D + 2.45); }
+    if (nfp >= 2) { line(cx + 1.5, D + 0.9, cx + 16.5, D + 0.9, '#7f8c98', 0.16); drawFloatPlane(c, cx + 9, D + 2.45); }
   }
   // ── 함교: 파고다처럼 층층이 쌓은 탑 (위로 갈수록 좁아지고 앞으로 기운다)
   const bx = hl / 3, sc = big ? 1 : 0.85, hy = D - 2.1 + 0.0;   // 함교는 고물에서 3분의 2 지점
@@ -2842,7 +2856,7 @@ function carrierBody(c) {
   c.save(); c.scale(CS, 1);   // 선체·갑판 아래쪽은 가로로 늘인다
   // 항적
   // ── 선체: 완만한 현호, 날카롭게 벌어지는 선수 플레어, 둥글게 내민 선미, 비행갑판이 선수·선미 밖으로 돌출
-  const hull = () => { c.beginPath(); c.moveTo(-5, DY); c.lineTo(-5, DY - 1.6); c.lineTo(-1.5, DY - 2.5); c.bezierCurveTo(-0.5, 12, 3.5, 3, 11, -4); c.lineTo(244, -4); c.bezierCurveTo(251, -3, 257, 5, 262.5, DY - 2.6); c.lineTo(266, DY - 1.6); c.lineTo(266, DY); c.closePath(); };
+  const hull = () => { c.beginPath(); c.moveTo(-5, DY); c.lineTo(-5, DY - 1.6); c.lineTo(-1.5, DY - 2.5); c.bezierCurveTo(5.5, 14.5, 10.5, 6, 11, -4); c.lineTo(244, -4); c.bezierCurveTo(243.5, 6, 251, 15, 262.5, DY - 2.6); c.lineTo(266, DY - 1.6); c.lineTo(266, DY); c.closePath(); };   // 선수·선미의 곡선은 위로 불룩한 아치
   hull(); c.fillStyle = '#76828f'; c.fill();   // 헤이즈 그레이 단색
   c.save(); hull(); c.clip();
   rect(-8, -6, 290, 3.2, '#4b5766');   // 수선부는 약간 어둡게

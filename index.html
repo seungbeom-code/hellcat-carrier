@@ -1162,7 +1162,6 @@ function enemyStep(dt) {
     const sink = Math.max(0, -Math.sin(e.h) * e.v), floor = Math.max(bomber ? 12 : 35, gA + 35) + sink * 2.2, nearShip = Math.abs(e.x - cx) < DECK_L / 2 + 40 && e.y > DECK_Y - 4;
     if (e.y < floor && Math.sin(e.h) < 0.25 && !(diving && e.y > DECK_Y - 2)) { const up = clamp((floor - e.y) / 40, 0.3, 0.9); e.h += clamp(angd(fwd > 0 ? up : Math.PI - up, e.h), -wmax * 2.5 * dt, wmax * 2.5 * dt); e.v = Math.max(e.v, S.v * 0.7); }   // 땅이나 바다가 가까우면 미리 힘껏 기수를 든다
     if (e.y <= Math.max(1, gh(e.x)) && !nearShip) { G.selfCrash = (G.selfCrash || 0) + 1; killEnemy(e); continue; }   // 늦으면 추락한다
-    if (!bomber && air && Math.hypot(p.x - e.x, p.y - e.y) < 12) { hurt(15, 'Collided with an enemy plane.'); killEnemy(e); continue; }   // 공중 충돌
     if (!bomber && air && e.att && e.st === 'app') {   // 사격
       const d = Math.hypot(p.x - e.x, p.y - e.y), tf = d / 560, aimA = Math.atan2(p.y + p.vy * tf - e.y, p.x + p.vx * tf - e.x);
       if (e.bt > 0) { e.bt -= dt; e.cd -= dt; if (e.cd <= 0) { e.cd = 0.14; const a = e.h + (Math.random() - 0.5) * 0.07; FX.push({ k: 'muz', x: e.x + Math.cos(e.h) * 6, y: e.y + Math.sin(e.h) * 6, vx: Math.cos(e.h) * e.v, vy: Math.sin(e.h) * e.v, a: e.h, s: 1.4 + Math.random() * 0.9, life: 0.06, t: 0 }); EB.push({ x: e.x + Math.cos(e.h) * 8, y: e.y + Math.sin(e.h) * 8, vx: Math.cos(a) * 480 + Math.cos(e.h) * e.v, vy: Math.sin(a) * 480 + Math.sin(e.h) * e.v, life: 0.8 }); } }

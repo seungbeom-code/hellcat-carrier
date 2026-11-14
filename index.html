@@ -2844,33 +2844,40 @@ function carrierBody(c) {
   const line = (x1, y1, x2, y2, col, w) => { c.strokeStyle = col; c.lineWidth = w; c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke(); };
   c.save(); c.scale(CS, 1);   // 선체·갑판 아래쪽은 가로로 늘인다
   // 항적
-  // 선체
-  const hull = () => { c.beginPath(); c.moveTo(-3, DY); c.lineTo(-3, DY - 1.6); c.bezierCurveTo(-1, 12, 2, 3, 9, -4); c.lineTo(250, -4); c.bezierCurveTo(254, -1, 259, 8, 263.4, DY); c.closePath(); };
-  hull();
-  c.fillStyle = '#6e7885'; c.fill();   // 선체는 단색 회색
-  hull(); c.strokeStyle = 'rgba(8,12,20,0.7)'; c.lineWidth = 0.3; c.stroke();
+  // ── 선체: 완만한 현호, 날카롭게 벌어지는 선수 플레어, 둥글게 내민 선미, 비행갑판이 선수·선미 밖으로 돌출
+  const hull = () => { c.beginPath(); c.moveTo(-5, DY); c.lineTo(-5, DY - 1.6); c.lineTo(-1.5, DY - 2.5); c.bezierCurveTo(-0.5, 12, 3.5, 3, 11, -4); c.lineTo(244, -4); c.bezierCurveTo(251, -3, 257, 5, 262.5, DY - 2.6); c.lineTo(266, DY - 1.6); c.lineTo(266, DY); c.closePath(); };
+  hull(); c.fillStyle = '#76828f'; c.fill();   // 헤이즈 그레이 단색
+  c.save(); hull(); c.clip();
+  rect(-8, -6, 290, 3.2, '#4b5766');   // 수선부는 약간 어둡게
+  rect(-8, DY - 6.2, 290, 0.35, 'rgba(255,255,255,0.14)'); rect(-8, DY - 5.8, 290, 0.2, 'rgba(10,16,26,0.25)');   // 격납갑판 높이의 띠
+  for (let x = 12; x < 246; x += 4.4) { disc(x, DY - 9, 0.32, '#0f1620'); }   // 격납고 측면의 작은 현창
+  for (let x = 14; x < 244; x += 8.8) rect(x, 5, 0.1, DY - 12, 'rgba(12,18,28,0.18)');   // 판 이음
+  c.restore();
+  hull(); c.strokeStyle = 'rgba(8,12,20,0.75)'; c.lineWidth = 0.3; c.stroke();
   c.save(); hull(); c.clip(); c.fillStyle = 'rgba(18,100,130,0.62)'; c.fillRect(-8, -6, 290, 6); c.restore();   // 물에 잠긴 부분
-  // 갑판 가장자리 통로(캣워크)와 난간
-  rect(-3, DY - 2.3, 270, 0.45, '#3b4757'); rect(-3, DY - 1.85, 270, 0.12, '#8d9aa8');
-  for (let x = -2; x < 266; x += 3) line(x, DY - 1.85, x, DY - 0.2, 'rgba(210,218,226,0.55)', 0.1);
-  // 5인치 양용포 (현측으로 튀어나온 둥근 포좌): 아래가 둥근 포좌, 방패형 포탑, 쌍포신
-  [22, 62, 202, 240].forEach(x => {
-    c.fillStyle = '#4b5766'; c.beginPath(); c.moveTo(x - 4.4, DY - 2.3); c.lineTo(x + 4.4, DY - 2.3); c.quadraticCurveTo(x + 4.6, DY - 7.2, x, DY - 7.6); c.quadraticCurveTo(x - 4.6, DY - 7.2, x - 4.4, DY - 2.3); c.closePath(); c.fill();   // 둥근 포좌
-    c.strokeStyle = '#2c3541'; c.lineWidth = 0.25; c.stroke(); rect(x - 4.7, DY - 2.55, 9.4, 0.4, '#8d9aa8');
-    for (let k = 0; k < 4; k++) disc(x - 3 + k * 2, DY - 5.6, 0.2, '#10171f');   // 포좌의 작은 창
-    poly([[x - 2.2, DY - 2.3], [x - 1.8, DY - 0.2], [x + 1.6, DY - 0.1], [x + 2.2, DY - 2.3]], '#6a7685'); rect(x - 2.2, DY - 0.35, 4.4, 0.25, '#8d9aa8');   // 포탑 방패
-    [-0.35, 0.35].forEach(o => line(x + 1.4, DY - 1.2 + o, x + 7.4, DY + 1.6 + o, '#2a313a', 0.42));   // 쌍포신
-    rect(x + 6.9, DY + 1.3, 0.8, 0.7, '#1c2229');
+  // 비행갑판을 받치는 선수·선미의 지지대(스트럿)
+  [[-4.6, 0], [263.5, 1]].forEach(([x, bow]) => { c.strokeStyle = '#4a5666'; c.lineWidth = 0.5; c.beginPath(); c.moveTo(x, DY - 1.6); c.lineTo(x + (bow ? -7 : 7), DY - 6.5); c.moveTo(x + (bow ? -2 : 2), DY - 1.6); c.lineTo(x + (bow ? -8.5 : 8.5), DY - 5); c.stroke(); });
+  // 닻 구멍과 닻 (선수), 선체 가운데의 구명정 거치대
+  disc(250.5, 12.6, 0.8, '#0f1620'); line(250.5, 12.6, 249.3, 8.2, '#3f4a58', 0.5); line(248.4, 8.2, 250.6, 8.2, '#3f4a58', 0.45);
+  [[96, 5], [168, 5]].forEach(([x]) => { c.fillStyle = '#9aa5b0'; c.beginPath(); c.ellipse(x, DY - 12.5, 8, 1.6, 0, 0, Math.PI); c.fill(); line(x - 8, DY - 12.5, x + 8, DY - 12.5, '#4b5766', 0.15); line(x - 5, DY - 12.5, x - 5, DY - 7, '#4b5766', 0.12); line(x + 5, DY - 12.5, x + 5, DY - 7, '#4b5766', 0.12); });   // 구명정과 보트 데빗
+  // ── 장비는 가로로 늘이지 않고 실제 크기로 그린다 (월드 x = 지역 x × CS)
+  c.save(); c.scale(1 / CS, 1);
+  const X = lx => lx * CS;
+  rect(-8, DY - 2.5, 540, 0.5, '#2f3a49'); rect(-8, DY - 2.05, 540, 0.12, '#8d9aa8');   // 갑판 가장자리 캣워크
+  for (let x = -6; x < 530; x += 6) line(x, DY - 2.05, x, DY - 0.3, 'rgba(210,218,226,0.5)', 0.1);   // 난간 기둥
+  [70, 118, 404, 452].forEach(x => {   // 5인치/38 양용 단장포: 현측으로 튀어나온 둥근 포좌 위의 방패형 포탑
+    c.fillStyle = '#46515f'; c.beginPath(); c.moveTo(x - 4.2, DY - 2.5); c.lineTo(x + 4.2, DY - 2.5); c.quadraticCurveTo(x + 4.4, DY - 8, x, DY - 8.4); c.quadraticCurveTo(x - 4.4, DY - 8, x - 4.2, DY - 2.5); c.closePath(); c.fill(); c.strokeStyle = '#27303b'; c.lineWidth = 0.25; c.stroke();
+    rect(x - 4.5, DY - 2.8, 9, 0.35, '#8d9aa8'); for (let k = 0; k < 3; k++) disc(x - 2.4 + k * 2.4, DY - 6, 0.22, '#0f1620');
+    poly([[x - 2.1, DY - 2.5], [x - 1.7, DY + 0.2], [x + 1.9, DY + 0.5], [x + 2.4, DY - 2.5]], '#68747f'); poly([[x - 1.7, DY + 0.2], [x + 1.9, DY + 0.5], [x + 1.6, DY + 1.1], [x - 1.3, DY + 0.9]], '#7d8995');   // 방패
+    line(x + 1.2, DY - 0.5, x + 7.4, DY + 1.9, '#232b34', 0.55); rect(x + 6.9, DY + 1.6, 0.9, 0.7, '#171d24');   // 단장 포신
   });
-  // 40mm 4연장 기관포 포좌: 둥근 통과 짧은 포신 넷
-  [8, 40, 84, 120, 160, 180, 222, 254].forEach(x => {
-    c.fillStyle = '#505c6b'; c.beginPath(); c.ellipse(x, DY - 3.7, 2.2, 1.9, 0, 0, Math.PI * 2); c.fill(); c.strokeStyle = '#2c3541'; c.lineWidth = 0.18; c.stroke();
-    rect(x - 2.4, DY - 2.2, 4.8, 0.35, '#8d9aa8'); rect(x - 1.1, DY - 2.0, 2.2, 1.6, '#6a7685');
-    [-0.5, -0.17, 0.17, 0.5].forEach(o => line(x + 0.6, DY - 1.0 + o, x + 3.2, DY + 0.5 + o * 1.4, '#2a313a', 0.2));
+  [22, 508, 250, 280].forEach(x => {   // 1.1인치/40mm 4연장 포좌: 둥근 통과 네 개의 포신
+    c.fillStyle = '#4c5866'; c.beginPath(); c.ellipse(x, DY - 4.1, 2.4, 2.0, 0, 0, Math.PI * 2); c.fill(); c.strokeStyle = '#27303b'; c.lineWidth = 0.2; c.stroke();
+    rect(x - 2.6, DY - 2.6, 5.2, 0.35, '#8d9aa8'); rect(x - 1.2, DY - 2.35, 2.4, 1.5, '#68747f');
+    [-0.5, -0.17, 0.17, 0.5].forEach(o => line(x + 0.5, DY - 1.4 + o, x + 3.2, DY + 0.3 + o * 1.3, '#232b34', 0.2));
   });
-  // 닻과 닻 구멍 (뱃머리), 선체 번호 아래의 물받이 띠
-  disc(247.5, 11.2, 0.75, '#10171f'); line(247.5, 11.2, 246.2, 7.2, '#4b5766', 0.45); line(245.2, 7.2, 247.3, 7.2, '#4b5766', 0.4);
-  rect(-3, DY - 3.0, 270, 0.2, 'rgba(255,255,255,0.12)');
+  for (let x = 34; x < 500; x += 30) { if ([70, 118, 404, 452, 250, 280].some(q => Math.abs(q - x) < 14)) continue; c.fillStyle = '#505c6a'; c.beginPath(); c.ellipse(x, DY - 3.5, 1.5, 1.2, 0, 0, Math.PI * 2); c.fill(); line(x + 0.2, DY - 2.9, x + 2.4, DY - 1.6, '#232b34', 0.18); line(x - 0.2, DY - 2.9, x + 2.1, DY - 1.9, '#232b34', 0.18); }   // 20mm 기관포 통
+  c.restore();
   c.restore(); c.save(); c.translate(ISL_DX, 0);   // 함교는 모양 그대로, 늘어난 갑판 가운데쯤으로 옮긴다
   // 함교 (연통 없음): 1층 갑판실 · 2층 해도실/통신실 · 3층 항해 함교(함장) · 4층 비행 지휘소
   const BX = 136, BW = 24;
@@ -2925,6 +2932,13 @@ function carrierBody(c) {
   c.strokeStyle = '#39424c'; c.lineWidth = 0.3; c.strokeRect(142.4, DY + 38.2, 13.4, 4.4); for (let x = 143.4; x < 155.8; x += 1.2) line(x, DY + 38.2, x, DY + 42.6, '#39424c', 0.1); line(142.4, DY + 40.4, 155.8, DY + 40.4, '#39424c', 0.1);
   line(149, DY + 41, 149, DY + 47, '#39424c', 0.4); c.fillStyle = '#39424c'; c.beginPath(); c.ellipse(149, DY + 47.6, 2.2, 0.6, 0, 0, 7); c.fill(); line(146, DY + 44.2, 152, DY + 44.2, '#39424c', 0.2);
   line(135, DY + 17.2, 149, DY + 44.2, 'rgba(40,48,58,0.8)', 0.08);   // 안테나 선
+  // 섬에 통합된 대형 연돌: 함교 바로 뒤(선미 쪽), 앞뒤로 약간 기울고 타원형 단면, 검은 연돌모자
+  poly([[119, DY], [120.6, DY + 15.6], [133.2, DY + 15.6], [135.4, DY]], '#5e6a76'); poly([[120.6, DY + 15.6], [121.8, DY + 18.2], [131.8, DY + 18.2], [133.2, DY + 15.6]], '#1d232a'); rect(119.9, DY + 8.4, 14.2, 0.35, '#3f4a58'); rect(120.3, DY + 12.9, 13, 0.3, '#3f4a58');
+  rect(121.8, DY + 15.5, 10, 0.4, '#aab5bf'); for (let k = 0; k < 4; k++) rect(122 + k * 3, DY + 2.6 + (k % 2) * 3.4, 1.5, 4.6, 'rgba(30,38,46,0.3)');   // 보강대
+  for (let k = 0; k < 6; k++) { const u = ((G.t * 0.32 + k / 6) % 1); c.fillStyle = 'rgba(58,58,60,' + (0.5 * (1 - u)) + ')'; c.beginPath(); c.arc(124 - u * 22 + Math.sin(G.t * 2 + k) * 0.5, DY + 19.4 + u * 6, 1.5 + u * 3.8, 0, 7); c.fill(); }   // 연기
+  // CXAM 대공 탐색 레이더: 마스트 꼭대기의 큰 직사각형 침대스프링 안테나
+  c.strokeStyle = '#39424c'; c.lineWidth = 0.3; c.strokeRect(143.2, DY + 38.6, 11.6, 4.2); for (let x = 144.4; x < 154.8; x += 1.1) line(x, DY + 38.6, x, DY + 42.8, '#39424c', 0.09); for (let y = 39.6; y < 42.8; y += 1.0) line(143.2, DY + y, 154.8, DY + y, '#39424c', 0.09);
+  line(149, DY + 42.8, 149, DY + 46.2, '#39424c', 0.38); c.fillStyle = '#39424c'; c.beginPath(); c.ellipse(149, DY + 46.8, 1.9, 0.5, 0, 0, 7); c.fill();
   c.restore();
   // 선미 성조기
   line(-1.2, DY, -1.2, DY + 9, '#d9dde2', 0.3);

@@ -25,7 +25,7 @@ const W = 960, H = 540, KT = 1.944;
 const GRAV = 9.8, KL = 0.004375, KD0 = 0.000276, AMAX = 10, PWR = 2500;   // 바퀴·플랩은 모양일 뿐, 비행에는 영향이 없다 (항상 같은 날개·항력)
 const CL_MAX = 1.17, CL_BASE = 0.35;   // 실속 속도 약 85노트 (그 아래에서는 날개가 양력을 못 낸다)
 const SHIP_V = 11;                 // 갑판 맞바람 30노트
-const DECK_Y = 20, DECK_L = 520, WH = 3.2, CS = DECK_L / 260, ISL_DX = 136;   // 갑판 길이는 예전의 2배 (선체 그림은 가로로 2배로 늘이고, 함교는 그대로 두고 자리만 옮긴다)   // 갑판 높이, 길이, 바퀴 밑까지 거리
+const DECK_Y = 20, DECK_L = 520, WH = 3.2, CS = DECK_L / 260, ISL_DX = 124;   // 갑판 길이는 예전의 2배 (선체 그림은 가로로 2배로 늘이고, 함교는 그대로 두고 자리만 옮긴다)   // 갑판 높이, 길이, 바퀴 밑까지 거리
 const ZONE_B = 196, ZONE_A = 85, ZONE_L = ZONE_B - ZONE_A;   // 어레스팅 와이어 구역: 와이어 3개 (예전 4개에서 선미 쪽 하나를 줄여 함 중앙 쪽으로 좁혔다)
 const WIRES = [0, 1, 2].map(i => ZONE_A + 10 + i * (ZONE_L - 20) / 2);
 const TURN_T = 3.2;   // 선회에 걸리는 시간(초): 예전의 2배라 회전 반경도 2배
@@ -40,7 +40,7 @@ const sinkProg = () => G.sink ? clamp((G.t - G.sink.t0) / SINK_T, 0, 1) : 0;
 const MAX_LVL = 20;   // 마지막 레벨
 const CARRIER_MIN = 1500;   // 항모 중심에서 가장 가까운 섬·적함까지 최소 거리(m)
 const START_XR = 312, LAUNCH_XR = 312;   // 발진선
-const FM_X = 304;   // 신호수의 고정 자리: 관제탑(함교) 오른쪽
+const FM_X = 292;   // 신호수의 고정 자리: 관제탑(함교) 오른쪽
 const ELEV_A = 236, ELEV_W = 24, ELEV_C = ELEV_A + ELEV_W / 2, ELEV_DEPTH = 14, TAXI_V = 13, ELEV_R = 16;
 const APP_R = DECK_L / 2 + 370;   // 항모 가운데에서 이 거리 안이면 '항모 근처' (갑판 끝에서 370m)   // 가운데 엘리베이터
 const LOADS = [   // 무장: 기관총 2400발에 로켓·폭탄·어뢰 중 하나 (엘리베이터 아래에서 고른다)
@@ -681,7 +681,7 @@ Object.assign(HP, { barracks: 12 }); Object.assign(BOX, { barracks: { w: 40, h: 
 const JP = { pill: 1, aa: 1, bunker: 1, cave: 1, radar: 1, barracks: 1, tank: 1 };   // 일본군이 있는 시설
 const SHIPS = { boat: 1, dd: 1, tr: 1, bm: 1, bb: 1, cv: 1 }, DEF_W = { pill: 2, aa: 1, bunker: 1.5, cave: 2, radar: 1 }, AA_N = { pill: 1, aa: 1, dd: 2, bm: 3, bb: 5, cv: 3, tr: 1, cave: 1 }, AA_R = { pill: 500, aa: 500, cave: 500, dd: 500, bm: 500, bb: 500, cv: 500, tr: 500 };
 const HULL_H = { boat: 4.5, dd: 6.5, tr: 16, bm: 7.8, bb: 7.8, cv: 14.5 };   // 적 함정 선체(갑판) 높이(m)
-const SHIP_GUNS = { dd: { gy: 3.2, xs: [-15, -5, 10] }, bm: { gy: 4.3, xs: [-36, -28, -20, 20, 28, 36], mg: [1, 4] }, bb: { gy: 4.3, xs: [-44, -37, -30, -23, -16, 20, 27, 34, 41, 48], mg: [1, 3, 6, 8] }, cv: { gy: 8.2, xs: [-42, -30, -18, 28, 38, 45] }, tr: { gy: 5.2, xs: [-12, 12] } };   // 함정의 대공포 자리
+const SHIP_GUNS = { dd: { gy: 3.2, xs: [-15, -5, 10] }, bm: { gy: 4.3, xs: [-27, -20, -13, -6, 2, 44], mg: [1, 4] }, bb: { gy: 4.3, xs: [-36, -30, -24, -18, -12, -4, 4, 12, 66, 71], mg: [1, 3, 6, 8] }, cv: { gy: 8.2, xs: [-42, -30, -18, 28, 38, 45] }, tr: { gy: 5.2, xs: [-12, 12] } };   // 함정의 대공포 자리
 const BUSH = [];   // 덤불: 숲 바닥을 채우는 장식 (부딪히지 않는다)
 const TARGETS = [], PROJ = [], TREES = [], ENE = [], EB = [], FLAK = [], SOLD = [];
 const ES = { zero: { v: 125, n: 5.0, hp: 4 }, ace: { v: 140, n: 6.0, hp: 8 }, n1k: { v: 145, n: 5.5, hp: 9 }, d4y: { v: 105, n: 2.6, hp: 6 }, b6n: { v: 100, n: 2.2, hp: 7 } };   // 속도(m/s), 견딜 수 있는 선회 g, 체력
@@ -1143,7 +1143,7 @@ function missionStep(dt) {
     if (t.fp > 0 && p.mode === 'air' && Math.abs(p.x - t.x) < 2400) {
       t.fpT = (t.fpT === undefined ? 3 + Math.random() * 5 : t.fpT) - dt;
       if (t.fpT <= 0 && ENE.filter(e => !e.dead).length < 7) {
-        t.fpT = 14 + Math.random() * 8; t.fp--; const dr = t.dir < 0 ? -1 : 1, lx = -(t.type === 'bb' ? 75 : 50) + (t.type === 'bb' ? 42 : 30) - (t.fp === 0 && t.type === 'bb' ? 0 : 0), wx = t.x + lx * SK[t.type] * dr, wy = t.y + 5.45 * SK[t.type];
+        t.fpT = 14 + Math.random() * 8; t.fp--; const dr = t.dir < 0 ? -1 : 1, lx = -(t.type === 'bb' ? 75 : 50) + (t.type === 'bb' ? 9 : 4), wx = t.x + lx * SK[t.type] * dr, wy = t.y + 5.45 * SK[t.type];
         spawnEnemy(ZR, wx, wy); const e = ENE[ENE.length - 1]; e.h = p.x >= wx ? 0.18 : Math.PI - 0.18; e.v = 75; e.tm = 0;
         if (!G.msg || G.msg.until < G.t) G.msg = { text: 'Enemy floatplane catapulted from a battleship!', until: G.t + 2.5 };
       }
@@ -1539,6 +1539,11 @@ function stepProj(dt) {
       if (gh(q.x) > 0) { explode(q.x, 0.5, 10, 'none', true); PROJ.splice(i, 1); continue; }
       const sh = TARGETS.find(t => t.alive && SHIPS[t.type] && Math.abs(q.x - t.x) < BOX[t.type].w / 2);
       if (sh && (sh.type === 'bb' || sh.type === 'bm') && sh.guns.some(g => g.alive)) { sh.hitAt = G.t; explode(q.x, 0, 10, 'none', true); G.toast = { text: 'The battleship shrugs it off — knock out every AA gun and machine gun first', grade: 'yellow', until: G.t + 3.5 }; PROJ.splice(i, 1); continue; }
+      if (sh && q.d * sh.dir < 0) {   // 뱃머리에 정면으로 직격하면 불발탄: 배가 향한 쪽에서 쏜 어뢰는 뱃머리에 정면으로 부딪혀 터지지 않는다 (고물 쪽에서 맞춰야 한다)
+        explode(q.x, 0, 8, 'none', true); FX.push({ k: 'splash', x: q.x, y: 0, vx: 0, vy: 0, life: 0.9, t: 0 }); sfx('thump');
+        if (!G.toast || G.toast.until < G.t) G.toast = { text: 'Dud! The torpedo hit the bow head-on and failed to explode — hit the stern instead', grade: 'yellow', until: G.t + 3.5 };
+        PROJ.splice(i, 1); continue;
+      }
       if (sh) { if (sh.type === 'bb' || sh.type === 'bm') (sh.hits = sh.hits || []).push(q.x - sh.x); applyDmg(sh, 22); explode(q.x, 0, 18, 'none', true); FX.push({ k: 'flash', x: q.x, y: 3, vx: 0, vy: 0, life: 0.3, t: 0 }); sfx('boom'); PROJ.splice(i, 1); continue; }
       if (q.life <= 0) PROJ.splice(i, 1);
       continue;
@@ -2073,25 +2078,25 @@ function drawBattleship(c, t, big) {   // 야마토급 전함: 붉은 수선부�
   };
   if (big) { turret(hl - 20, 1, 0); turret(hl - 35, 1, 1.4); turret(-hl + 22, -1, 0); } else { turret(hl - 15, 1, 0); turret(-hl + 16, -1, 0); }
   // ── 사출기와 수상기
-  { const cx = -hl + (big ? 42 : 30);
+  { const cx = -hl + (big ? 9 : 4);
     line(cx - 7.5, D + 0.9, cx + 7.5, D + 0.9, '#7f8c98', 0.16); line(cx - 6.5, D, cx - 6.5, D + 0.9, '#7f8c98', 0.1); line(cx + 6.5, D, cx + 6.5, D + 0.9, '#7f8c98', 0.1);
     const nfp = t.fp === undefined ? (big ? 2 : 1) : t.fp;   // 갑판에 남은 수상기 수 (발진하면 줄어든다)
     if (nfp >= 1) drawFloatPlane(c, cx, D + 2.45);
-    if (nfp >= 2) { line(cx - 19.5, D + 0.9, cx - 4.5, D + 0.9, '#7f8c98', 0.16); drawFloatPlane(c, cx - 12, D + 2.45); }
-    line(cx + 9, D, cx + 9, D + 4.8, '#6c7985', 0.16); line(cx + 9, D + 4.8, cx + 13, D + 2.4, '#6c7985', 0.1); line(cx + 13, D + 2.4, cx + 13, D + 0.4, '#6c7985', 0.06); }   // 크레인
+    if (nfp >= 2) { line(cx + 14.5, D + 0.9, cx + 29.5, D + 0.9, '#7f8c98', 0.16); drawFloatPlane(c, cx + 22, D + 2.45); }
+  }
   // ── 함교: 파고다처럼 층층이 쌓은 탑 (위로 갈수록 좁아지고 앞으로 기운다)
-  const bx = big ? -3 : -2, sc = big ? 1 : 0.85, hy = D - 2.1 + 0.0;
-  const tiers = [[-4.8, 4.4, 2.1, 6.4, '#7d8a96'], [-4.0, 3.6, 6.4, 10.4, '#86939f'], [-3.3, 3.0, 10.4, 14.2, '#7a8793'], [-2.6, 2.4, 14.2, 17.6, '#8794a1']];   // 4층 구조의 날씬한 관제탑
+  const bx = hl / 3, sc = big ? 1 : 0.85, hy = D - 2.1 + 0.0;   // 함교는 고물에서 3분의 2 지점
+  const tiers = [[-4.8, 4.4, 2.1, 6.4, '#7d8a96'], [-4.0, 3.6, 6.4, 10.4, '#86939f']];   // 함교는 2층까지만
   tiers.forEach(([x0, x1, y0, y1, col], i) => {
     const X0 = bx + x0 * sc, X1 = bx + x1 * sc, Y0 = D + (y0 - 2.1) * sc * 0.5, Y1 = D + (y1 - 2.1) * sc * 0.5, lean = 0.12 * i;
     poly([[X0, Y0], [X1, Y0], [X1 + lean + 0.5, Y1], [X0 + lean, Y1]], col, '#37414a', 0.08);
     rect(X0 + lean - 0.3, Y1 - 0.12, X1 - X0 + 0.9, 0.22, '#aab5bf');
     for (let x = X0 + 1.0 + lean * 0.5; x < X1 - 1.2; x += 1.5) rect(x, Y0 + (Y1 - Y0) * 0.35, 0.85, 0.55 * sc + 0.2, i === 4 ? '#26485f' : '#161d24');   // 창
-    if (i === 3) rect(X0 + lean + 0.4, Y0 + (Y1 - Y0) * 0.3, X1 - X0 - 0.4, 0.9, 'rgba(120,170,200,0.6)');
-    if (i === 1) { c.fillStyle = '#6a7783'; c.beginPath(); c.arc(X0 - 0.6 + lean, Y0 + 1.2, 0.7, 0, 7); c.arc(X1 + 0.8 + lean, Y0 + 1.2, 0.7, 0, 7); c.fill(); }   // 측면 관측 장치
+    if (i === 1) rect(X0 + lean + 0.4, Y0 + (Y1 - Y0) * 0.3, X1 - X0 - 0.4, 0.9, 'rgba(120,170,200,0.6)');
+    if (i === 0) { c.fillStyle = '#6a7783'; c.beginPath(); c.arc(X0 - 0.6 + lean, Y0 + 1.2, 0.7, 0, 7); c.arc(X1 + 0.8 + lean, Y0 + 1.2, 0.7, 0, 7); c.fill(); }   // 측면 관측 장치
   });
   // 마스트·활대·레이더, 이물과 고물로 늘어지는 줄
-  const mx = bx + 0.9 * sc, my = D + 7.8 * sc;
+  const mx = bx + 0.9 * sc, my = D + 4.15 * sc;
   line(mx, my, mx, my + 7.5, '#444f59', 0.36); line(mx - 1.3, my - 0.2, mx - 0.2, my + 6.4, '#444f59', 0.15); line(mx + 1.3, my - 0.2, mx + 0.5, my + 6.4, '#444f59', 0.15);
   line(mx - 3.2, my + 4.2, mx + 3.6, my + 4.2, '#444f59', 0.18); rect(mx - 0.8, my + 7.5, 1.7, 0.9, '#59656f'); rect(mx - 2.0, my + 8.4, 3.4, 0.14, '#7f8c98'); line(mx, my + 8.5, mx, my + 9.8, '#444f59', 0.14);
   rect(mx - 1.8, my + 1.6, 3.6, 0.9, '#4e5a65');

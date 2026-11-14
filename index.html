@@ -681,7 +681,7 @@ Object.assign(HP, { barracks: 12 }); Object.assign(BOX, { barracks: { w: 40, h: 
 const JP = { pill: 1, aa: 1, bunker: 1, cave: 1, radar: 1, barracks: 1, tank: 1 };   // 일본군이 있는 시설
 const SHIPS = { boat: 1, dd: 1, tr: 1, bm: 1, bb: 1, cv: 1 }, DEF_W = { pill: 2, aa: 1, bunker: 1.5, cave: 2, radar: 1 }, AA_N = { pill: 1, aa: 1, dd: 2, bm: 3, bb: 5, cv: 3, tr: 1, cave: 1 }, AA_R = { pill: 500, aa: 500, cave: 500, dd: 500, bm: 500, bb: 500, cv: 500, tr: 500 };
 const HULL_H = { boat: 4.5, dd: 6.5, tr: 16, bm: 7.8, bb: 7.8, cv: 14.5 };   // 적 함정 선체(갑판) 높이(m)
-const SHIP_GUNS = { dd: { gy: 3.2, xs: [-15, -5, 10] }, bm: { gy: 4.3, xs: [-32, -26, 32, 40], mg: [1, 3] }, bb: { gy: 4.3, xs: [-52, -46, -40, 44, 50, 56, 62, 68], mg: [1, 4, 6] }, cv: { gy: 8.2, xs: [-42, -30, -18, 28, 38, 45] }, tr: { gy: 5.2, xs: [-12, 12] } };   // 함정의 대공포 자리
+const SHIP_GUNS = { dd: { gy: 3.2, xs: [-12, 8] }, bm: { gy: 4.3, xs: [-30, 36], mg: [1] }, bb: { gy: 4.3, xs: [-52, -44, 52, 62], mg: [1, 3] }, cv: { gy: 8.2, xs: [-36, 28, 44] }, tr: { gy: 5.2, xs: [8] } };   // 함정의 대공포 자리 (예전의 절반)   // 함정의 대공포 자리
 const BUSH = [];   // 덤불: 숲 바닥을 채우는 장식 (부딪히지 않는다)
 const TARGETS = [], PROJ = [], TREES = [], ENE = [], EB = [], FLAK = [], SOLD = [];
 const ES = { zero: { v: 125, n: 5.0, hp: 4 }, ace: { v: 140, n: 6.0, hp: 8 }, n1k: { v: 145, n: 5.5, hp: 9 }, d4y: { v: 105, n: 2.6, hp: 6 }, b6n: { v: 100, n: 2.2, hp: 7 } };   // 속도(m/s), 견딜 수 있는 선회 g, 체력
@@ -2090,7 +2090,7 @@ function drawBattleship(c, t, big) {   // 야마토급 전함: 붉은 수선부�
     rect(x - 1.2, y0 + 3.1, 2.4, 0.25, '#4a5560');   // 조준경 덮개
     for (let b = 0; b < 2; b++) { const by = y0 + 1.55 + b * 0.7; line(x + 3.6 * dirn, by, x + 8.0 * dirn, by + 0.6 + 0.03 * b, '#2e373f', 0.42); rect(x + 8.0 * dirn - (dirn > 0 ? 0.6 : 0), by + 0.5 + 0.03 * b, 0.6, 0.38, '#1f262d'); }
   };
-  if (big) { turret(12, 1, 0); turret(-3, 1, 1.4); turret(-18, -1, 1.4); turret(-33, -1, 0); } else { turret(0, 1, 0); turret(-14, -1, 0); }   // 주포탑: 대형 4기, 소형 2기 (배의 가운데 쪽)
+  if (big) { turret(10, 1, 0); turret(-14, -1, 0); } else { turret(-2, 1, 0); }   // 주포탑: 대형 2기, 소형 1기 (배의 가운데 쪽)
   // ── 사출기와 수상기
   { const cx = -hl + (big ? 6 : 4);
     line(cx - 7.5, D + 0.9, cx + 7.5, D + 0.9, '#7f8c98', 0.16); line(cx - 6.5, D, cx - 6.5, D + 0.9, '#7f8c98', 0.1); line(cx + 6.5, D, cx + 6.5, D + 0.9, '#7f8c98', 0.1);

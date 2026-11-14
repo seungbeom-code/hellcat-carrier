@@ -538,6 +538,7 @@ function sfx(n) {
   else if (n === 'boom') { burst(260, 1.0, 0.55, 'lowpass'); tone(80, 0.7, 'sawtooth', 0.3, 30); }
   else if (n === 'lift') { tone(120, 1.8, 'triangle', 0.1, 70); burst(260, 1.8, 0.05); }
 }
+const IS_PHONE = (() => { try { return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '') || (typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches); } catch (_) { return false; } })();   // 폰·태블릿(터치 기기)이면 비행 중 엔진·바람 소리를 내지 않는다
 function updateSound(dt) {
   const a = sound.ctx; if (!a) return;
   const t = a.currentTime, alive = (p.mode === 'air' || p.mode === 'deck' || p.mode === 'taxi' || p.mode === 'lift') && p.fuel > 0;
@@ -547,8 +548,8 @@ function updateSound(dt) {
   sound.eo[0].frequency.setTargetAtTime(ef, t, 0.3); sound.eo[1].frequency.setTargetAtTime(ef * 1.5, t, 0.3);
   sound.elp.frequency.setTargetAtTime(200 + thr * 160, t, 0.3);
   const onDeck = p.mode === 'taxi' || p.mode === 'deck' || p.mode === 'lift', moving = (p.mode === 'taxi' || p.mode === 'deck') && Math.abs(p.vr) > 0.5;
-  sound.eg.gain.setTargetAtTime(!alive ? 0 : p.mode === 'air' ? 0.035 + 0.045 * thr : p.mode === 'lift' ? 0.008 : moving ? 0.02 + 0.03 * thr : 0.012, t, 0.35);   // 엔진은 늘 켜져 있고 소리도 늘 난다 (부드럽고 작게, 세게 밀면 조금 커진다)
-  sound.wg.gain.setTargetAtTime(p.mode === 'air' ? Math.min(0.06, V * V * 0.000007) : 0, t, 0.2);
+  sound.eg.gain.setTargetAtTime(!alive || (IS_PHONE && p.mode === 'air') ? 0 : p.mode === 'air' ? 0.035 + 0.045 * thr : p.mode === 'lift' ? 0.008 : moving ? 0.02 + 0.03 * thr : 0.012, t, 0.35);   // 엔진은 늘 켜져 있고 소리도 늘 난다 (부드럽고 작게, 세게 밀면 조금 커진다)
+  sound.wg.gain.setTargetAtTime(p.mode === 'air' && !IS_PHONE ? Math.min(0.06, V * V * 0.000007) : 0, t, 0.2);
   if (G.lso !== sound.lastSig) { if (G.lso === 'CUT') sfx('cut'); if (G.lso === 'WAVEOFF') sfx('waveoff'); sound.lastSig = G.lso; }
   sound.stallT -= dt;
   if (p.mode === 'air' && p.turn <= 0 && kts() < stallKt() * 1.04 && sound.stallT <= 0) { sfx('stall'); sound.stallT = 0.28; }

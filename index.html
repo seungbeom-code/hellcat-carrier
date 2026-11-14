@@ -676,7 +676,7 @@ const DMG = {
   rocket: { aa: 6, bunker: 13, fuel: 6, radar: 6, boat: 6, runway: 4, tank: 8, cave: 16, dd: 6, tr: 6, bm: 3.5, bb: 3.5, cv: 5 },   // 로켓: 강력한 탄두 — 직격 한 발로 대부분의 시설이 부서진다
   bomb: { aa: 10, bunker: 14, fuel: 10, radar: 10, boat: 12, runway: 10, tank: 10, cave: 8, dd: 14, tr: 14, bm: 12, bb: 12, cv: 16 }
 };
-Object.assign(HP, { barracks: 12, pill: 14, tower: 8 }); BOX.tower = { w: 8, h: 25 }; DMG.gun.tower = 0.3; DMG.rocket.tower = 12; DMG.bomb.tower = 8; BOX.pill = { w: 28, h: 13 }; DMG.gun.pill = 0.05; DMG.rocket.pill = 4; DMG.bomb.pill = 0; DMG.gun.bunker = 0.12;   // 콘크리트 벙커: 체력 14, 로켓 한 발에 4 → 4발을 맞아야 부서진다
+Object.assign(HP, { barracks: 12, pill: 14, tower: 8 }); BOX.tower = { w: 8, h: 25 }; DMG.gun.tower = 0.3; DMG.rocket.tower = 12; DMG.bomb.tower = 8; BOX.pill = { w: 14, h: 6.5 }; DMG.gun.pill = 0.05; DMG.rocket.pill = 4; DMG.bomb.pill = 0; DMG.gun.bunker = 0.12;   // 콘크리트 벙커: 체력 14, 로켓 한 발에 4 → 4발을 맞아야 부서진다
 Object.assign(HP, { barracks: 12 }); Object.assign(BOX, { barracks: { w: 40, h: 7 }, aa: { w: 11, h: 9 } }); DMG.gun.barracks = 0.15; DMG.rocket.barracks = 14; DMG.bomb.barracks = 10;
 const JP = { pill: 1, aa: 1, bunker: 1, cave: 1, radar: 1, barracks: 1, tank: 1 };   // 일본군이 있는 시설
 const SHIPS = { boat: 1, dd: 1, tr: 1, bm: 1, bb: 1, cv: 1 }, DEF_W = { pill: 2, aa: 1, bunker: 1.5, cave: 2, radar: 1 }, AA_N = { pill: 1, aa: 1, dd: 2, bm: 3, bb: 5, cv: 3, tr: 1, cave: 1 }, AA_R = { pill: 500, aa: 500, cave: 500, dd: 500, bm: 500, bb: 500, cv: 500, tr: 500 };
@@ -945,7 +945,7 @@ function makeTargets(M) {
   });
   ISLANDS.forEach(q => { q.pads = []; });   // 건물 둘레를 평지로: 건물이 서는 자리의 높이로 땅을 고르고 가장자리는 완만하게 잇는다
   { const hts = TARGETS.filter(t => !SHIPS[t.type] && t.type !== 'runway' && t.isl >= 0).map(t => [t, gh(t.x)]);
-    for (const [t, h0] of hts) { const pad = BOX[t.type].w / 2 + (t.type === 'barracks' ? 16 : 8); ISLANDS[t.isl].pads.push({ a: t.x - pad, b: t.x + pad, h: h0 }); }
+    for (const [t, h0] of hts) { const pad = BOX[t.type].w / 2 + (t.type === 'barracks' ? 36 : 8); ISLANDS[t.isl].pads.push({ a: t.x - pad, b: t.x + pad, h: h0 }); }   // 막사 둘레의 생활시설까지 평평하게
     for (const t of TARGETS) if (!SHIPS[t.type]) t.y = gh(t.x); }
   ISLANDS.forEach((si, k) => {   // 숲은 건물이 없는 빈 구간에만 만든다: 건물·깃발·활주로 둘레 35m는 비우고, 나무는 20~48m씩 떨어뜨려 심는다
     const w = si.b - si.a, hs = n => Math.abs(Math.sin(n * 12.9898) * 43758.5453) % 1;
@@ -959,7 +959,7 @@ function makeTargets(M) {
       for (const c0 of all) { const len = Math.min(520, c0[1] - c0[0]), mid = (c0[0] + c0[1]) / 2; sel.push([mid - len / 2, mid + len / 2]); }
       si.forests = sel; }
     for (const [f0, f1] of si.forests) {
-      for (let x = f0, i = 0; x < f1; i++) { const h = hs(x * 0.137 + i), h2 = hs(x * 0.311 + i * 1.7), tx = x, r = 3 + h * 2.5; x += 11 + h2 * 15; TREES.push(Object.assign({ x: tx, y: gh(tx), hp: 3, hp0: 3, alive: true }, treeSpec(h, h2, r))); }
+      for (let x = f0, i = 0; x < f1; i++) { const h = hs(x * 0.137 + i), h2 = hs(x * 0.311 + i * 1.7), tx = x, r = 3 + h * 2.5; x += 5.5 + h2 * 7.5; TREES.push(Object.assign({ x: tx, y: gh(tx), hp: 3, hp0: 3, alive: true }, treeSpec(h, h2, r))); }
       for (let x = f0 + 5, i = 0; x < f1; i++) { const h = hs(x * 0.71 + i), h2 = hs(x * 0.29 + i * 2.3), bx = x; x += 9 + h2 * 16; if (false) BUSH.push({ x: bx, y: gh(bx), r: 1.2 + h * 1.6, k: Math.floor(h2 * 3), ph: h * 6.28 }); }
     }
   });
@@ -1339,7 +1339,7 @@ function flakStep(dt) {
     if (p.mode !== 'air') continue;
     const d = Math.hypot(p.x - t.x, p.y - t.y); if (d > (AA_R[t.type] || 1100) || d < 25) continue;
     t.flashT = G.t; if (d < 1300 && Math.random() < 0.5) sfx('gun');
-    const hy = t.y + (SHIPS[t.type] ? BOX[t.type].h * 0.7 : t.type === 'aa' ? 7 : t.type === 'pill' ? 14 : 4);
+    const hy = t.y + (SHIPS[t.type] ? BOX[t.type].h * 0.7 : t.type === 'aa' ? 7 : t.type === 'pill' ? 7 : 4);
     for (let k = 0, nk = Math.ceil(AA_N[t.type] * (t.guns ? nG / t.guns.length : 1)); k < nk; k++) { const f = 0.4 + Math.random() * 0.4, err = 70 + d * 0.07; FLAK.push({ x0: t.x, y0: hy, x: p.x + p.vx * f + (Math.random() - 0.5) * err * 2, y: p.y + p.vy * f + (Math.random() - 0.5) * err, t: f, life: f }); }
   }
   for (let i = FLAK.length - 1; i >= 0; i--) {
@@ -1413,7 +1413,7 @@ function damageAt(x, y, r, kind) {
       if (!G.toast || G.toast.until < G.t) G.toast = { text: 'Ships sink only to torpedoes · rockets knock out their guns', grade: 'yellow', until: G.t + 3 };
       continue;
     }
-    if (d <= r) { if (t.type === 'pill' && kind === 'rocket' && d <= 3) { (t.marks = t.marks || []).push({ x: clamp(x - t.x, -6, 6), y: clamp(y - t.y, 0.8, 5.2), r: 0.8 + Math.random() * 0.7, a: Math.random() * 6 }); if (t.marks.length > 8) t.marks.shift(); if (t.hp > 0 && (!G.toast || G.toast.until < G.t)) G.toast = { text: 'Concrete bunker: it takes 4 rocket hits', grade: 'yellow', until: G.t + 2.5 };
+    if (d <= r) { if (t.type === 'pill' && kind === 'rocket' && d <= 3) { (t.marks = t.marks || []).push({ x: clamp((x - t.x) * 2, -6, 6), y: clamp((y - t.y) * 2, 0.8, 5.2), r: 0.8 + Math.random() * 0.7, a: Math.random() * 6 }); if (t.marks.length > 8) t.marks.shift(); if (t.hp > 0 && (!G.toast || G.toast.until < G.t)) G.toast = { text: 'Concrete bunker: it takes 4 rocket hits', grade: 'yellow', until: G.t + 2.5 };
         chips(x, y, 16, ['#a3a49c', '#8f908a', '#b9bab3', '#6e6f69', '#7a4a36'], 2.4); FX.push({ k: 'dust', x: x, y: y + 1, vx: -2, vy: 3, life: 1.1, t: 0 }); FX.push({ k: 'dust', x: x + 2, y: y + 1.5, vx: 2, vy: 4, life: 1.3, t: 0 }); }   // 콘크리트 파편이 튀어 나간다
       applyDmg(t, DMG[kind][t.type] * (kind === 'rocket' && d <= 2.5 ? 1 : 1 - 0.6 * d / r)); if (t.type === 'pill' && kind === 'bomb' && (!G.toast || G.toast.until < G.t)) G.toast = { text: 'Bombs do not hurt concrete bunkers — use rockets!', grade: 'yellow', until: G.t + 2.5 }; }
   }
@@ -1563,7 +1563,7 @@ function stepProj(dt) {
     const en = (q.k === 'b' || q.k === 'r') ? ENE.find(e => !e.dead && Math.abs(q.x - e.x) < 12 && Math.abs(q.y - e.y) < 6) : null;
     if (en) {
       if (q.k === 'b') { en.hp -= 0.5; for (let j = 0; j < 2; j++) FX.push({ k: 'spark', x: q.x, y: q.y, vx: (Math.random() - 0.5) * 18, vy: 3 + Math.random() * 8, life: 0.3, t: 0 }); if (en.hp <= 0) killEnemy(en); }
-      else explode(q.x, q.y, 14, 'rocket', false);
+      else { if (Math.random() < 0.7 && !en.dead) killEnemy(en); explode(q.x, q.y, 14, 'rocket', false); }   // 로켓이 적기에 직격하면 일정 확률(70%)로 즉시 파괴
       PROJ.splice(i, 1); continue;
     }
     if (q.k === 'b') { const sd = SOLD.find(o => o.alive && o.st !== 'enter' && Math.abs(q.x - o.x) < 4.5 && q.y >= o.y - 0.5 && q.y <= o.y + 8); if (sd) { killSoldier(sd); PROJ.splice(i, 1); continue; } }
@@ -1902,6 +1902,31 @@ function drawLife(c, t) {
     fire(-27); crates(-34, 3); drum(-23, '#6a5a3a');
     R(-1.2, 0, 2.4, 0.15, '#9a8a6a');   // 문 앞 디딤돌
     guard(3, -1, 0); guard(-6.5, 1, 2);
+    // ── 생활시설과 병사들의 일상: 취사병, 식사하는 병사, 우물에서 씻는 병사, 일장기, 화장실
+    const person = (x, dir, pose, ph) => {
+      c.save(); c.translate(x, 0); c.scale(4 * dir, 4);
+      const sit = pose === 'eat', bend = pose === 'wash' ? 0.5 : 0, cyc = Math.sin(T * 2.4 + ph);
+      c.strokeStyle = '#4e4630'; c.lineWidth = 0.22; c.beginPath();
+      if (sit) { c.moveTo(0, 0.55); c.lineTo(0.6, 0.5); c.lineTo(0.62, 0); } else { c.moveTo(0, 0.8); c.lineTo(-0.1, 0); c.moveTo(0, 0.8); c.lineTo(0.12, 0); }
+      c.stroke();
+      c.save(); c.translate(0, sit ? -0.25 : 0); c.translate(0, 0.8); c.rotate(-bend); c.translate(0, -0.8);
+      c.fillStyle = '#a08f4c'; c.fillRect(-0.25, 0.8, 0.5, 0.75); c.strokeStyle = '#2d2618'; c.lineWidth = 0.08; c.strokeRect(-0.25, 0.8, 0.5, 0.75);
+      c.fillStyle = '#e0c9a0'; c.beginPath(); c.arc(0.04, 1.75 + (pose === 'eat' ? 0.05 * Math.max(0, cyc) : 0), 0.2, 0, 7); c.fill(); c.fillStyle = '#6b6a3a'; c.beginPath(); c.arc(0.02, 1.82, 0.24, Math.PI, 0); c.fill();
+      c.strokeStyle = '#3a2e20'; c.lineWidth = 0.14; c.beginPath(); c.moveTo(0.15, 1.35);
+      if (pose === 'stir') c.lineTo(0.75 + 0.18 * cyc, 0.95 + 0.12 * Math.cos(T * 2.4 + ph)); else if (pose === 'eat') c.lineTo(0.35, 1.4 + 0.3 * Math.max(0, cyc)); else if (pose === 'wash') c.lineTo(0.7, 0.7 + 0.1 * cyc); else c.lineTo(0.5, 1.0);
+      c.stroke(); c.restore(); c.restore();
+    };
+    c.fillStyle = '#2a2a2a'; c.beginPath(); c.ellipse(-27, 2.45, 1.0, 0.25, 0, 0, 7); c.fill(); person(-29.6, 1, 'stir', 0.3);   // 취사병이 솥을 젓는다
+    // 천막 식당: 기둥과 지붕, 식탁과 긴 의자, 마주 앉아 식사하는 두 병사
+    R(37, 0, 0.3, 3.9, '#5a4632'); R(48, 0, 0.3, 3.9, '#5a4632'); c.fillStyle = '#6f7650'; c.beginPath(); c.moveTo(36, 3.9); c.lineTo(49.4, 3.9); c.lineTo(48, 5.2); c.lineTo(37.4, 5.2); c.closePath(); c.fill();
+    R(38.5, 1.3, 8.4, 0.35, '#7a5a36'); R(39, 0, 0.3, 1.3, '#5a4632'); R(46.2, 0, 0.3, 1.3, '#5a4632'); R(38.2, 0.75, 3.4, 0.28, '#6a4a2a'); R(43.8, 0.75, 3.4, 0.28, '#6a4a2a');
+    R(40.2, 1.65, 0.9, 0.12, '#d8d4c8'); R(44.8, 1.65, 0.9, 0.12, '#d8d4c8'); person(40.6, 1, 'eat', 0); person(45.2, -1, 'eat', 2);
+    // 우물과 두레박, 물을 길어 씻는 병사
+    R(-48.5, 0, 3.4, 1.3, '#7d7d74'); for (let k = 0; k < 3; k++) R(-48.5, 0.3 + k * 0.4, 3.4, 0.06, 'rgba(40,40,36,0.4)'); R(-48, 1.3, 0.25, 3.2, '#5a4632'); R(-45.4, 1.3, 0.25, 3.2, '#5a4632'); R(-48.2, 4.4, 3.2, 0.25, '#5a4632');
+    c.strokeStyle = '#d8d0c0'; c.lineWidth = 0.06; c.beginPath(); c.moveTo(-46.8, 4.4); c.lineTo(-46.8, 2.6 + 0.4 * Math.sin(T * 1.2)); c.stroke(); R(-47.2, 2.0 + 0.4 * Math.sin(T * 1.2), 0.8, 0.6, '#6a6a60'); person(-42.2, -1, 'wash', 1.5); R(-41.2, 0, 1.1, 0.8, '#6a6a60');
+    // 일장기 게양대와 화장실
+    R(22.3, 0, 0.25, 9.5, '#d8d8d0'); { const w1 = Math.sin(T * 3) * 0.25; c.fillStyle = '#f4f2ea'; c.beginPath(); c.moveTo(22.55, 9.2); c.lineTo(26.2, 9.2 + w1); c.lineTo(26.2, 7.1 + w1); c.lineTo(22.55, 7.1); c.closePath(); c.fill(); c.fillStyle = '#c83a3a'; c.beginPath(); c.arc(24.4, 8.15 + w1 * 0.5, 0.6, 0, 7); c.fill(); }
+    R(52, 0, 3.4, 3.7, '#6a5a3e'); R(52, 3.7, 3.4, 0.3, '#4a3e2a'); R(53, 0.2, 1.4, 2.6, '#3a2e20'); R(51.8, 3.9, 3.8, 0.3, '#3e3022');
   } else if (t.type === 'bunker') {
     c.strokeStyle = '#3f6a30'; c.lineWidth = 0.3; for (let i = 0; i < 9; i++) { const x = -8 + i * 1.9; c.beginPath(); c.moveTo(x, 3.1); c.quadraticCurveTo(x + 1, 4.2, x + 2.2, 3.3 + Math.sin(T + i) * 0.1); c.stroke(); }   // 위장 잎
     crates(11.5, 2); drawQuad(c, t);   // 모래주머니 위로 솟은 4연장 기관포
@@ -2198,7 +2223,8 @@ function drawTarget(c, t, dead) {
       if (G.t - (t.flashT || -9) < 0.12) { c.fillStyle = 'rgba(255,225,130,0.95)'; c.beginPath(); c.arc(ca * 3.3, py0 + sa * 3.3, 0.6, 0, 7); c.fill(); }
       break;
     }
-    case 'pill': {   // 콘크리트 토치카: 두꺼운 지붕판, 사격 구멍, 거푸집 자국
+    case 'pill': {   // 콘크리트 토치카: 두꺼운 지붕판, 사격 구멍, 거푸집 자국 (크기는 예전의 절반)
+      c.save(); c.scale(0.5, 0.5);
       poly([[-7, 0], [-6.2, 4], [6.2, 4], [7, 0]], '#a3a49c'); rect(-7.6, 4, 15.2, 1.5, '#8f908a'); rect(-7.6, 5.5, 15.2, 0.25, '#b9bab3');
       for (let x = -5.5; x < 6; x += 2.2) rect(x, 0.3, 0.12, 3.6, 'rgba(60,60,55,0.25)');
       rect(-3.4, 2.1, 6.8, 0.8, '#121410'); rect(-0.4, 2.3, 3.6, 0.35, '#2a2c28');
@@ -2212,19 +2238,15 @@ function drawTarget(c, t, dead) {
         if (i % 3 === 0) { c.save(); c.translate(m.x + m.r * 1.6, m.y - m.r * 1.3); c.rotate(0.5 + m.a * 0.1); poly([[-0.6, -0.4], [0.7, -0.3], [0.5, 0.5], [-0.5, 0.4]], '#9a9b93'); c.restore(); }   // 철근에 매달린 조각
         c.strokeStyle = 'rgba(30,30,26,0.55)'; c.lineWidth = 0.1; c.beginPath(); for (let k = 0; k < 3; k++) { const a = m.a + 1 + k * 2.1; c.moveTo(m.x + Math.cos(a) * m.r * 1.5, m.y + Math.sin(a) * m.r * 1.2); c.lineTo(m.x + Math.cos(a) * m.r * 3, m.y + Math.sin(a) * m.r * 2.4); } c.stroke();   // 갈라진 금
       });
-      {   // 지붕 위 장갑 포탑: 둥글고 낮은 돔형 포탑에 짧고 굵은 쌍기관포, 뒤쪽에 탄창통. 내 비행기를 따라 돌고, 쏠 때 포구 화염
-        const an = p.mode === 'air' ? clamp(Math.atan2(p.y - t.y - 13, p.x - t.x), 0.2, Math.PI - 0.2) : 1.1, ca = Math.cos(an), sa = Math.sin(an), nx = -sa, ny = ca;
-        const px = 1.5, py = 6.5;
-        c.fillStyle = '#6f7164'; c.fillRect(-1.0, 5.75, 5.0, 0.55); c.fillStyle = '#8f9086'; c.fillRect(-1.2, 6.2, 5.4, 0.22);   // 회전 링
-        c.fillStyle = '#7e8076'; c.beginPath(); c.ellipse(px, py - 0.1, 2.3, 1.9, 0, 0, Math.PI); c.lineTo(px - 2.3, py - 0.1); c.closePath(); c.fill();   // 돔형 포탑
-        c.strokeStyle = '#4a4d44'; c.lineWidth = 0.14; c.beginPath(); c.ellipse(px, py - 0.1, 2.3, 1.9, 0, 0, Math.PI); c.stroke();
-        c.fillStyle = '#6a6c62'; c.beginPath(); c.arc(px - ca * 1.0, py + 0.2 - sa * 0.1, 0.8, 0, 7); c.fill();   // 뒤쪽 탄창통
-        c.fillStyle = '#3d4036'; for (let k = 0; k < 4; k++) { c.beginPath(); c.arc(px - 1.8 + k * 1.2, py + 1.45, 0.14, 0, 7); c.fill(); }   // 리벳
-        c.strokeStyle = '#2d312a'; c.lineWidth = 0.6; c.lineCap = 'round'; [-0.36, 0.36].forEach(o => { c.beginPath(); c.moveTo(px + nx * o + ca * 1.4, py + 0.5 + ny * o + sa * 1.4); c.lineTo(px + nx * o + ca * 3.3, py + 0.5 + ny * o + sa * 3.3); c.stroke(); });   // 짧고 굵은 쌍포신
-        c.strokeStyle = '#1b1e18'; c.lineWidth = 0.78; [-0.36, 0.36].forEach(o => { c.beginPath(); c.moveTo(px + nx * o + ca * 3.0, py + 0.5 + ny * o + sa * 3.0); c.lineTo(px + nx * o + ca * 3.5, py + 0.5 + ny * o + sa * 3.5); c.stroke(); }); c.lineCap = 'butt';   // 포구 제퇴기
-        c.fillStyle = '#16190f'; c.beginPath(); c.ellipse(px + ca * 1.6, py + 0.5 + sa * 1.6, 0.35, 0.8, an, 0, 7); c.fill();   // 포문
-        if (G.t - (t.flashT || -9) < 0.12) { c.fillStyle = 'rgba(255,220,120,0.95)'; c.beginPath(); c.arc(px + ca * 4.1, py + 0.5 + sa * 4.1, 1.2, 0, 7); c.fill(); }
+      {   // 옥상의 대공포: 포신만 지붕 위로 비죽 나와 있다 (포탑·받침은 보이지 않는다)
+        const an = p.mode === 'air' ? clamp(Math.atan2(p.y - t.y - 6.5, p.x - t.x), 0.2, Math.PI - 0.2) : 1.1, ca = Math.cos(an), sa = Math.sin(an), nx = -sa, ny = ca;
+        const px = 1.5, py = 5.9;
+        c.fillStyle = '#121410'; c.fillRect(px - 1.4, 5.65, 2.8, 0.3);   // 지붕의 총안(틈)
+        c.strokeStyle = '#2d312a'; c.lineWidth = 0.55; c.lineCap = 'round'; [-0.34, 0.34].forEach(o => { c.beginPath(); c.moveTo(px + nx * o, py + ny * o); c.lineTo(px + nx * o + ca * 2.6, py + ny * o + sa * 2.6); c.stroke(); });
+        c.strokeStyle = '#1b1e18'; c.lineWidth = 0.7; [-0.34, 0.34].forEach(o => { c.beginPath(); c.moveTo(px + nx * o + ca * 2.3, py + ny * o + sa * 2.3); c.lineTo(px + nx * o + ca * 2.9, py + ny * o + sa * 2.9); c.stroke(); }); c.lineCap = 'butt';
+        if (G.t - (t.flashT || -9) < 0.12) { c.fillStyle = 'rgba(255,220,120,0.95)'; c.beginPath(); c.arc(px + ca * 3.5, py + sa * 3.5, 1.1, 0, 7); c.fill(); }
       }
+      c.restore();
       break;
     }
     case 'bunker': drawBunkerBody(c, t, false); break;   // 일반 벙커: 통나무 지붕과 모래주머니
@@ -2430,6 +2452,7 @@ function demoBot(dt) {
   if (D.t > 110) { startDemo(); return; }
   p.hp = 100; p.fuel = p.fuelMax; if (p.ammo.rk < 3) p.ammo.rk = 30; if (p.ammo.bm < 3) p.ammo.bm = 30; if (!(p.ammo.tp > 0)) p.ammo.tp = 6; if (p.ammo.gun < 300) p.ammo.gun = 3000;
   if (D.t > 16 && !D.z) { D.z = 1; spawnEnemy('zero', p.x + 1400, 260); spawnEnemy('zero', p.x + 1700, 200); }
+  if (D.salvo > 0 && p.mode === 'air' && G.t >= (D.salvoT || 0)) { dropBomb(); D.salvo--; D.salvoT = G.t + 0.14; }   // 폭탄 연속 투하
   if (p.mode === 'taxi' || p.mode === 'deck') { K(p.mode === 'deck' && kts() >= TAKEOFF_KT ? 1 : 0, 0, 1); return; }
   if (p.mode !== 'air') { K(0); return; }
   const fx = TARGETS.filter(t => t.alive).map(t => t.x), A = Math.min(...(ISLANDS.length ? ISLANDS.map(q => q.a) : [ship.x + 600]), ...fx), B = Math.max(...(ISLANDS.length ? ISLANDS.map(q => q.b) : [ship.x + 2500]), ...fx), dir = p.s > 0 ? 1 : -1;
@@ -2454,7 +2477,7 @@ function demoBot(dt) {
   if (!fire && tgt) {
     if (SHIPS[tgt.type] && p.y < TORP_H - 3 && Math.abs(Math.atan2(p.vy, Math.abs(p.vx))) < 0.15 && Math.abs(tgt.x - p.x) < 600 && G.t > (D.tpT || 0)) { fireTorpedo(); D.tpT = G.t + 3; }   // 배는 어뢰로
     else if (aim(tgt.x, tgt.y + 2) && G.t > (D.rkT || 0) && (!SHIPS[tgt.type] || (tgt.guns && tgt.guns.some(g => g.alive)))) { fireRocket(); D.rkT = G.t + 0.7; }
-    else if (tgt.type !== 'pill' && !SHIPS[tgt.type] && p.y > tgt.y + 15) { const h = p.y - 2.5 - tgt.y, gg = GRAV * 2.4, v0 = p.vy - 15, tf = (v0 + Math.sqrt(Math.max(0, v0 * v0 + 2 * gg * h))) / gg, lead = (tgt.x - p.x) - p.vx * tf; if (Math.abs(lead) < 12 && G.t > (D.bmT || 0)) { dropBomb(); D.bmT = G.t + 1.2; } }
+    else if (tgt.type !== 'pill' && !SHIPS[tgt.type] && p.y > tgt.y + 15) { const h = p.y - 2.5 - (tgt.y + BOX[tgt.type].h * 0.6), gg = GRAV * 2.4, v0 = p.vy - 15, tf = (v0 + Math.sqrt(Math.max(0, v0 * v0 + 2 * gg * h))) / gg, lead = (tgt.x - p.x) - p.vx * tf; if (lead < 26 && lead > -4 && G.t > (D.bmT || 0) && !(D.salvo > 0)) { D.salvo = 3; D.salvoT = 0; D.bmT = G.t + 2.4; } }   // 3발 연속 투하
   }
 }
 function drawTitle() {

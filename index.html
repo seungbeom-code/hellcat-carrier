@@ -1966,7 +1966,6 @@ function drawBattleship(c, t, big) {   // 야마토급 전함: 붉은 수선부�
   line(mx, my, mx, my + 7.5, '#444f59', 0.36); line(mx - 1.3, my - 0.2, mx - 0.2, my + 6.4, '#444f59', 0.15); line(mx + 1.3, my - 0.2, mx + 0.5, my + 6.4, '#444f59', 0.15);
   line(mx - 3.2, my + 4.2, mx + 3.6, my + 4.2, '#444f59', 0.18); rect(mx - 0.8, my + 7.5, 1.7, 0.9, '#59656f'); rect(mx - 2.0, my + 8.4, 3.4, 0.14, '#7f8c98'); line(mx, my + 8.5, mx, my + 9.8, '#444f59', 0.14);
   rect(mx - 1.8, my + 1.6, 3.6, 0.9, '#4e5a65');
-  c.strokeStyle = 'rgba(36,42,48,0.85)'; c.lineWidth = 0.06; c.beginPath(); c.moveTo(mx, my + 9.6); c.lineTo(hl - 2.2, D + 1.2); c.moveTo(mx, my + 9.6); c.quadraticCurveTo(-hl * 0.4, my * 0.8, -hl + 2.4, D + 6.2); c.moveTo(mx, my + 4.2); c.lineTo(hl * 0.55, D + 0.8); c.stroke();
   // 후방 마스트와 크게 펄럭이는 일장기
   { const ax = -hl + 8; line(ax, D, ax, D + 9, '#6c7985', 0.3); line(ax - 1.6, D, ax - 0.2, D + 7, '#6c7985', 0.12); line(ax + 1.6, D, ax + 0.4, D + 7, '#6c7985', 0.12); line(ax - 3, D + 6, ax + 3, D + 6, '#6c7985', 0.12);
     const fx = -hl + 2.2; line(fx, D, fx, D + 7.4, '#d8d8d0', 0.1); const wv = Math.sin(T * 3) * 0.3;
@@ -2604,7 +2603,6 @@ function carrierBody(c) {
   const line = (x1, y1, x2, y2, col, w) => { c.strokeStyle = col; c.lineWidth = w; c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke(); };
   c.save(); c.scale(CS, 1);   // 선체·갑판 아래쪽은 가로로 늘인다
   // 항적
-  for (let i = 0; i < 16; i++) { const wx = 4 - i * 9 - ((G.t * 15) % 9); c.fillStyle = 'rgba(255,255,255,' + (0.6 * (1 - i / 16)) + ')'; c.beginPath(); c.ellipse(wx, 0.4, 6 - i * 0.2, 1.1 + i * 0.08, 0, 0, 7); c.fill(); }
   // 선체
   const hull = () => { c.beginPath(); c.moveTo(-3, DY); c.lineTo(-3, DY - 1.6); c.bezierCurveTo(-1, 12, 2, 3, 9, -4); c.lineTo(250, -4); c.bezierCurveTo(254, -1, 259, 8, 263.4, DY); c.closePath(); };
   hull();
@@ -2625,7 +2623,6 @@ function carrierBody(c) {
   c.save(); hull(); c.clip(); c.fillStyle = 'rgba(18,100,130,0.62)'; c.fillRect(-8, -6, 290, 6); c.restore();   // 물에 잠긴 부분
   c.strokeStyle = 'rgba(255,255,255,0.5)'; c.lineWidth = 0.32;
   for (let x = 12; x < 248; x += 7) { const o = Math.sin(G.t * 2 + x) * 0.3; c.beginPath(); c.moveTo(x, 0.15 + o); c.quadraticCurveTo(x + 2, 0.8 + o, x + 4.6, 0.2 + o); c.stroke(); }
-  for (let i = 0; i < 6; i++) { const bob = Math.sin(G.t * 4 + i * 1.7) * 0.5; c.fillStyle = 'rgba(255,255,255,0.85)'; c.beginPath(); c.ellipse(252 + i * 2.6, 0.8 + i * 0.7 + bob * 0.4, 3.4 - i * 0.35, 1.1, -0.35, 0, 7); c.fill(); }   // 이물 파도
   // 갑판 가장자리 통로(캣워크)와 난간
   rect(-3, DY - 2.3, 270, 0.45, '#3b4757'); rect(-3, DY - 1.85, 270, 0.12, '#8d9aa8');
   for (let x = -2; x < 266; x += 3) line(x, DY - 1.85, x, DY - 0.2, 'rgba(210,218,226,0.55)', 0.1);

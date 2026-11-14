@@ -2983,9 +2983,6 @@ function drawHUD() {
   // 연료
   panel(92, 10, 150, 36); c.fillStyle = '#243447'; c.fillRect(140, 22, 92, 12);
   const ff = p.fuel / p.fuelMax; c.fillStyle = ff < 0.2 ? '#ff5a3c' : '#59d37a'; c.fillRect(140, 22, 92 * ff, 12);
-  { const lines = missionLines(); panel(92, 50, 262, 40 + lines.length * 16); c.fillStyle = '#fff'; c.textAlign = 'left'; c.font = '700 12px system-ui,sans-serif';
-    c.fillText('Hull ' + Math.round(p.hp) + '% · Planes ' + G.lives + '/3', 102, 67); c.font = '600 12px system-ui,sans-serif'; c.fillStyle = '#c9d4de';
-    c.fillText('Gun ' + p.ammo.gun + ' · Rkt ' + p.ammo.rk + ' · Bomb ' + p.ammo.bm + ' · Torp ' + (p.ammo.tp || 0), 102, 83); c.fillStyle = '#ffd23f'; lines.forEach((t, i) => { fitFont(c, t, 12, '600', 242); c.fillText(t, 102, 99 + i * 16); }); }
   if (p.mode === 'air') { const fX = focusX(); if (fX !== null) { const dI = fX - p.x; panel(612, 50, 112, 26, 0.6); c.fillStyle = '#fff'; c.font = '700 12px system-ui,sans-serif'; c.fillText((dI < 0 ? '◀ Target ' : 'Target ▶ ') + (Math.abs(dI) / 1000).toFixed(1) + 'km', 622, 67); } }
   c.fillStyle = '#fff'; c.font = '700 13px system-ui,sans-serif'; c.textAlign = 'left'; c.fillText('Fuel', 104, 33);
   // 항모 방향

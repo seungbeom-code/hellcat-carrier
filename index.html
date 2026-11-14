@@ -2756,10 +2756,10 @@ function drawPlaneFront(c) {   // 정면에서 본 아군기: 날개 끝을 위�
   const navy = '#3f72b8', dk = '#2a4d84', lt = '#86b0e2';
   c.strokeStyle = '#9aa3ad'; c.lineWidth = 0.35; c.beginPath(); c.moveTo(-1.5, -1.0); c.lineTo(-1.9, -2.4); c.moveTo(1.5, -1.0); c.lineTo(1.9, -2.4); c.stroke();
   c.fillStyle = '#222'; [-1.9, 1.9].forEach(x => { c.beginPath(); c.ellipse(x, -2.5, 0.38, 0.7, 0, 0, 7); c.fill(); });
-  [-1, 1].forEach(sd => {   // 접힌 날개: 안쪽 날개는 옆으로 길게, 바깥 날개는 위로 꺾어 올려 가운데에서 만나 전체가 삼각형(△)을 이룬다
-    c.fillStyle = dk; c.beginPath(); c.moveTo(sd * 1.0, -0.2); c.lineTo(sd * 4.8, -0.5); c.lineTo(sd * 4.8, -1.2); c.lineTo(sd * 1.0, -1.0); c.closePath(); c.fill();
-    c.fillStyle = navy; c.beginPath(); c.moveTo(sd * 4.0, -0.3); c.lineTo(sd * 4.9, -1.0); c.lineTo(sd * 1.0, 6.0); c.lineTo(sd * 0.2, 5.4); c.closePath(); c.fill();
-    c.fillStyle = '#e9edf0'; c.beginPath(); c.moveTo(sd * 1.6, 4.9); c.lineTo(sd * 1.0, 6.0); c.lineTo(sd * 0.2, 5.4); c.lineTo(sd * 0.9, 4.5); c.closePath(); c.fill();
+  [-1, 1].forEach(sd => {   // 접힌 날개(두께 2배): 안쪽 날개는 옆으로 길게, 바깥 날개는 위로 꺾어 올려 가운데에서 만나 삼각형(△)을 이룬다
+    c.fillStyle = dk; c.beginPath(); c.moveTo(sd * 1.0, -0.2); c.lineTo(sd * 5.0, -0.5); c.lineTo(sd * 5.0, -2.1); c.lineTo(sd * 1.0, -1.8); c.closePath(); c.fill();
+    c.fillStyle = navy; c.beginPath(); c.moveTo(sd * 3.7, -0.3); c.lineTo(sd * 5.3, -1.9); c.lineTo(sd * 1.6, 6.3); c.lineTo(sd * 0.1, 4.9); c.closePath(); c.fill();
+    c.fillStyle = '#e9edf0'; c.beginPath(); c.moveTo(sd * 1.9, 4.7); c.lineTo(sd * 1.6, 6.3); c.lineTo(sd * 0.1, 4.9); c.lineTo(sd * 0.8, 3.8); c.closePath(); c.fill();
   });
   c.fillStyle = navy; c.beginPath(); c.ellipse(0, 0.2, 1.55, 1.9, 0, 0, 7); c.fill();
   c.fillStyle = lt; c.beginPath(); c.ellipse(0, -1.0, 1.1, 0.7, 0, 0, 7); c.fill();

@@ -2146,12 +2146,11 @@ function drawBattleship(c, t, big) {   // 야마토급 전함: 붉은 수선부�
   // 마스트·활대·레이더, 이물과 고물로 늘어지는 줄
   const mx = bx + 0.9 * sc, my = D + 4.15 * sc;
   line(mx, my, mx, my + 7.5, '#444f59', 0.36); line(mx - 1.3, my - 0.2, mx - 0.2, my + 6.4, '#444f59', 0.15); line(mx + 1.3, my - 0.2, mx + 0.5, my + 6.4, '#444f59', 0.15);
-  line(mx - 3.2, my + 4.2, mx + 3.6, my + 4.2, '#444f59', 0.18); rect(mx - 0.8, my + 7.5, 1.7, 0.9, '#59656f'); rect(mx - 2.0, my + 8.4, 3.4, 0.14, '#7f8c98'); line(mx, my + 8.5, mx, my + 9.8, '#444f59', 0.14); line(mx, my + 9.7, mx, my + 13.2, '#d8d8d0', 0.1); drawFlagJP(c, mx + 0.05, my + 13.2, 3.4, 2.1);   // 마스트 꼭대기의 일장기
+  line(mx - 3.2, my + 4.2, mx + 3.6, my + 4.2, '#444f59', 0.18); rect(mx - 0.8, my + 7.5, 1.7, 0.9, '#59656f'); rect(mx - 2.0, my + 8.4, 3.4, 0.14, '#7f8c98'); line(mx, my + 8.5, mx, my + 9.8, '#444f59', 0.14); line(mx, my + 9.7, mx, my + 19, '#d8d8d0', 0.14); drawFlagJP(c, mx + 0.05, my + 19, 5.2, 3.2);   // 가장 높은 곳의 일장기
   rect(mx - 1.8, my + 1.6, 3.6, 0.9, '#4e5a65');
   // 후방 마스트와 크게 펄럭이는 일장기
   { const ax = -hl + 8; line(ax, D, ax, D + 9, '#6c7985', 0.3); line(ax - 1.6, D, ax - 0.2, D + 7, '#6c7985', 0.12); line(ax + 1.6, D, ax + 0.4, D + 7, '#6c7985', 0.12); line(ax - 3, D + 6, ax + 3, D + 6, '#6c7985', 0.12);
-    const fx = -hl + 2.2; line(fx, D, fx, D + 7.4, '#d8d8d0', 0.1); const wv = Math.sin(T * 3) * 0.3;
-    poly([[fx, D + 7.3], [fx - 3.6, D + 7.3 + wv], [fx - 3.6, D + 5.2 + wv], [fx, D + 5.2]], '#f4f4ee'); c.fillStyle = '#c83a3a'; c.beginPath(); c.arc(fx - 1.8, D + 6.25 + wv * 0.5, 0.7, 0, 7); c.fill(); }
+  }
   // 구명정
   [[bx - 7.5], [bx + 9.5]].forEach(([x]) => { c.fillStyle = '#9fa8b0'; c.beginPath(); c.ellipse(x, D + 0.65, 2.3, 0.55, 0, 0, Math.PI); c.fill(); line(x - 2.3, D + 0.65, x + 2.3, D + 0.65, '#5a6672', 0.1); });
 }
@@ -2296,10 +2295,10 @@ function drawTarget(c, t, dead) {
     }
     case 'tank': rect(-4.4, 0, 8.8, 0.9, '#2f3328'); rect(-4, 0.9, 8, 1.5, '#5f6a47'); rect(-1.4, 2.4, 3.4, 1.3, '#6a7650'); rect(2, 2.9, 3.4, 0.4, '#3a4030'); break;
     case 'cave': c.fillStyle = '#0c0e0d'; c.beginPath(); c.arc(0, 2.6, 3.6, 0, Math.PI); c.fill(); rect(-3.6, 0, 7.2, 2.6, isOpen(t) ? '#0c0e0d' : '#6f7468'); if (isOpen(t)) { rect(0, 2.2, 5, 0.7, '#2c2f2a'); rect(-1, 1.6, 2.4, 1.6, '#3a3d38'); } break;
-    case 'dd': poly([[-22, 2.5], [20, 2.5], [24, 5], [16, -0.5], [-20, -0.5]], '#5d6b78'); rect(-4, 2.5, 9, 4, '#7b8895'); rect(10, 2.5, 4, 1.4, '#3a4550'); rect(0.4, 6.4, 0.16, 3.2, '#d8d8d0'); drawFlagJP(c, 0.52, 9.6, 2.4, 1.5); break;
-    case 'tr': poly([[-18, 0], [17, 0], [19, 5], [-18, 5]], '#6b5a4a'); rect(-4, 5, 8, 4, '#8a7a66'); rect(8, 5, 0.6, 7, '#4a4036'); rect(-12, 5, 0.6, 6, '#4a4036'); rect(8.2, 12, 0.16, 3, '#d8d8d0'); drawFlagJP(c, 8.35, 15, 2.4, 1.5); break;
+    case 'dd': poly([[-22, 2.5], [20, 2.5], [24, 5], [16, -0.5], [-20, -0.5]], '#5d6b78'); rect(-4, 2.5, 9, 4, '#7b8895'); rect(10, 2.5, 4, 1.4, '#3a4550'); rect(0.4, 6.4, 0.16, 5.4, '#d8d8d0'); drawFlagJP(c, 0.52, 11.8, 3.4, 2.1); break;
+    case 'tr': poly([[-18, 0], [17, 0], [19, 5], [-18, 5]], '#6b5a4a'); rect(-4, 5, 8, 4, '#8a7a66'); rect(8, 5, 0.6, 7, '#4a4036'); rect(-12, 5, 0.6, 6, '#4a4036'); rect(8.2, 12, 0.16, 5.4, '#d8d8d0'); drawFlagJP(c, 8.35, 17.4, 3.4, 2.1); break;
     case 'bm': case 'bb': drawBattleship(c, t, t.type === 'bb'); break;
-    case 'cv': poly([[-46, 0], [46, 0], [48, 6], [-48, 6]], '#6f7b87'); rect(-48, 6, 96, 1.4, '#3a4350'); rect(12, 7.4, 12, 6, '#8794a1'); rect(15, 13.4, 5, 3, '#8794a1'); rect(-0.4, 13.4, 0.8, 4, '#46505a'); rect(-0.08, 17.4, 0.16, 3, '#d8d8d0'); drawFlagJP(c, 0.06, 20.4, 2.6, 1.6); [-30, -18, -6].forEach(x => rect(x, 7.4, 7, 0.9, '#2f3a2c')); break;
+    case 'cv': poly([[-46, 0], [46, 0], [48, 6], [-48, 6]], '#6f7b87'); rect(-48, 6, 96, 1.4, '#3a4350'); rect(12, 7.4, 12, 6, '#8794a1'); rect(15, 13.4, 5, 3, '#8794a1'); rect(-0.4, 13.4, 0.8, 4, '#46505a'); rect(-0.08, 17.4, 0.16, 5.4, '#d8d8d0'); drawFlagJP(c, 0.06, 22.8, 3.6, 2.2); [-30, -18, -6].forEach(x => rect(x, 7.4, 7, 0.9, '#2f3a2c')); break;
   }
   if (bdm) { c.restore(); drawHalfRuin(c, t, bside); }
   else if (t.type === 'barracks' && t.alive && t.hp < t.hp0 * 0.8) drawBarracksScar(c, t);
@@ -2965,12 +2964,8 @@ function carrierBody(c) {
   // CXAM 대공 탐색 레이더: 마스트 꼭대기의 큰 직사각형 침대스프링 안테나
   c.strokeStyle = '#39424c'; c.lineWidth = 0.3; c.strokeRect(143.2, DY + 38.6, 11.6, 4.2); for (let x = 144.4; x < 154.8; x += 1.1) line(x, DY + 38.6, x, DY + 42.8, '#39424c', 0.09); for (let y = 39.6; y < 42.8; y += 1.0) line(143.2, DY + y, 154.8, DY + y, '#39424c', 0.09);
   line(149, DY + 42.8, 149, DY + 46.2, '#39424c', 0.38); c.fillStyle = '#39424c'; c.beginPath(); c.ellipse(149, DY + 46.8, 1.9, 0.5, 0, 0, 7); c.fill();
-  line(149, DY + 46.8, 149, DY + 54, '#d8d8d0', 0.22); drawFlagUS(c, 149.1, DY + 53.9, 6.6, 3.5);   // 함교 꼭대기의 성조기
+  line(149, DY + 46.8, 149, DY + 62, '#d8d8d0', 0.26); c.fillStyle = '#e8c04a'; c.beginPath(); c.arc(149, DY + 62.3, 0.5, 0, 7); c.fill(); drawFlagUS(c, 149.1, DY + 61.8, 9, 4.8);   // 배에서 가장 높은 곳에 세운 깃대의 성조기
   c.restore();
-  // 선미 성조기
-  line(-1.2, DY, -1.2, DY + 9, '#d9dde2', 0.3);
-  for (let i = 0; i < 7; i++) { const y0 = DY + 8.6 - i * 0.42, w = (x) => Math.sin(G.t * 6 + x * 1.3) * 0.22; c.fillStyle = i % 2 ? '#ffffff' : '#b22234'; c.beginPath(); c.moveTo(-1.4, y0); c.lineTo(-3.2, y0 + w(-3.2)); c.lineTo(-5.8, y0 + w(-5.8)); c.lineTo(-5.8, y0 - 0.42 + w(-5.8)); c.lineTo(-3.2, y0 - 0.42 + w(-3.2)); c.lineTo(-1.4, y0 - 0.42); c.closePath(); c.fill(); }
-  c.fillStyle = '#3c3b6e'; c.beginPath(); c.moveTo(-1.4, DY + 8.6); c.lineTo(-3.2, DY + 8.6 + Math.sin(G.t * 6 - 4.2) * 0.22); c.lineTo(-3.2, DY + 6.1 + Math.sin(G.t * 6 - 4.2) * 0.22); c.lineTo(-1.4, DY + 6.1); c.closePath(); c.fill();
 }
 
 // 갑판 승무원: 장화·바지·색 저지·가죽 헬멧과 고글, 팔꿈치가 굽는 두 팔. 오른손에 빨간 깃발(또는 패들)

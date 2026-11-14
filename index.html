@@ -1029,11 +1029,8 @@ function spawnEnemy(type, x, y) { ENE.push({ type, x, y, h: Math.PI, v: ES[type]
 function spawnWave(l) { const m = G.m; (m.queue = m.queue || []).push(...l); }
 function hitCarrier(d) { if (G.sink) return; G.carrierHp = Math.max(0, G.carrierHp - d); explode(ship.x + 60 + Math.random() * (DECK_L - 120), DECK_Y + 2, 18, 'none', false); G.toast = { text: 'The carrier is hit!', grade: 'brown', until: G.t + 3 }; }
 function hurt(d, why) {
-  if (p.mode !== 'air' || G.result) return; p.hp -= d; sfx('hit'); G.hitT = G.t; G.hitK = clamp(d / 5, 0.45, 1.5);
-  FX.push({ k: 'flash', x: p.x + (Math.random() - 0.5) * 6, y: p.y + (Math.random() - 0.5) * 2, vx: 0, vy: 0, life: 0.14, t: 0 });
-  for (let i = 0, n = 7 + Math.round(d * 2); i < n; i++) FX.push({ k: 'spark', x: p.x + (Math.random() - 0.5) * 9, y: p.y + (Math.random() - 0.5) * 3, vx: p.vx * 0.6 + (Math.random() - 0.5) * 46, vy: (Math.random() - 0.3) * 30 + 4, life: 0.3 + Math.random() * 0.35, t: 0 });
-  chips(p.x, p.y, 4 + Math.round(d), ['#3f72b8', '#2a4d84', '#c9ced4', '#e9edf0'], 0.9);   // 날아가는 기체 파편
-  for (let i = 0; i < 3; i++) FX.push({ k: 'smoke', x: p.x - Math.cos(p.th) * (2 + i * 2), y: p.y - Math.sin(p.th) * (2 + i * 2), vx: p.vx * 0.3, vy: 1 + Math.random() * 2, life: 0.9 + Math.random() * 0.6, t: 0, s: 1.2 + Math.random() * 1.2 });
+  if (p.mode !== 'air' || G.result) return; p.hp -= d; sfx('hit');
+  for (let i = 0, n = 3 + Math.min(4, Math.round(d)); i < n; i++) FX.push({ k: 'dirt', x: p.x + (Math.random() - 0.5) * 7, y: p.y + (Math.random() - 0.5) * 2.5, vx: p.vx * 0.5 + (Math.random() - 0.5) * 22, vy: (Math.random() - 0.4) * 14 + 2, life: 0.25 + Math.random() * 0.3, t: 0, s: 0.18 + Math.random() * 0.16, c: i % 2 ? '#c9ced4' : '#3f72b8' });   // 작은 티끌
   if (p.hp <= 0) crash(why || 'Shot down.');
 }
 function killEnemy(e) {
@@ -1069,7 +1066,7 @@ function soldierStep(dt) {
         o.shT = (o.shT === undefined ? Math.random() * 1.2 : o.shT) - dt;
         if (o.shT <= 0) {
           o.shT = 1.3 + Math.random() * 1.7; o.sh = G.t; o.dir = dx >= 0 ? 1 : -1;
-          const x0 = o.x + o.dir * 2.6, y0 = o.y + 6.3, d = Math.hypot(p.x - x0, p.y - y0), tf = d / 420, a = Math.atan2(p.y + p.vy * tf - y0, p.x + p.vx * tf - x0) + (Math.random() - 0.5) * (0.1 + d / 5000);
+          const x0 = o.x + o.dir * 2.6, y0 = o.y + 6.3, d = Math.hypot(p.x - x0, p.y - y0), tf = d / 420, a = Math.atan2(p.y + p.vy * tf - y0, p.x + p.vx * tf - x0) + (Math.random() - 0.5) * (0.22 + d / 2500);
           EB.push({ x: x0, y: y0, vx: Math.cos(a) * 420, vy: Math.sin(a) * 420, life: 1.6, why: 'Shot down by infantry rifle fire.', dmg: 0.45, aa: true });
           FX.push({ k: 'muz', x: x0, y: y0, vx: 0, vy: 0, a, s: 1.1, life: 0.07, t: 0 }); FX.push({ k: 'smoke', x: x0, y: y0 + 0.4, vx: 0, vy: 1.5, life: 0.6, t: 0, s: 0.6 });
           if (d < 900 && Math.random() < 0.5) sfx('gun');
@@ -1158,7 +1155,6 @@ function missionStep(dt) {
   soldierStep(dt); islandStep();
   if (G.tick && G.tick.length) { const T = G.tick[0]; if (T.t0 === undefined) T.t0 = G.t; if (G.t - T.t0 > 6) G.tick.shift(); }   // 속보 한 줄은 6초 동안 보인다
   if (G.carrierHp < 70 && Math.abs(ship.x + DECK_L / 2 - cam.x) < W / cam.z + DECK_L / 2 && Math.random() < dt * 6) FX.push({ k: 'smoke', x: ship.x + 40 + Math.random() * (DECK_L - 90), y: DECK_Y + 2, vx: ship.v - 6, vy: 5, life: 1.6, t: 0, s: 2 + Math.random() * 2 });
-  if (p.mode === 'air' && p.hp < 20 && Math.random() < dt * 14) FX.push({ k: 'fire', x: p.x - Math.cos(p.th) * 4, y: p.y - Math.sin(p.th) * 4, vx: p.vx * 0.2, vy: 2, life: 0.5, t: 0, s: 1.1 });   // 위독하면 불이 붙는다
   if (p.mode === 'air' && p.hp < 45 && Math.random() < dt * 12) FX.push({ k: 'smoke', x: p.x - Math.cos(p.th) * 5, y: p.y - Math.sin(p.th) * 5, vx: p.vx * 0.2, vy: 2, life: 1, t: 0, s: 1.4 });
   if (!m.obj && GOALS[M.goal](m, M)) { m.obj = true; G.toast = { text: 'Mission complete! Return, land on the carrier and take the elevator down', grade: 'green', until: G.t + 6 }; }
   if (m.obj && p.mode === 'lift' && p.el && p.el.st === 'svc') endMission(true);   // 귀환해서 엘리베이터로 격납고까지 내려가면 끝
@@ -1252,8 +1248,8 @@ function enemyStep(dt) {
     if (e.y <= Math.max(1, gh(e.x)) && !nearShip) { G.selfCrash = (G.selfCrash || 0) + 1; killEnemy(e); continue; }   // 늦으면 추락한다
     if (!bomber && air && e.att && e.st === 'app') {   // 사격
       const d = Math.hypot(p.x - e.x, p.y - e.y), tf = d / 560, aimA = Math.atan2(p.y + p.vy * tf - e.y, p.x + p.vx * tf - e.x);
-      if (e.bt > 0) { e.bt -= dt; e.cd -= dt; if (e.cd <= 0) { e.cd = 0.14; const a = e.h + (Math.random() - 0.5) * 0.07; FX.push({ k: 'muz', x: e.x + Math.cos(e.h) * 6, y: e.y + Math.sin(e.h) * 6, vx: Math.cos(e.h) * e.v, vy: Math.sin(e.h) * e.v, a: e.h, s: 1.4 + Math.random() * 0.9, life: 0.06, t: 0 }); EB.push({ x: e.x + Math.cos(e.h) * 8, y: e.y + Math.sin(e.h) * 8, vx: Math.cos(a) * 480 + Math.cos(e.h) * e.v, vy: Math.sin(a) * 480 + Math.sin(e.h) * e.v, life: 0.8 }); } }
-      else { e.cd -= dt; if (e.cd <= 0 && d < 420 && Math.abs(angd(aimA, e.h)) < 0.1) { e.bt = 0.7; e.cd = 0; } }
+      if (e.bt > 0) { e.bt -= dt; e.cd -= dt; if (e.cd <= 0) { e.cd = 0.16; const a = e.h + (Math.random() - 0.5) * 0.13; FX.push({ k: 'muz', x: e.x + Math.cos(e.h) * 6, y: e.y + Math.sin(e.h) * 6, vx: Math.cos(e.h) * e.v, vy: Math.sin(e.h) * e.v, a: e.h, s: 1.4 + Math.random() * 0.9, life: 0.06, t: 0 }); EB.push({ x: e.x + Math.cos(e.h) * 8, y: e.y + Math.sin(e.h) * 8, vx: Math.cos(a) * 480 + Math.cos(e.h) * e.v, vy: Math.sin(a) * 480 + Math.sin(e.h) * e.v, life: 0.8 }); } }
+      else { e.cd -= dt; if (e.cd <= 0 && d < 420 && Math.abs(angd(aimA, e.h)) < 0.07) { e.bt = 0.6; e.cd = 0; } }
       if ((e.bt <= 0 || d < 160) && (d < 220 || (d < 600 && Math.abs(angd(Math.atan2(p.y - e.y, p.x - e.x), e.h)) > 2.0))) { e.st = 'ext'; e.up = e.y >= p.y; e.xt = 3.5 + Math.random() * 2; e.att = false; e.cd = 2.5; e.bt = 0; }
     }
     if (e.att && (!air || Math.hypot(p.x - e.x, p.y - e.y) > 2200)) e.att = false;
@@ -1263,7 +1259,7 @@ function enemyStep(dt) {
 function ebStep(dt) {
   for (let i = EB.length - 1; i >= 0; i--) {
     const b = EB[i]; b.life -= dt; b.x += b.vx * dt; b.y += b.vy * dt;
-    if (p.mode === 'air' && Math.abs(b.x - p.x) < 8 && Math.abs(b.y - p.y) < 3.5) { hurt((b.dmg || 2) * (b.aa ? altDmgK() : 1), b.why || 'Shot down by enemy fighters.'); EB.splice(i, 1); continue; }
+    if (p.mode === 'air' && Math.abs(b.x - p.x) < 6 && Math.abs(b.y - p.y) < 2.6) { hurt((b.dmg || 2) * (b.aa ? altDmgK() : 1), b.why || 'Shot down by enemy fighters.'); EB.splice(i, 1); continue; }
     if (b.life <= 0 || b.y <= gh(b.x)) EB.splice(i, 1);
   }
 }
@@ -1277,7 +1273,7 @@ function shipMgStep(dt) {   // 전함의 대공기관총: 가까이 오면 짧�
       if (!g.alive || !g.mg) continue;
       const gx = t.x + g.lx * sk * dr, gy = t.y + SHIP_GUNS[t.type].gy * sk, d = Math.hypot(p.x - gx, p.y - gy);
       if (d > 650 || d < 30) continue;
-      if (g.bn > 0) { g.bt -= dt; if (g.bt <= 0) { g.bt = 0.1; g.bn--; const tf = d / 520, a = Math.atan2(p.y + p.vy * tf - gy, p.x + p.vx * tf - gx) + (Math.random() - 0.5) * 0.1; EB.push({ x: gx, y: gy + 3, vx: Math.cos(a) * 520, vy: Math.sin(a) * 520, life: 1.6, why: 'Shot down by ship machine-gun fire.', dmg: 0.5, aa: true }); g.fl = G.t; } }
+      if (g.bn > 0) { g.bt -= dt; if (g.bt <= 0) { g.bt = 0.1; g.bn--; const tf = d / 520, a = Math.atan2(p.y + p.vy * tf - gy, p.x + p.vx * tf - gx) + (Math.random() - 0.5) * 0.2; EB.push({ x: gx, y: gy + 3, vx: Math.cos(a) * 520, vy: Math.sin(a) * 520, life: 1.6, why: 'Shot down by ship machine-gun fire.', dmg: 0.5, aa: true }); g.fl = G.t; } }
       else { g.cd -= dt; if (g.cd <= 0) { g.cd = 2.5 + Math.random() * 2; g.bn = 6; } }
     }
   }
@@ -1289,7 +1285,7 @@ function towerStep(dt) {   // 보초 타워의 병사가 기관총으로 쏜다 
     const want = p.mode === 'air' && d < 750 ? clamp(Math.atan2(p.y + p.vy * tf - gy, p.x + p.vx * tf - gx), -0.4, Math.PI + 0.4) : 0.9;
     t.aim = t.aim === undefined ? want : t.aim + clamp(angd(want, t.aim), -1.6 * dt, 1.6 * dt);
     t.tcd = (t.tcd === undefined ? Math.random() * 3 : t.tcd) - dt; t.tb = (t.tb || 0) - dt;
-    if (t.tb <= 0 && t.tcd <= 0 && p.mode === 'air' && d < 650 && d > 30 && Math.abs(angd(want, t.aim)) < 0.14) { t.tb = 0.8; t.tcd = 3 + Math.random() * 2.5; t.te = (Math.random() - 0.5) * (0.12 + d / 6000); alarmFauna(gx, gy, 220); if (d < 1200) sfx('gun'); }
+    if (t.tb <= 0 && t.tcd <= 0 && p.mode === 'air' && d < 650 && d > 30 && Math.abs(angd(want, t.aim)) < 0.14) { t.tb = 0.8; t.tcd = 3 + Math.random() * 2.5; t.te = (Math.random() - 0.5) * (0.22 + d / 3500); alarmFauna(gx, gy, 220); if (d < 1200) sfx('gun'); }
     if (t.tb > 0) { t.tt = (t.tt || 0) - dt; while (t.tt <= 0) { t.tt += 1 / 11; const a = t.aim + (t.te || 0) + (Math.random() - 0.5) * 0.1; EB.push({ x: gx + Math.cos(t.aim) * 3, y: gy + Math.sin(t.aim) * 3, vx: Math.cos(a) * 520, vy: Math.sin(a) * 520, life: 2, why: 'Shot down by a guard-tower machine gun.', dmg: 0.7, aa: true }); t.qf = G.t; } }
   }
 }
@@ -1300,7 +1296,7 @@ function quadStep(dt) {   // 일반 벙커의 4연장 기관포: 포신이 내 �
     const want = p.mode === 'air' && d < 700 ? clamp(Math.atan2(p.y + p.vy * tf - gy, p.x + p.vx * tf - gx), 0.05, Math.PI - 0.05) : 0.9;
     t.aim = t.aim === undefined ? want : t.aim + clamp(angd(want, t.aim), -1.4 * dt, 1.4 * dt);
     t.qcd = (t.qcd === undefined ? Math.random() * 3 : t.qcd) - dt; t.burst = (t.burst || 0) - dt;
-    if (t.burst <= 0 && t.qcd <= 0 && p.mode === 'air' && d < 500 && d > 40 && Math.abs(angd(want, t.aim)) < 0.12) { t.burst = 0.5; alarmFauna(gx, gy, 220); t.qcd = 6.5 + Math.random() * 2; t.qn = 0; t.qe = (Math.random() - 0.5) * (0.1 + d / 8000); if (d < 1200) sfx('gun'); }
+    if (t.burst <= 0 && t.qcd <= 0 && p.mode === 'air' && d < 500 && d > 40 && Math.abs(angd(want, t.aim)) < 0.12) { t.burst = 0.5; alarmFauna(gx, gy, 220); t.qcd = 6.5 + Math.random() * 2; t.qn = 0; t.qe = (Math.random() - 0.5) * (0.2 + d / 4500); if (d < 1200) sfx('gun'); }
     if (t.burst > 0) { t.qt = (t.qt || 0) - dt; while (t.qt <= 0) { t.qt += 1 / 12; t.qn = (t.qn || 0) + 1; const a = t.aim + t.qe + (Math.random() - 0.5) * 0.12, k = t.qn % 4; EB.push({ x: gx + Math.cos(t.aim) * 6, y: gy + Math.sin(t.aim) * 6 + (k - 1.5) * 0.4, vx: Math.cos(a) * 520, vy: Math.sin(a) * 520, life: 2.2, why: 'Shot down by bunker cannon fire.', dmg: 1, aa: true }); t.qf = G.t; } }
   }
 }
@@ -1334,17 +1330,17 @@ function altDmgK() {   // 지상·해상 대공화기의 피해 배율: 저공�
   const h = Math.max(0, p.y - Math.max(0, gh(p.x)));
   return h <= 40 ? 1.8 : h <= 150 ? lerp(1.8, 1.0, (h - 40) / 110) : h <= 350 ? lerp(1.0, 0.35, (h - 150) / 200) : lerp(0.35, 0.12, clamp((h - 350) / 200, 0, 1));
 }
-const FLAK_R = 50, FLAK_MAX = 5;   // 대공포탄 파편이 닿는 거리(m)와 바로 옆에서 터졌을 때 피해
+const FLAK_R = 38, FLAK_MAX = 5;   // 대공포탄 파편이 닿는 거리(m)와 바로 옆에서 터졌을 때 피해
 function flakStep(dt) {
   for (const t of TARGETS) {
     if (!t.alive || !AA_N[t.type] || (t.type === 'cave' && !isOpen(t))) continue;
     const nG = t.guns ? t.guns.filter(g => g.alive).length : 1; if (!nG) continue;   // 함포를 다 부수면 그 배는 쏘지 못한다
-    t.fire -= dt; if (t.fire > 0) continue; t.fire = 3;   // 3초에 한 번
+    t.fire -= dt; if (t.fire > 0) continue; t.fire = 4.2;   // 4초에 한 번
     if (p.mode !== 'air') continue;
     const d = Math.hypot(p.x - t.x, p.y - t.y); if (d > (AA_R[t.type] || 1100) || d < 25) continue;
     t.flashT = G.t; if (d < 1300 && Math.random() < 0.5) sfx('gun');
     const hy = t.y + (SHIPS[t.type] ? BOX[t.type].h * 0.7 : t.type === 'aa' ? 7 : t.type === 'pill' ? 14 : 4);
-    for (let k = 0, nk = Math.ceil(AA_N[t.type] * (t.guns ? nG / t.guns.length : 1)); k < nk; k++) { const f = 0.4 + Math.random() * 0.4, err = 35 + d * 0.04; FLAK.push({ x0: t.x, y0: hy, x: p.x + p.vx * f + (Math.random() - 0.5) * err * 2, y: p.y + p.vy * f + (Math.random() - 0.5) * err, t: f, life: f }); }
+    for (let k = 0, nk = Math.ceil(AA_N[t.type] * (t.guns ? nG / t.guns.length : 1)); k < nk; k++) { const f = 0.4 + Math.random() * 0.4, err = 70 + d * 0.07; FLAK.push({ x0: t.x, y0: hy, x: p.x + p.vx * f + (Math.random() - 0.5) * err * 2, y: p.y + p.vy * f + (Math.random() - 0.5) * err, t: f, life: f }); }
   }
   for (let i = FLAK.length - 1; i >= 0; i--) {
     const q = FLAK[i]; q.t -= dt; if (q.t > 0) continue;
@@ -3226,9 +3222,6 @@ function drawHUD() {
   c.fillStyle = stall ? '#ff8a73' : '#fff'; c.fillText(Math.round(kt) + ' kt', 420, 39);
   c.fillStyle = '#fff'; c.fillText(Math.round(Math.max(0, p.y - WH)) + ' m', 540, 39);
   if (stall && Math.sin(G.t * 12) > 0) { c.fillStyle = '#ff5a3c'; c.font = '800 22px system-ui,sans-serif'; c.fillText('STALL!', 480, 84); }
-  { const hk = G.t - (G.hitT || -9); if (hk < 0.4) {   // 피격: 화면 가장자리가 붉게 번쩍인다
-      const a = 0.5 * (G.hitK || 1) * (1 - hk / 0.4), E = 110;
-      [[0, 0, W, E, 0, 0, 0, E], [0, H - E, W, E, 0, H, 0, H - E], [0, 0, E, H, 0, 0, E, 0], [W - E, 0, E, H, W, 0, W - E, 0]].forEach(([x, y, w, h, gx0, gy0, gx1, gy1]) => { const g = c.createLinearGradient(gx0, gy0, gx1, gy1); g.addColorStop(0, 'rgba(255,40,30,' + Math.min(0.7, a) + ')'); g.addColorStop(1, 'rgba(255,40,30,0)'); c.fillStyle = g; c.fillRect(x, y, w, h); }); } }
   // 연료
   panel(92, 10, 150, 36); c.fillStyle = '#243447'; c.fillRect(140, 22, 92, 12);
   const ff = p.fuel / p.fuelMax; c.fillStyle = ff < 0.2 ? '#ff5a3c' : '#59d37a'; c.fillRect(140, 22, 92 * ff, 12);
@@ -3342,7 +3335,7 @@ function frame(ts) {
     updateCam(dt);
   }
   updateSound(dt);
-  const hk = G.t - (G.hitT || -9), shake = (p.mode === 'deck' && !p.landing && p.thr > 0.7 ? 1.6 : 0) + (hk < 0.28 ? 4.5 * (G.hitK || 1) * (1 - hk / 0.28) : 0);
+  const shake = p.mode === 'deck' && !p.landing && p.thr > 0.7 ? 1.6 : 0;
   ctx.save(); if (shake) ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
   drawWorld(); ctx.restore(); if (G.scene === 'play') drawHUD(); else drawScene();
   requestAnimationFrame(frame);

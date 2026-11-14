@@ -2254,7 +2254,7 @@ function drawTarget(c, t, dead) {
     }
     case 'tank': rect(-4.4, 0, 8.8, 0.9, '#2f3328'); rect(-4, 0.9, 8, 1.5, '#5f6a47'); rect(-1.4, 2.4, 3.4, 1.3, '#6a7650'); rect(2, 2.9, 3.4, 0.4, '#3a4030'); break;
     case 'cave': c.fillStyle = '#0c0e0d'; c.beginPath(); c.arc(0, 2.6, 3.6, 0, Math.PI); c.fill(); rect(-3.6, 0, 7.2, 2.6, isOpen(t) ? '#0c0e0d' : '#6f7468'); if (isOpen(t)) { rect(0, 2.2, 5, 0.7, '#2c2f2a'); rect(-1, 1.6, 2.4, 1.6, '#3a3d38'); } break;
-    case 'dd': poly([[-22, 2.5], [20, 2.5], [24, 5], [16, -0.5], [-20, -0.5]], '#5d6b78'); rect(-4, 2.5, 9, 4, '#7b8895'); rect(-10, 2.5, 3, 3.6, '#4a5560'); rect(10, 2.5, 4, 1.4, '#3a4550'); break;
+    case 'dd': poly([[-22, 2.5], [20, 2.5], [24, 5], [16, -0.5], [-20, -0.5]], '#5d6b78'); rect(-4, 2.5, 9, 4, '#7b8895'); rect(10, 2.5, 4, 1.4, '#3a4550'); break;
     case 'tr': poly([[-18, 0], [17, 0], [19, 5], [-18, 5]], '#6b5a4a'); rect(-4, 5, 8, 4, '#8a7a66'); rect(8, 5, 0.6, 7, '#4a4036'); rect(-12, 5, 0.6, 6, '#4a4036'); break;
     case 'bm': case 'bb': drawBattleship(c, t, t.type === 'bb'); break;
     case 'cv': poly([[-46, 0], [46, 0], [48, 6], [-48, 6]], '#6f7b87'); rect(-48, 6, 96, 1.4, '#3a4350'); rect(12, 7.4, 12, 6, '#8794a1'); rect(15, 13.4, 5, 3, '#8794a1'); rect(-0.4, 13.4, 0.8, 4, '#46505a'); [-30, -18, -6].forEach(x => rect(x, 7.4, 7, 0.9, '#2f3a2c')); break;
@@ -2859,24 +2859,19 @@ function carrierBody(c) {
   [[-4.6, 0], [263.5, 1]].forEach(([x, bow]) => { c.strokeStyle = '#4a5666'; c.lineWidth = 0.5; c.beginPath(); c.moveTo(x, DY - 1.6); c.lineTo(x + (bow ? -7 : 7), DY - 6.5); c.moveTo(x + (bow ? -2 : 2), DY - 1.6); c.lineTo(x + (bow ? -8.5 : 8.5), DY - 5); c.stroke(); });
   // 닻 구멍과 닻 (선수), 선체 가운데의 구명정 거치대
   disc(250.5, 12.6, 0.8, '#0f1620'); line(250.5, 12.6, 249.3, 8.2, '#3f4a58', 0.5); line(248.4, 8.2, 250.6, 8.2, '#3f4a58', 0.45);
-  [[96, 5], [168, 5]].forEach(([x]) => { c.fillStyle = '#9aa5b0'; c.beginPath(); c.ellipse(x, DY - 12.5, 8, 1.6, 0, 0, Math.PI); c.fill(); line(x - 8, DY - 12.5, x + 8, DY - 12.5, '#4b5766', 0.15); line(x - 5, DY - 12.5, x - 5, DY - 7, '#4b5766', 0.12); line(x + 5, DY - 12.5, x + 5, DY - 7, '#4b5766', 0.12); });   // 구명정과 보트 데빗
   // ── 장비는 가로로 늘이지 않고 실제 크기로 그린다 (월드 x = 지역 x × CS)
   c.save(); c.scale(1 / CS, 1);
   const X = lx => lx * CS;
   rect(-8, DY - 2.5, 540, 0.5, '#2f3a49'); rect(-8, DY - 2.05, 540, 0.12, '#8d9aa8');   // 갑판 가장자리 캣워크
   for (let x = -6; x < 530; x += 6) line(x, DY - 2.05, x, DY - 0.3, 'rgba(210,218,226,0.5)', 0.1);   // 난간 기둥
   [70, 118, 404, 452].forEach(x => {   // 5인치/38 양용 단장포: 현측으로 튀어나온 둥근 포좌 위의 방패형 포탑
-    c.fillStyle = '#46515f'; c.beginPath(); c.moveTo(x - 4.2, DY - 2.5); c.lineTo(x + 4.2, DY - 2.5); c.quadraticCurveTo(x + 4.4, DY - 8, x, DY - 8.4); c.quadraticCurveTo(x - 4.4, DY - 8, x - 4.2, DY - 2.5); c.closePath(); c.fill(); c.strokeStyle = '#27303b'; c.lineWidth = 0.25; c.stroke();
-    rect(x - 4.5, DY - 2.8, 9, 0.35, '#8d9aa8'); for (let k = 0; k < 3; k++) disc(x - 2.4 + k * 2.4, DY - 6, 0.22, '#0f1620');
     poly([[x - 2.1, DY - 2.5], [x - 1.7, DY + 0.2], [x + 1.9, DY + 0.5], [x + 2.4, DY - 2.5]], '#68747f'); poly([[x - 1.7, DY + 0.2], [x + 1.9, DY + 0.5], [x + 1.6, DY + 1.1], [x - 1.3, DY + 0.9]], '#7d8995');   // 방패
     line(x + 1.2, DY - 0.5, x + 7.4, DY + 1.9, '#232b34', 0.55); rect(x + 6.9, DY + 1.6, 0.9, 0.7, '#171d24');   // 단장 포신
   });
   [22, 508, 250, 280].forEach(x => {   // 1.1인치/40mm 4연장 포좌: 둥근 통과 네 개의 포신
-    c.fillStyle = '#4c5866'; c.beginPath(); c.ellipse(x, DY - 4.1, 2.4, 2.0, 0, 0, Math.PI * 2); c.fill(); c.strokeStyle = '#27303b'; c.lineWidth = 0.2; c.stroke();
     rect(x - 2.6, DY - 2.6, 5.2, 0.35, '#8d9aa8'); rect(x - 1.2, DY - 2.35, 2.4, 1.5, '#68747f');
     [-0.5, -0.17, 0.17, 0.5].forEach(o => line(x + 0.5, DY - 1.4 + o, x + 3.2, DY + 0.3 + o * 1.3, '#232b34', 0.2));
   });
-  for (let x = 34; x < 500; x += 30) { if ([70, 118, 404, 452, 250, 280].some(q => Math.abs(q - x) < 14)) continue; c.fillStyle = '#505c6a'; c.beginPath(); c.ellipse(x, DY - 3.5, 1.5, 1.2, 0, 0, Math.PI * 2); c.fill(); line(x + 0.2, DY - 2.9, x + 2.4, DY - 1.6, '#232b34', 0.18); line(x - 0.2, DY - 2.9, x + 2.1, DY - 1.9, '#232b34', 0.18); }   // 20mm 기관포 통
   c.restore();
   c.restore(); c.save(); c.translate(ISL_DX, 0);   // 함교는 모양 그대로, 늘어난 갑판 가운데쯤으로 옮긴다
   // 함교 (연통 없음): 1층 갑판실 · 2층 해도실/통신실 · 3층 항해 함교(함장) · 4층 비행 지휘소
@@ -2932,10 +2927,6 @@ function carrierBody(c) {
   c.strokeStyle = '#39424c'; c.lineWidth = 0.3; c.strokeRect(142.4, DY + 38.2, 13.4, 4.4); for (let x = 143.4; x < 155.8; x += 1.2) line(x, DY + 38.2, x, DY + 42.6, '#39424c', 0.1); line(142.4, DY + 40.4, 155.8, DY + 40.4, '#39424c', 0.1);
   line(149, DY + 41, 149, DY + 47, '#39424c', 0.4); c.fillStyle = '#39424c'; c.beginPath(); c.ellipse(149, DY + 47.6, 2.2, 0.6, 0, 0, 7); c.fill(); line(146, DY + 44.2, 152, DY + 44.2, '#39424c', 0.2);
   line(135, DY + 17.2, 149, DY + 44.2, 'rgba(40,48,58,0.8)', 0.08);   // 안테나 선
-  // 섬에 통합된 대형 연돌: 함교 바로 뒤(선미 쪽), 앞뒤로 약간 기울고 타원형 단면, 검은 연돌모자
-  poly([[119, DY], [120.6, DY + 15.6], [133.2, DY + 15.6], [135.4, DY]], '#5e6a76'); poly([[120.6, DY + 15.6], [121.8, DY + 18.2], [131.8, DY + 18.2], [133.2, DY + 15.6]], '#1d232a'); rect(119.9, DY + 8.4, 14.2, 0.35, '#3f4a58'); rect(120.3, DY + 12.9, 13, 0.3, '#3f4a58');
-  rect(121.8, DY + 15.5, 10, 0.4, '#aab5bf'); for (let k = 0; k < 4; k++) rect(122 + k * 3, DY + 2.6 + (k % 2) * 3.4, 1.5, 4.6, 'rgba(30,38,46,0.3)');   // 보강대
-  for (let k = 0; k < 6; k++) { const u = ((G.t * 0.32 + k / 6) % 1); c.fillStyle = 'rgba(58,58,60,' + (0.5 * (1 - u)) + ')'; c.beginPath(); c.arc(124 - u * 22 + Math.sin(G.t * 2 + k) * 0.5, DY + 19.4 + u * 6, 1.5 + u * 3.8, 0, 7); c.fill(); }   // 연기
   // CXAM 대공 탐색 레이더: 마스트 꼭대기의 큰 직사각형 침대스프링 안테나
   c.strokeStyle = '#39424c'; c.lineWidth = 0.3; c.strokeRect(143.2, DY + 38.6, 11.6, 4.2); for (let x = 144.4; x < 154.8; x += 1.1) line(x, DY + 38.6, x, DY + 42.8, '#39424c', 0.09); for (let y = 39.6; y < 42.8; y += 1.0) line(143.2, DY + y, 154.8, DY + y, '#39424c', 0.09);
   line(149, DY + 42.8, 149, DY + 46.2, '#39424c', 0.38); c.fillStyle = '#39424c'; c.beginPath(); c.ellipse(149, DY + 46.8, 1.9, 0.5, 0, 0, 7); c.fill();

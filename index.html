@@ -2074,17 +2074,21 @@ function drawRuin(c, t) {
       line(0.4, 1.5, 4.9, 0.4, '#1d2118', 0.6); line(-0.6, 1.5, -3.6, 0.8, '#1d2118', 0.6);
       rubble(-3.6, 3.6, 5, ['#2a2c25', '#4b5a3a']);
       break;
-    case 'pill':   // 콘크리트 벙커 잔해: 둥근 몸체의 한쪽 윗부분이 깨져 나가고, 납작한 지붕판은 떨어져 옆에 비스듬히 기대고, 포신은 꺾여 땅에 떨어졌다
-      c.save(); c.scale(0.5, 0.5); soot(9);
-      c.beginPath(); c.moveTo(-7, 0.6); c.lineTo(-7, 4.3); c.quadraticCurveTo(-7, 4.9, -6.4, 4.9); c.lineTo(-1.4, 4.9); c.lineTo(-0.4, 3.6); c.lineTo(0.9, 4.1); c.lineTo(2.2, 2.4); c.lineTo(3.6, 2.7); c.lineTo(5.0, 1.2); c.lineTo(7, 0.9); c.lineTo(7, 0.6); c.quadraticCurveTo(7, 0, 6.4, 0); c.lineTo(-6.4, 0); c.quadraticCurveTo(-7, 0, -7, 0.6); c.closePath();
-      c.fillStyle = '#7f807b'; c.fill(); c.strokeStyle = '#1c1d1a'; c.lineWidth = 0.16; c.stroke();
-      poly([[-1.4, 4.9], [-0.4, 3.6], [0.9, 4.1], [2.2, 2.4], [1.6, 2.1], [0.6, 3.5], [-0.5, 3.1], [-1.8, 4.5]], '#5f605b');   // 깨진 단면
-      line(-0.4, 3.6, 0.1, 4.6, '#5a3d2c', 0.16); line(2.2, 2.4, 2.9, 3.2, '#5a3d2c', 0.16); line(3.6, 2.7, 3.9, 3.6, '#5a3d2c', 0.16);   // 드러난 철근
-      c.save(); c.translate(4.8, 1.6); c.rotate(-0.22); c.beginPath(); c.roundRect(-6, -0.75, 12, 1.5, 0.75); c.fillStyle = '#868782'; c.fill(); c.strokeStyle = '#1c1d1a'; c.lineWidth = 0.16; c.stroke(); c.restore();   // 떨어져 기댄 지붕판
-      line(-9.5, 0.35, -4.6, 1.1, '#1c1d1a', 0.55); line(-4.6, 1.1, -3.4, 2.3, '#1c1d1a', 0.55);   // 꺾인 포신
-      rubble(-8, 9, 10, ['#8d8e89', '#7f807b', '#6e6f69']);
+    case 'pill': {   // 콘크리트 벙커 잔해: 형체 없이 크고 작은 콘크리트 조각만 흩어져 쌓여 있다
+      c.save(); c.scale(0.5, 0.5); soot(10, 0.35);
+      const chunk = (x, y, w, h, a, col) => { c.save(); c.translate(x, y); c.rotate(a); const k = Math.round(x * 7 + y * 13); c.beginPath(); c.moveTo(-w / 2, -h / 2); c.lineTo(-w / 2 + w * (0.2 + R(k) * 0.2), h / 2); c.lineTo(w / 2 - w * R(k + 1) * 0.25, h / 2 - h * R(k + 2) * 0.3); c.lineTo(w / 2, -h / 2 + h * R(k + 3) * 0.3); c.lineTo(w * (R(k + 4) - 0.5) * 0.4, -h / 2 - h * R(k + 5) * 0.15); c.closePath(); c.fillStyle = col; c.fill(); c.strokeStyle = '#1c1d1a'; c.lineWidth = 0.13; c.stroke(); c.restore(); };
+      const cols = ['#8d8e89', '#7f807b', '#969791', '#74756f'];
+      // 큰 덩어리 (아래 몸체가 깨진 것) → 가운데에 낮게 쌓이고
+      [[-3.2, 0.9, 4.2, 1.8, 0.12], [1.4, 0.8, 3.8, 1.6, -0.18], [4.9, 0.55, 3.0, 1.1, 0.3], [-6.2, 0.5, 2.6, 1.0, -0.25], [-0.6, 2.0, 3.0, 1.2, 0.35], [2.8, 1.85, 2.2, 0.9, -0.4]].forEach(([x, y, w, h, a], n) => chunk(x, y, w, h, a, cols[n % 4]));
+      // 둥근 지붕판의 끝 조각 (둥근 모서리가 남아 알아볼 수 있다)
+      c.save(); c.translate(-1.6, 2.9); c.rotate(-0.2); c.beginPath(); c.moveTo(0, -0.75); c.lineTo(-2.4, -0.75); c.arc(-2.4, 0, 0.75, -Math.PI / 2, Math.PI / 2, true); c.lineTo(0.3, 0.75); c.lineTo(0.8, 0.1); c.lineTo(0.2, -0.3); c.closePath(); c.fillStyle = '#909189'; c.fill(); c.strokeStyle = '#1c1d1a'; c.lineWidth = 0.13; c.stroke(); c.restore();
+      // 작은 조각들이 둘레로 흩어진다
+      for (let n = 0; n < 16; n++) { const x = (R(n + 20) - 0.5) * 18, w = 0.5 + R(n + 40) * 0.9; chunk(x, w * 0.35, w, w * 0.65, (R(n + 60) - 0.5) * 1.4, cols[n % 4]); }
+      // 삐져나온 철근
+      [[-1.2, 1.6, -0.6, 3.3], [2.4, 1.4, 3.4, 2.9], [0.6, 2.4, 0.2, 3.6], [-4.6, 1.3, -5.4, 2.4]].forEach(([x1, y1, x2, y2]) => line(x1, y1, x2, y2, '#5a3d2c', 0.15));
       c.restore();
       break;
+    }
     case 'tower':   // 보초 타워: 부러진 기둥과 무너진 초소 잔해
       soot(6, 0.45); line(-2.6, 0.2, -1.4, 6.8, '#4a3a28', 0.55); line(2.8, 0.2, 4.6, 3.4, '#3a2e20', 0.5); line(-4.4, 0.4, 1.0, 1.3, '#4a3a28', 0.35);
       poly([[0.5, 0.2], [4.2, 0.2], [3.5, 1.6], [1.0, 1.9]], '#3a2e20'); rubble(-5, 5, 7, ['#5a4632', '#8a7a58', '#3a2e20']);
@@ -2319,38 +2323,13 @@ function drawTarget(c, t, dead) {
     }
     case 'pill': {   // 콘크리트 토치카: 두꺼운 지붕판, 사격 구멍, 거푸집 자국 (크기는 예전의 절반)
       c.save(); c.scale(0.5, 0.5);
-      // 로켓에 맞은 자리: 검은 구멍이 아니라 벽의 가장자리가 실제로 뜯겨 나간다 — 그 자리는 뒤의 하늘·땅이 보이고, 둘레에 부서진 콘크리트 단면과 철근이 드러난다
-      const rnd = (q, k) => { const v = Math.sin(q * 12.9898 + k * 78.233) * 43758.5453; return v - Math.floor(v); };
-      const bites = (t.marks || []).map((m, i) => {
-        const E = [[m.x, 4.9, Math.abs(m.x) > 4.6 && m.y < 5.3, 0, -1], [m.x, 7.25, Math.abs(m.x) <= 6 && m.y >= 5.3, 0, -1], [-7, m.y, m.y < 4.9, 1, 0], [7, m.y, m.y < 4.9, -1, 0], [-6, m.y, m.y >= 5.3, 1, 0], [6, m.y, m.y >= 5.3, -1, 0]].filter(e => e[2]);
-        let e0 = E[0], bd = 1e9; E.forEach(e => { const d = Math.hypot(e[0] - m.x, e[1] - m.y); if (d < bd) { bd = d; e0 = e; } });   // 가장 가까운 모서리
-        const bx = clamp(e0[0], -7, 7), by = clamp(e0[1], 0.6, 7.25), nx = e0[3], ny = e0[4], R = m.r * 2.7, sd = m.a * 10 + i * 3.7, cut = [];
-        for (let k = 0; k < 7; k++) { const ang = k * Math.PI * 2 / 7 + (rnd(sd, k) - 0.5) * 0.5, rr = R * (0.45 + 0.65 * rnd(sd, k + 9)); cut.push([bx + Math.cos(ang) * rr, by + Math.sin(ang) * rr]); }   // 모난 덩어리 모양
-        return { bx, by, nx, ny, R, cut, sd, i };
-      });
-      const path = pts => pts.forEach((q, k) => k ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1]));
-      c.save(); c.beginPath(); c.rect(-12, -3, 24, 14); bites.forEach(q => { path(q.cut); c.closePath(); }); c.clip('evenodd');   // 뜯겨 나간 자리는 그리지 않는다
+      // 피해를 입어도 모습은 그대로 (파괴되면 잔해로 바뀐다)
       // 설계(사용자 스케치): 넓고 모서리가 둥근 사각 몸체 → 그 위에 폭이 좁은 얇은 목 → 그 위에 넓고 납작한 둥근 지붕판 → 지붕판 위로 긴 포신 하나
       const rr = (x, y, w, h, rad, fill) => { c.beginPath(); c.roundRect(x, y, w, h, rad); c.fillStyle = fill; c.fill(); c.strokeStyle = '#1c1d1a'; c.lineWidth = 0.16; c.stroke(); };
       rr(-7, 0, 14, 4.9, 0.6, '#8d8e89'); rect(-6.6, 4.35, 13.2, 0.3, 'rgba(255,255,255,0.12)'); rect(-6.6, 0.15, 13.2, 0.5, 'rgba(0,0,0,0.12)');   // 아래 몸체 (윗부분은 밝게, 밑은 어둡게)
       for (let x = -4.5; x < 5; x += 3) rect(x, 0.5, 0.08, 3.9, 'rgba(40,40,36,0.18)');   // 거푸집 이음
       rr(-4.6, 4.95, 9.2, 0.8, 0.35, '#868782');   // 얇은 목
       rr(-6, 5.75, 12, 1.5, 0.75, '#909189'); rect(-5.3, 6.75, 10.6, 0.22, 'rgba(255,255,255,0.14)');   // 납작한 둥근 지붕판
-      c.save(); c.beginPath(); c.roundRect(-7, 0, 14, 4.9, 0.6); c.rect(-4.6, 4.9, 9.2, 0.9); c.roundRect(-6, 5.75, 12, 1.5, 0.75); c.clip();   // 아래는 벽이 있는 자리에만 그린다 (뜯긴 자리는 이미 빠져 있다)
-      bites.forEach(q => {
-        c.save(); c.translate(q.nx * 0.75 + 0.2, q.ny * 0.7 - 0.2); c.beginPath(); path(q.cut); c.closePath(); c.fillStyle = '#6f7069'; c.fill(); c.restore();   // 깨진 벽의 두께(단면)가 보이는 그늘
-        c.strokeStyle = 'rgba(45,45,40,0.5)'; c.lineWidth = 0.07;
-        for (let k = 0; k < 3; k++) { const [x0, y0] = q.cut[(k * 2 + 1) % 7], dx = x0 - q.bx, dy = y0 - q.by, l = Math.hypot(dx, dy) || 1, L = q.R * (0.6 + 0.6 * rnd(q.sd, k + 20)); c.beginPath(); c.moveTo(x0, y0); c.lineTo(x0 + dx / l * L * 0.5 + 0.25, y0 + dy / l * L * 0.5 - 0.2); c.lineTo(x0 + dx / l * L, y0 + dy / l * L); c.stroke(); }   // 잔금
-      });
-      c.restore();
-      c.restore();
-      bites.forEach(q => {   // 뜯긴 자리로 삐져나온 철근, 바닥에 떨어진 덩어리
-        c.strokeStyle = '#4e3426'; c.lineWidth = 0.12; c.lineCap = 'round';
-        const inWall = (x, y) => (x > -7 && x < 7 && y > 0 && y < 4.9) || (x > -4.6 && x < 4.6 && y >= 4.9 && y < 5.8) || (x > -6 && x < 6 && y >= 5.75 && y < 7.25);
-        c.strokeStyle = '#5a3d2c'; c.lineWidth = 0.16; for (let k = 0; k < 7; k++) { const [x0, y0] = q.cut[k]; if (!inWall(x0 + q.nx * 0.3, y0 + q.ny * 0.3) || rnd(q.sd, k + 30) < 0.35) continue; const dx = q.bx - x0, dy = q.by - y0, l = Math.hypot(dx, dy) || 1, L = 0.7 + 0.6 * rnd(q.sd, k + 70); c.beginPath(); c.moveTo(x0, y0); c.lineTo(x0 + dx / l * L, y0 + dy / l * L); c.lineTo(x0 + dx / l * L * 1.3 + 0.25, y0 + dy / l * L * 1.3 - 0.3); c.stroke(); }   // 끊어진 철근: 뜯긴 자리 안쪽으로 곧게 뻗다 끝이 꺾였다
-        c.lineCap = 'butt';
-        const gx = q.bx - q.nx * 1.2; for (let k = 0; k < 4; k++) { const x = gx + (rnd(q.sd, k + 40) - 0.5) * q.R * 1.6, w = 0.35 + rnd(q.sd, k + 50) * 0.5, h = 0.25 + rnd(q.sd, k + 60) * 0.35; poly([[x - w, 0], [x - w * 0.6, h], [x + w * 0.4, h * 1.1], [x + w, 0]], k % 2 ? '#8a8b84' : '#a3a49c'); }
-      });
       {   // 옥상의 대공포: 포신만 지붕 위로 비죽 나와 있다 (포탑·받침은 보이지 않는다)
         const an = p.mode === 'air' ? clamp(Math.atan2(p.y - t.y - 7.2, p.x - t.x), 0.25, Math.PI - 0.25) : 2.3, ca = Math.cos(an), sa = Math.sin(an), nx = -sa, ny = ca;
         const px = 0.3, py = 7.15, L = 6;

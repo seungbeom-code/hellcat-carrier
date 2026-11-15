@@ -1437,7 +1437,7 @@ function flakStep(dt) {
     FLAK.splice(i, 1);
   }
 }
-const LOWERS = { barracks: 1, fuel: 1, radar: 1, tower: 1, bunker: 1, pill: 1 };
+const LOWERS = { barracks: 1, fuel: 1, radar: 1, tower: 1, bunker: 1 };   // 콘크리트 벙커는 높이가 줄지 않는다 (구멍과 균열로만 피해를 보여 준다)
 const hFac = t => LOWERS[t.type] && t.alive && t.hp0 ? 1 - 0.5 * clamp(1 - t.hp / t.hp0, 0, 1) : 1;   // 피해를 입을수록 건물이 무너져 낮아진다 (체력 0 에 가까우면 절반 높이)
 function hitTest(x, y, pad) {
   for (const t of TARGETS) { if (!t.alive) continue; const b = BOX[t.type], hh = SHIPS[t.type] ? HULL_H[t.type] + 9 : b.h * hFac(t);   // 함정은 갑판과 함포 높이까지만 맞는다
@@ -1503,7 +1503,7 @@ function damageAt(x, y, r, kind) {
       if (!G.toast || G.toast.until < G.t) G.toast = { text: 'Ships sink only to torpedoes · rockets knock out their guns', grade: 'yellow', until: G.t + 3 };
       continue;
     }
-    if (d <= r) { if (t.type === 'pill' && kind === 'rocket' && d <= 3) { (t.marks = t.marks || []).push({ x: clamp((x - t.x) * 2, -6, 6), y: clamp((y - t.y) * 2, 0.8, 5.2), r: 0.8 + Math.random() * 0.7, a: Math.random() * 6 }); if (t.marks.length > 8) t.marks.shift(); if (t.hp > 0 && (!G.toast || G.toast.until < G.t)) G.toast = { text: 'Concrete bunker: it takes 4 rocket hits', grade: 'yellow', until: G.t + 2.5 };
+    if (d <= r) { if (t.type === 'pill' && kind === 'rocket' && d <= 3) { (t.marks = t.marks || []).push({ x: (() => { const yy = clamp(y - t.y, 0.7, 5.2); return clamp(x - t.x, yy > 3.4 ? -2.6 : -6, yy > 3.4 ? 2.6 : 6); })(), y: clamp(y - t.y, 0.7, 5.2), r: 0.8 + Math.random() * 0.7, a: Math.random() * 6 }); if (t.marks.length > 8) t.marks.shift(); if (t.hp > 0 && (!G.toast || G.toast.until < G.t)) G.toast = { text: 'Concrete bunker: it takes 4 rocket hits', grade: 'yellow', until: G.t + 2.5 };
         chips(x, y, 16, ['#a3a49c', '#8f908a', '#b9bab3', '#6e6f69', '#7a4a36'], 2.4); FX.push({ k: 'dust', x: x, y: y + 1, vx: -2, vy: 3, life: 1.1, t: 0 }); FX.push({ k: 'dust', x: x + 2, y: y + 1.5, vx: 2, vy: 4, life: 1.3, t: 0 }); }   // 콘크리트 파편이 튀어 나간다
       applyDmg(t, DMG[kind][t.type] * (kind === 'rocket' && d <= 2.5 ? 1 : 1 - 0.6 * d / r)); if (t.type === 'pill' && kind === 'bomb' && (!G.toast || G.toast.until < G.t)) G.toast = { text: 'Bombs do not hurt concrete bunkers — use rockets!', grade: 'yellow', until: G.t + 2.5 }; }
   }
@@ -2077,13 +2077,16 @@ function drawRuin(c, t) {
       line(0.4, 1.5, 4.9, 0.4, '#1d2118', 0.6); line(-0.6, 1.5, -3.6, 0.8, '#1d2118', 0.6);
       rubble(-3.6, 3.6, 5, ['#2a2c25', '#4b5a3a']);
       break;
-    case 'pill':   // 콘크리트 벙커: 한쪽 벽이 무너지고 지붕판이 갈라져 내려앉았다
-      soot(9);
-      poly([[-7, 0], [-6.2, 3.2], [-1.5, 3.5], [0.8, 1.3], [3.2, 0.9], [7, 0]], '#8a8b84');
-      poly([[-7.6, 4.3], [-0.8, 4.7], [2.6, 1.7], [-4.8, 2.6]], '#a3a49c'); poly([[-7.6, 4.3], [-0.8, 4.7], [-0.9, 4.2], [-7.5, 3.8]], '#8f908a');
-      poly([[-1.5, 3.5], [0.8, 1.3], [-0.8, 0.8], [-3.2, 1.7]], '#171815'); rect(-5.8, 1.5, 2.2, 0.6, '#121410');
-      line(-1.2, 3.6, 1.8, 5.2, '#5a3a2a', 0.2); line(0.9, 1.4, 3.4, 2.6, '#5a3a2a', 0.2); line(-4.5, 4.5, -3.0, 5.8, '#5a3a2a', 0.2);   // 드러난 철근
-      rubble(-9.5, 9.5, 10, ['#8f908a', '#a3a49c', '#6e6f69']);
+    case 'pill':   // 콘크리트 벙커 잔해: 아래 몸체의 한쪽이 무너지고, 위의 짧은 사각 지붕방이 떨어져 옆으로 기울어 누웠다
+      c.save(); c.scale(0.5, 0.5); soot(9);
+      poly([[-7, 0], [-7, 3.3], [-1.6, 3.3], [-0.6, 2.3], [0.6, 2.7], [1.8, 1.2], [0.9, 0]], '#8a8b84'); rect(-7.4, 3.3, 5.8, 0.4, '#a3a49c'); rect(-4.4, 1.6, 3.8, 0.85, '#121410');
+      for (let x = -6.2; x < -1; x += 2.4) rect(x, 0.2, 0.12, 2.9, 'rgba(60,60,55,0.28)');
+      poly([[-0.6, 2.3], [0.6, 2.7], [1.8, 1.2], [0.4, 0.9]], '#171815');   // 안쪽이 드러난 단면
+      poly([[1.4, 0], [3.2, 1.2], [5.6, 0.8], [8, 0]], '#9a9b93');   // 무너져 쌓인 콘크리트
+      c.save(); c.translate(5.4, 1.9); c.rotate(-0.38); rect(-3.6, -1, 7.2, 2.0, '#9a9b93'); rect(-4, 1, 8, 0.4, '#b9bab3'); rect(-1.4, -0.35, 2.8, 0.55, '#121410'); c.restore();   // 떨어져 누운 위쪽 지붕방
+      line(-0.8, 3.0, 1.8, 4.6, '#5a3a2a', 0.2); line(1.2, 1.4, 3.6, 2.6, '#5a3a2a', 0.2); line(-3.6, 3.7, -2.6, 5.0, '#5a3a2a', 0.2);   // 드러난 철근
+      rubble(-8, 8, 10, ['#8f908a', '#a3a49c', '#6e6f69']);
+      c.restore();
       break;
     case 'tower':   // 보초 타워: 부러진 기둥과 무너진 초소 잔해
       soot(6, 0.45); line(-2.6, 0.2, -1.4, 6.8, '#4a3a28', 0.55); line(2.8, 0.2, 4.6, 3.4, '#3a2e20', 0.5); line(-4.4, 0.4, 1.0, 1.3, '#4a3a28', 0.35);
@@ -2319,11 +2322,15 @@ function drawTarget(c, t, dead) {
     }
     case 'pill': {   // 콘크리트 토치카: 두꺼운 지붕판, 사격 구멍, 거푸집 자국 (크기는 예전의 절반)
       c.save(); c.scale(0.5, 0.5);
-      poly([[-7, 0], [-6.2, 4], [6.2, 4], [7, 0]], '#a3a49c'); rect(-7.6, 4, 15.2, 1.5, '#8f908a'); rect(-7.6, 5.5, 15.2, 0.25, '#b9bab3');
-      for (let x = -5.5; x < 6; x += 2.2) rect(x, 0.3, 0.12, 3.6, 'rgba(60,60,55,0.25)');
-      rect(-3.4, 2.1, 6.8, 0.8, '#121410'); rect(-0.4, 2.3, 3.6, 0.35, '#2a2c28');
-      poly([[-7, 0], [-9.5, 0], [-7, 2.6]], '#8a8a80'); poly([[7, 0], [9.5, 0], [7, 2.6]], '#8a8a80');
-      c.fillStyle = 'rgba(0,0,0,0.18)'; c.beginPath(); c.arc(-4, 3.2, 0.5, 0, 7); c.arc(4.5, 1.2, 0.4, 0, 7); c.fill();
+      // 새 설계: 넓은 낮은 사각 몸체 위에 폭이 좁고 키가 작은 사각 지붕방(두 단), 가로로 긴 사격 구멍
+      poly([[-7.9, 0], [-7, 0.9], [-7, 0]], '#8a8a80'); poly([[7.9, 0], [7, 0.9], [7, 0]], '#8a8a80');   // 바닥 쐐기
+      rect(-7, 0, 14, 3.3, '#a3a49c'); rect(-7.4, 3.3, 14.8, 0.45, '#b9bab3'); rect(-7.4, 3.3, 14.8, 0.12, '#8f908a');   // 아래 몸체와 처마
+      rect(-3.6, 3.75, 7.2, 2.0, '#9a9b93'); rect(-4, 5.75, 8, 0.4, '#b9bab3'); rect(-4, 5.75, 8, 0.1, '#8f908a');   // 위의 짧고 좁은 사각
+      for (let x = -6.2; x < 6.5; x += 2.4) rect(x, 0.2, 0.12, 2.9, 'rgba(60,60,55,0.28)');   // 거푸집 이음
+      for (let x = -2.8; x < 3.2; x += 2.4) rect(x, 3.9, 0.1, 1.7, 'rgba(60,60,55,0.25)');
+      rect(-4.4, 1.6, 8.8, 0.85, '#121410'); rect(-4.4, 2.3, 8.8, 0.15, '#3a3c36'); rect(-1.4, 4.35, 2.8, 0.55, '#121410');   // 아래 사격 구멍과 위의 작은 구멍
+      c.fillStyle = 'rgba(0,0,0,0.16)'; c.beginPath(); c.arc(-5.6, 2.9, 0.45, 0, 7); c.arc(5.4, 0.9, 0.4, 0, 7); c.fill();
+      c.save(); c.beginPath(); c.rect(-7, 0, 14, 3.3); c.rect(-3.6, 3.3, 7.2, 2.5); c.clip();   // 구멍은 벽 안에만 생긴다
       (t.marks || []).forEach((m, i) => {   // 로켓에 맞은 자리: 콘크리트 덩어리가 떨어져 나가 울퉁불퉁한 구멍이 생기고 철근이 드러난다 (가끔 철근에 매달린 조각도 보인다)
         const pts = []; for (let k = 0; k < 9; k++) { const a = m.a + k * 0.7, rr = m.r * (1.05 + 0.6 * ((k * 5) % 3) / 3); pts.push([m.x + Math.cos(a) * rr * 1.25, m.y + Math.sin(a) * rr]); }
         poly(pts, '#34352f'); poly(pts.map(q => [m.x + (q[0] - m.x) * 0.62, m.y + (q[1] - m.y) * 0.62]), '#171813');
@@ -2332,10 +2339,11 @@ function drawTarget(c, t, dead) {
         if (i % 3 === 0) { c.save(); c.translate(m.x + m.r * 1.6, m.y - m.r * 1.3); c.rotate(0.5 + m.a * 0.1); poly([[-0.6, -0.4], [0.7, -0.3], [0.5, 0.5], [-0.5, 0.4]], '#9a9b93'); c.restore(); }   // 철근에 매달린 조각
         c.strokeStyle = 'rgba(30,30,26,0.55)'; c.lineWidth = 0.1; c.beginPath(); for (let k = 0; k < 3; k++) { const a = m.a + 1 + k * 2.1; c.moveTo(m.x + Math.cos(a) * m.r * 1.5, m.y + Math.sin(a) * m.r * 1.2); c.lineTo(m.x + Math.cos(a) * m.r * 3, m.y + Math.sin(a) * m.r * 2.4); } c.stroke();   // 갈라진 금
       });
+      c.restore();
       {   // 옥상의 대공포: 포신만 지붕 위로 비죽 나와 있다 (포탑·받침은 보이지 않는다)
         const an = p.mode === 'air' ? clamp(Math.atan2(p.y - t.y - 6.5, p.x - t.x), 0.2, Math.PI - 0.2) : 1.1, ca = Math.cos(an), sa = Math.sin(an), nx = -sa, ny = ca;
-        const px = 1.5, py = 5.9;
-        c.fillStyle = '#121410'; c.fillRect(px - 1.4, 5.65, 2.8, 0.3);   // 지붕의 총안(틈)
+        const px = 0, py = 6.1;
+        c.fillStyle = '#121410'; c.fillRect(px - 1.4, 6.0, 2.8, 0.2);   // 지붕의 총안(틈)
         c.strokeStyle = '#2d312a'; c.lineWidth = 0.55; c.lineCap = 'round'; [-0.34, 0.34].forEach(o => { c.beginPath(); c.moveTo(px + nx * o, py + ny * o); c.lineTo(px + nx * o + ca * 2.6, py + ny * o + sa * 2.6); c.stroke(); });
         c.strokeStyle = '#1b1e18'; c.lineWidth = 0.7; [-0.34, 0.34].forEach(o => { c.beginPath(); c.moveTo(px + nx * o + ca * 2.3, py + ny * o + sa * 2.3); c.lineTo(px + nx * o + ca * 2.9, py + ny * o + sa * 2.9); c.stroke(); }); c.lineCap = 'butt';
         if (G.t - (t.flashT || -9) < 0.12) { c.fillStyle = 'rgba(255,220,120,0.95)'; c.beginPath(); c.arc(px + ca * 3.5, py + sa * 3.5, 1.1, 0, 7); c.fill(); }

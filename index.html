@@ -2322,6 +2322,16 @@ function drawTarget(c, t, dead) {
     }
     case 'pill': {   // 콘크리트 토치카: 두꺼운 지붕판, 사격 구멍, 거푸집 자국 (크기는 예전의 절반)
       c.save(); c.scale(0.5, 0.5);
+      // 로켓에 맞은 자리: 검은 구멍이 아니라 벽의 가장자리가 실제로 뜯겨 나간다 — 그 자리는 뒤의 하늘·땅이 보이고, 둘레에 부서진 콘크리트 단면과 철근이 드러난다
+      const bites = (t.marks || []).map((m, i) => {
+        const E = [[m.x, 3.3, Math.abs(m.x) > 3.6], [m.x, 5.75, Math.abs(m.x) <= 3.6], [-7, m.y, m.y < 3.3], [7, m.y, m.y < 3.3], [-3.6, m.y, m.y >= 3.3], [3.6, m.y, m.y >= 3.3]].filter(e => e[2]);
+        let bx = E[0][0], by = E[0][1], bd = 1e9; E.forEach(e => { const d = Math.hypot(e[0] - m.x, e[1] - m.y); if (d < bd) { bd = d; bx = e[0]; by = e[1]; } });   // 가장 가까운 모서리로
+        const R = m.r * 2.3, out = [], inn = [], sd = Math.round(m.a * 97) + i * 13;
+        for (let k = 0; k < 11; k++) { const ang = m.a + k * Math.PI * 2 / 11, jj = 0.7 + 0.6 * (((k * 7 + sd) % 5) / 4); out.push([bx + Math.cos(ang) * R * jj, by + Math.sin(ang) * R * jj * 0.8]); inn.push([bx + Math.cos(ang) * R * jj * 0.68, by + Math.sin(ang) * R * jj * 0.68 * 0.8]); }
+        return { bx, by, R, out, inn, i };
+      });
+      const path = pts => pts.forEach((q, k) => k ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1]));
+      c.save(); c.beginPath(); c.rect(-12, -3, 24, 14); bites.forEach(q => { path(q.inn); c.closePath(); }); c.clip('evenodd');   // 뜯겨 나간 자리는 그리지 않는다
       // 새 설계: 넓은 낮은 사각 몸체 위에 폭이 좁고 키가 작은 사각 지붕방(두 단), 가로로 긴 사격 구멍
       poly([[-7.9, 0], [-7, 0.9], [-7, 0]], '#8a8a80'); poly([[7.9, 0], [7, 0.9], [7, 0]], '#8a8a80');   // 바닥 쐐기
       rect(-7, 0, 14, 3.3, '#a3a49c'); rect(-7.4, 3.3, 14.8, 0.45, '#b9bab3'); rect(-7.4, 3.3, 14.8, 0.12, '#8f908a');   // 아래 몸체와 처마
@@ -2330,16 +2340,17 @@ function drawTarget(c, t, dead) {
       for (let x = -2.8; x < 3.2; x += 2.4) rect(x, 3.9, 0.1, 1.7, 'rgba(60,60,55,0.25)');
       rect(-4.4, 1.6, 8.8, 0.85, '#121410'); rect(-4.4, 2.3, 8.8, 0.15, '#3a3c36'); rect(-1.4, 4.35, 2.8, 0.55, '#121410');   // 아래 사격 구멍과 위의 작은 구멍
       c.fillStyle = 'rgba(0,0,0,0.16)'; c.beginPath(); c.arc(-5.6, 2.9, 0.45, 0, 7); c.arc(5.4, 0.9, 0.4, 0, 7); c.fill();
-      c.save(); c.beginPath(); c.rect(-7, 0, 14, 3.3); c.rect(-3.6, 3.3, 7.2, 2.5); c.clip();   // 구멍은 벽 안에만 생긴다
-      (t.marks || []).forEach((m, i) => {   // 로켓에 맞은 자리: 콘크리트 덩어리가 떨어져 나가 울퉁불퉁한 구멍이 생기고 철근이 드러난다 (가끔 철근에 매달린 조각도 보인다)
-        const pts = []; for (let k = 0; k < 9; k++) { const a = m.a + k * 0.7, rr = m.r * (1.05 + 0.6 * ((k * 5) % 3) / 3); pts.push([m.x + Math.cos(a) * rr * 1.25, m.y + Math.sin(a) * rr]); }
-        poly(pts, '#34352f'); poly(pts.map(q => [m.x + (q[0] - m.x) * 0.62, m.y + (q[1] - m.y) * 0.62]), '#171813');
-        c.strokeStyle = '#d3d4cc'; c.lineWidth = 0.16; c.beginPath(); pts.forEach((q, k) => k ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1])); c.closePath(); c.stroke();   // 부서진 단면의 밝은 테두리
-        c.strokeStyle = '#7a4a36'; c.lineWidth = 0.14; for (let k = 0; k < 3; k++) { const a = m.a + 0.5 + k * 1.3; c.beginPath(); c.moveTo(m.x + Math.cos(a) * m.r * 0.3, m.y + Math.sin(a) * m.r * 0.25); c.lineTo(m.x + Math.cos(a) * m.r * 1.9, m.y + Math.sin(a) * m.r * 1.5 - 0.2 * k); c.stroke(); }   // 드러난 철근
-        if (i % 3 === 0) { c.save(); c.translate(m.x + m.r * 1.6, m.y - m.r * 1.3); c.rotate(0.5 + m.a * 0.1); poly([[-0.6, -0.4], [0.7, -0.3], [0.5, 0.5], [-0.5, 0.4]], '#9a9b93'); c.restore(); }   // 철근에 매달린 조각
-        c.strokeStyle = 'rgba(30,30,26,0.55)'; c.lineWidth = 0.1; c.beginPath(); for (let k = 0; k < 3; k++) { const a = m.a + 1 + k * 2.1; c.moveTo(m.x + Math.cos(a) * m.r * 1.5, m.y + Math.sin(a) * m.r * 1.2); c.lineTo(m.x + Math.cos(a) * m.r * 3, m.y + Math.sin(a) * m.r * 2.4); } c.stroke();   // 갈라진 금
+      c.restore();
+      c.save(); c.beginPath(); c.rect(-7.9, 0, 15.8, 3.75); c.rect(-4, 3.3, 8, 2.85); c.clip();   // 부서진 단면은 벽이 있던 자리에만
+      bites.forEach(q => {
+        c.beginPath(); path(q.out); c.closePath(); path(q.inn); c.closePath(); c.fillStyle = '#c4c5bc'; c.fill('evenodd');   // 깨진 콘크리트의 거친 단면 (밝은 회색)
+        c.beginPath(); path(q.inn); c.closePath(); c.strokeStyle = '#6f7069'; c.lineWidth = 0.14; c.stroke();   // 단면 안쪽의 그늘진 모서리
+        c.strokeStyle = 'rgba(70,70,64,0.45)'; c.lineWidth = 0.08; for (let k = 0; k < 11; k += 2) { c.beginPath(); c.moveTo(q.out[k][0], q.out[k][1]); c.lineTo(q.inn[k][0], q.inn[k][1]); c.stroke(); }   // 단면의 결
+        c.strokeStyle = '#6b4632'; c.lineWidth = 0.13; for (let k = 1; k < 11; k += 3) { const [x0, y0] = q.inn[k]; c.beginPath(); c.moveTo(x0, y0); c.lineTo(x0 + (q.bx - x0) * 0.55 + 0.2, y0 + (q.by - y0) * 0.55 - 0.15); c.stroke(); }   // 끊어져 휘어진 철근
+        c.strokeStyle = 'rgba(40,40,36,0.4)'; c.lineWidth = 0.07; for (let k = 0; k < 3; k++) { const [x0, y0] = q.out[(k * 4 + 1) % 11]; c.beginPath(); c.moveTo(x0, y0); c.lineTo(x0 + (x0 - q.bx) * 0.6, y0 + (y0 - q.by) * 0.5); c.stroke(); }   // 주변의 잔금
       });
       c.restore();
+      bites.forEach(q => { if (q.i % 2 === 0) { const [x0, y0] = q.inn[3]; c.save(); c.translate(x0 + (q.bx - x0) * 0.6, y0 + (q.by - y0) * 0.6 - 0.25); c.rotate(0.6 + q.i * 0.4); poly([[-0.45, -0.3], [0.5, -0.25], [0.4, 0.35], [-0.35, 0.3]], '#a3a49c'); c.restore(); } });   // 철근에 매달린 조각
       {   // 옥상의 대공포: 포신만 지붕 위로 비죽 나와 있다 (포탑·받침은 보이지 않는다)
         const an = p.mode === 'air' ? clamp(Math.atan2(p.y - t.y - 6.5, p.x - t.x), 0.2, Math.PI - 0.2) : 1.1, ca = Math.cos(an), sa = Math.sin(an), nx = -sa, ny = ca;
         const px = 0, py = 6.1;

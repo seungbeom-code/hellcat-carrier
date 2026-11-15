@@ -503,7 +503,7 @@ function finish() {
   else if (td.sink < 5.6 && td.kt < 112 && Math.abs(td.pitch) < 0.12) { grade = 'green'; note = wn + '-wire. Smooth and level. Perfect!'; }
   else if (td.sink < 7) { grade = 'yellow'; note = td.kt >= 112 ? 'A little fast.' : Math.abs(td.pitch) >= 0.12 ? 'A little tilted.' : 'A little hard.'; }
   else { grade = 'brown'; note = wn + '-wire. Thump! But down safely.'; }
-  G.fmTask = 'elev'; p.mode = 'taxi'; p.landing = false; p.vr = 0; p.flip = 0; p.pushT = 0; p.lock = G.t + 1.6; sfx(grade); p.relT = G.t + 0.8;
+  G.fmTask = 'elev'; p.mode = 'taxi'; p.landing = false; p.vr = 0; p.flip = 0; p.pushT = 0; p.lock = G.t + 1.6; if (grade !== 'green' && grade !== 'yellow') sfx(grade); p.relT = G.t + 0.8;
   p.hp = Math.max(30, p.hp - ({ green: 0, yellow: 8, brown: 22 }[grade] || 0));   // 거칠게 내리면 기체가 상한다. 격납고에서 수리
   G.stickers.push(grade); if (G.stickers.length > 12) G.stickers.shift();
   if (G.m) { G.m.landings++; if (grade === 'green') G.m.greens++; }

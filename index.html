@@ -700,7 +700,7 @@ function gh(x) {
   }
   return 0;
 }
-const HP = { aa: 4, bunker: 10, fuel: 3, radar: 4, boat: 8, runway: 14, tank: 6, cave: 14, dd: 16, tr: 10, bm: 20, bb: 44, cv: 22 };   // 소형 전함은 어뢰 1발(22), 대형 전함은 2발, 항모는 1발에 가라앉는다
+const HP = { aa: 4, bunker: 10, fuel: 3, radar: 4, boat: 8, runway: 14, tank: 6, cave: 14, dd: 16, tr: 10, bm: 20, bb: 44, cv: 55 };   // 소형 전함은 어뢰 1발(22), 대형 전함은 2발, 항모는 3발에 가라앉는다
 const BOX = { aa: { w: 6, h: 5 }, bunker: { w: 20, h: 9 }, fuel: { w: 15, h: 5 }, radar: { w: 6, h: 10 }, boat: { w: 26, h: 7 }, runway: { w: 60, h: 3 }, tank: { w: 9, h: 4 }, cave: { w: 8, h: 7 }, dd: { w: 44, h: 14 }, tr: { w: 36, h: 10 }, bb: { w: 84, h: 20 }, cv: { w: 96, h: 14 } };
 const SK = { boat: 1.5, dd: 2.6, tr: 3.2, bm: 2.6, bb: 2.6, cv: 2.4 }, SP = { boat: 5, dd: 9, tr: 4, bm: 6, bb: 5, cv: 7 };   // 배의 크기 배율, 순항 속도(m/s)
 Object.assign(BOX, { runway: { w: RUNWAY_L, h: 6 }, boat: { w: 40, h: 11 }, dd: { w: 115, h: 36 }, tr: { w: 115, h: 32 }, bm: { w: 260, h: 52 }, bb: { w: 390, h: 52 }, cv: { w: 230, h: 34 } });   // 전함 길이: 우리 항모(520m)의 1/2과 3/4
@@ -1575,11 +1575,6 @@ function stepProj(dt) {
       if (gh(q.x) > 0) { explode(q.x, 0.5, 10, 'none', true); PROJ.splice(i, 1); continue; }
       const sh = TARGETS.find(t => t.alive && SHIPS[t.type] && Math.abs(q.x - t.x) < BOX[t.type].w / 2);
       if (sh && (sh.type === 'bb' || sh.type === 'bm') && sh.guns.some(g => g.alive)) { sh.hitAt = G.t; explode(q.x, 0, 10, 'none', true); G.toast = { text: 'The battleship shrugs it off — knock out every AA gun and machine gun first', grade: 'yellow', until: G.t + 3.5 }; PROJ.splice(i, 1); continue; }
-      if (sh && q.d * sh.dir < 0) {   // 뱃머리에 정면으로 직격하면 불발탄: 배가 향한 쪽에서 쏜 어뢰는 뱃머리에 정면으로 부딪혀 터지지 않는다 (고물 쪽에서 맞춰야 한다)
-        explode(q.x, 0, 8, 'none', true); FX.push({ k: 'splash', x: q.x, y: 0, vx: 0, vy: 0, life: 0.9, t: 0 }); sfx('thump');
-        if (!G.toast || G.toast.until < G.t) G.toast = { text: 'Dud! The torpedo hit the bow head-on and failed to explode — hit the stern instead', grade: 'yellow', until: G.t + 3.5 };
-        PROJ.splice(i, 1); continue;
-      }
       if (sh) { if (sh.type === 'bb' || sh.type === 'bm') (sh.hits = sh.hits || []).push(q.x - sh.x); applyDmg(sh, 22); explode(q.x, 0, 18, 'none', true); FX.push({ k: 'flash', x: q.x, y: 3, vx: 0, vy: 0, life: 0.3, t: 0 }); sfx('boom'); PROJ.splice(i, 1); continue; }
       if (q.life <= 0) PROJ.splice(i, 1);
       continue;

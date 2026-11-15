@@ -2033,7 +2033,7 @@ function drawQuad(c, t) {   // 4연장 기관포: 둥근 포탑에 포신 넷 (�
   const an = t.aim !== undefined ? t.aim : 0.9, ca = Math.cos(an), sa = Math.sin(an), cx = 0, cy = 4.7, fire = G.t - (t.qf || -9) < 0.05;
   c.fillStyle = "#4a5238"; c.fillRect(cx - 2, 3.3, 4, 1.2); c.beginPath(); c.arc(cx, cy, 1.5, 0, 7); c.fill();
   c.fillStyle = '#5b6447'; c.beginPath(); c.arc(cx - 0.3, cy + 0.3, 0.7, 0, 7); c.fill();
-  c.strokeStyle = '#262b20'; c.lineWidth = 0.22; c.lineCap = 'round';
+  c.strokeStyle = '#858882'; c.lineWidth = 0.22; c.lineCap = 'round';
   [-0.55, -0.2, 0.2, 0.55].forEach((o, i) => { const ox = -sa * o, oy = ca * o, L = 7.4 - (i % 2) * 0.5; c.beginPath(); c.moveTo(cx + ox, cy + oy); c.lineTo(cx + ox + ca * L, cy + oy + sa * L); c.stroke();
     if (fire && (i + (t.qn || 0)) % 2 === 0) { c.fillStyle = 'rgba(255,220,120,0.95)'; c.beginPath(); c.arc(cx + ox + ca * (L + 0.5), cy + oy + sa * (L + 0.5), 0.55, 0, 7); c.fill(); } });
   c.lineCap = 'butt';
@@ -2340,8 +2340,8 @@ function drawTarget(c, t, dead) {
         c.restore();
         const px = 0, py = 4.4, L = 6;   // 지붕 한가운데가 회전축
         c.fillStyle = '#1c1d1a'; c.beginPath(); c.arc(px, py, 0.85, 0, 7); c.fill(); c.fillStyle = '#4a4c46'; c.beginPath(); c.arc(px, py, 0.55, 0, 7); c.fill();
-        c.lineCap = 'round'; c.strokeStyle = '#1c1d1a'; c.lineWidth = 0.62; c.beginPath(); c.moveTo(px, py); c.lineTo(px + ca * L, py + sa * L); c.stroke();
-        c.strokeStyle = '#3a3c37'; c.lineWidth = 0.34; c.beginPath(); c.moveTo(px + ca * 0.2, py + sa * 0.2); c.lineTo(px + ca * (L - 0.15), py + sa * (L - 0.15)); c.stroke(); c.lineCap = 'butt';
+        c.lineCap = 'round'; c.strokeStyle = '#5f625d'; c.lineWidth = 0.62; c.beginPath(); c.moveTo(px, py); c.lineTo(px + ca * L, py + sa * L); c.stroke();
+        c.strokeStyle = '#8d908a'; c.lineWidth = 0.34; c.beginPath(); c.moveTo(px + ca * 0.2, py + sa * 0.2); c.lineTo(px + ca * (L - 0.15), py + sa * (L - 0.15)); c.stroke(); c.lineCap = 'butt';
         if (G.t - (t.flashT || -9) < 0.12 || (t.burst > 0 && ((G.t * 24) | 0) % 2 === 0)) { c.fillStyle = 'rgba(255,220,120,0.95)'; c.beginPath(); c.arc(px + ca * (L + 0.7), py + sa * (L + 0.7), 1.1, 0, 7); c.fill(); }
       }
       c.restore();

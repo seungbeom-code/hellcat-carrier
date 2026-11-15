@@ -717,7 +717,7 @@ const HULL_H = { boat: 4.5, dd: 6.5, tr: 16, bm: 7.8, bb: 7.8, cv: 14.5 };   // 
 const SHIP_GUNS = { dd: { gy: 3.2, xs: [-12, 8] }, bm: { gy: 4.3, xs: [-30, 36], mg: [1] }, bb: { gy: 4.3, xs: [-52, -44, 52, 62], mg: [1, 3] }, cv: { gy: 8.2, xs: [-36, 28, 44] }, tr: { gy: 5.2, xs: [8] } };   // 함정의 대공포 자리 (예전의 절반)   // 함정의 대공포 자리
 const BUSH = [];   // 덤불: 숲 바닥을 채우는 장식 (부딪히지 않는다)
 const TARGETS = [], PROJ = [], TREES = [], ENE = [], EB = [], FLAK = [], SOLD = [];
-const ES = { zero: { v: 125, n: 5.0, hp: 4 }, ace: { v: 140, n: 6.0, hp: 8 }, n1k: { v: 145, n: 5.5, hp: 9 }, d4y: { v: 105, n: 2.6, hp: 6 }, b6n: { v: 100, n: 2.2, hp: 7 } };   // 속도(m/s), 견딜 수 있는 선회 g, 체력
+const ES = { zero: { v: 165, n: 6.5, hp: 4 }, ace: { v: 180, n: 7.5, hp: 8 }, n1k: { v: 185, n: 7.0, hp: 9 }, d4y: { v: 105, n: 2.6, hp: 6 }, b6n: { v: 100, n: 2.2, hp: 7 } };   // 속도(m/s), 견딜 수 있는 선회 g, 체력
 const TINTS = { day: ['#4f9ad6', '#bfe4f5'], dawn: ['#3b5f99', '#f0b49a'], dusk: ['#4a4f8c', '#f2a65a'], night: ['#0b1430', '#2a3f66'] };
 const ZR = 'zero', OFF = 3000;   // 작전 배치 좌표에서 3km를 빼서 섬을 항모에 가깝게 둔다
 // 기획서의 미션 10개
@@ -1247,7 +1247,7 @@ function enemyStep(dt) {
           const px = e.sx + e.svx * tl + e.ex, py = e.sy + e.svy * tl + e.ey;
           if (dP > 900) { tx = e.sx - pd * 420 + e.ex; ty = e.sy + 150 + side * 40; }   // 에너지를 모으며 뒤를 노린다
           else if (dP > 330) { tx = px - pd * 60; ty = py + (e.v > S.v * 0.8 ? 55 : 15); }
-          else { tx = px; ty = py; }
+          else { tx = px + Math.cos(p.th) * 25; ty = py + Math.sin(p.th) * 25; }   // 가까우면 내 예상 위치를 정확히 겨눈다
           if (i % 2 && dP > 700 && dP < 2200) { tx = e.sx + pd * 650; ty = e.sy + 30 + side * 25; }   // 둘째 기는 정면·옆에서 엇갈려 협공한다
           if (e.v < S.v * 0.75 && e.y > 150 && dP < 900) ty = Math.min(ty, e.y - 70);   // 속도가 떨어졌으면 급강하로 에너지를 되찾는다
           if (e.jk > 0) ty += e.jd * 130;
@@ -1289,9 +1289,9 @@ function enemyStep(dt) {
     if (e.y <= Math.max(1, gh(e.x)) && !nearShip) { G.selfCrash = (G.selfCrash || 0) + 1; killEnemy(e); continue; }   // 늦으면 추락한다
     if (!bomber && air && e.att && e.st === 'app') {   // 사격
       const d = Math.hypot(p.x - e.x, p.y - e.y), tf = d / 560, aimA = Math.atan2(p.y + p.vy * tf - e.y, p.x + p.vx * tf - e.x);
-      if (e.bt > 0) { e.bt -= dt; e.cd -= dt; if (e.cd <= 0) { e.cd = 0.14; const a = e.h + (Math.random() - 0.5) * 0.09; FX.push({ k: 'muz', x: e.x + Math.cos(e.h) * 6, y: e.y + Math.sin(e.h) * 6, vx: Math.cos(e.h) * e.v, vy: Math.sin(e.h) * e.v, a: e.h, s: 1.4 + Math.random() * 0.9, life: 0.06, t: 0 }); EB.push({ x: e.x + Math.cos(e.h) * 8, y: e.y + Math.sin(e.h) * 8, vx: Math.cos(a) * 480 + Math.cos(e.h) * e.v, vy: Math.sin(a) * 480 + Math.sin(e.h) * e.v, life: 0.8 }); } }
-      else { e.cd -= dt; if (e.cd <= 0 && d < 520 && Math.abs(angd(aimA, e.h)) < 0.09) { e.bt = 0.9; e.cd = 0; } }
-      if ((e.bt <= 0 || d < 160) && (d < 220 || (d < 600 && Math.abs(angd(Math.atan2(p.y - e.y, p.x - e.x), e.h)) > 2.0))) { e.st = 'ext'; e.up = e.y >= p.y; e.xt = 2.4 + Math.random() * 1.6; e.att = false; e.cd = 1.2; e.bt = 0; }
+      if (e.bt > 0) { e.bt -= dt; e.cd -= dt; if (e.cd <= 0) { e.cd = 0.12; const a = e.h + clamp(angd(aimA, e.h), -0.16, 0.16) + (Math.random() - 0.5) * 0.08; FX.push({ k: 'muz', x: e.x + Math.cos(e.h) * 6, y: e.y + Math.sin(e.h) * 6, vx: Math.cos(e.h) * e.v, vy: Math.sin(e.h) * e.v, a: e.h, s: 1.4 + Math.random() * 0.9, life: 0.06, t: 0 }); EB.push({ x: e.x + Math.cos(e.h) * 8, y: e.y + Math.sin(e.h) * 8, vx: Math.cos(a) * 480 + Math.cos(e.h) * e.v, vy: Math.sin(a) * 480 + Math.sin(e.h) * e.v, life: 0.8 }); } }
+      else { e.cd -= dt; if (e.cd <= 0 && d < 650 && Math.abs(angd(aimA, e.h)) < 0.16) { e.bt = 0.8; e.cd = 0; } }
+      if ((e.bt <= 0 || d < 90) && (d < 130 || (d < 600 && Math.abs(angd(Math.atan2(p.y - e.y, p.x - e.x), e.h)) > 2.0))) { e.st = 'ext'; e.up = e.y >= p.y; e.xt = 2.4 + Math.random() * 1.6; e.att = false; e.cd = 1.2; e.bt = 0; }
     }
     if (e.att && (!air || Math.hypot(p.x - e.x, p.y - e.y) > 2200)) e.att = false;
     if ((bomber && e.rel && Math.abs(e.x - cx) > 4500) || (Math.abs(e.x - p.x) > 8000 && Math.abs(e.x - cx) > 8000)) ENE.splice(i, 1);

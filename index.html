@@ -521,10 +521,15 @@ function initAudio() {
   const nb = a.createBuffer(1, a.sampleRate * 2, a.sampleRate), d = nb.getChannelData(0);
   for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
   sound.noise = nb;
+  { const bb = a.createBuffer(1, a.sampleRate * 3, a.sampleRate), bd = bb.getChannelData(0); let l = 0; for (let i = 0; i < bd.length; i++) { l = (l + 0.02 * (Math.random() * 2 - 1)) / 1.02; bd[i] = l * 2.2; } sound.brown = bb; }   // 갈색 잡음: 낮은 울림의 재료
+  { const len = a.sampleRate * 2.4, ib = a.createBuffer(2, len, a.sampleRate); for (let c = 0; c < 2; c++) { const d = ib.getChannelData(c); let lp = 0; for (let i = 0; i < len; i++) { const t = i / a.sampleRate, k = 0.25 + 0.7 * Math.exp(-t * 1.4); lp += (Math.random() * 2 - 1 - lp) * k; d[i] = lp * Math.exp(-t * 2.3) * (i < 400 ? i / 400 : 1); } }
+    sound.rev = a.createConvolver(); sound.rev.buffer = ib; const rg = a.createGain(); rg.gain.value = 0.9; sound.rev.connect(rg); rg.connect(sound.master); }   // 열린 바다 위의 울림(잔향)
   // 엔진: 낮고 부드러운 웅웅거림. 사인파 둘(완전5도)과 걸러 낸 잡음만 쓰고, 소리는 아주 작게 둔다.
   sound.eg = a.createGain(); sound.eg.gain.value = 0; sound.eg.connect(sound.master);
   const trem = a.createGain(); trem.gain.value = 1; trem.connect(sound.eg);
-  sound.eo = [0, 1].map(i => { const o = a.createOscillator(); o.type = 'sine'; o.frequency.value = i ? 140 : 94; const g = a.createGain(); g.gain.value = i ? 0.2 : 0.6; o.connect(g); g.connect(trem); o.start(); return o; });
+  sound.elf = a.createBiquadFilter(); sound.elf.type = 'lowpass'; sound.elf.frequency.value = 300; sound.elf.Q.value = 0.5; sound.elf.connect(trem);
+  sound.eo = [0, 1].map(i => { const o = a.createOscillator(); o.type = 'sawtooth'; o.frequency.value = i ? 140 : 94; const g = a.createGain(); g.gain.value = i ? 0.1 : 0.2; o.connect(g); g.connect(sound.elf); o.start(); return o; });
+  { const lfo = a.createOscillator(), lg = a.createGain(); lfo.frequency.value = 10.5; lg.gain.value = 0.22; lfo.connect(lg); lg.connect(trem.gain); lfo.start(); }   // 프로펠러·실린더의 박동
   const es = a.createBufferSource(); es.buffer = nb; es.loop = true; sound.elp = a.createBiquadFilter(); sound.elp.type = 'lowpass'; sound.elp.frequency.value = 280; sound.elp.Q.value = 0.3;
   const ng = a.createGain(); ng.gain.value = 1.6; es.connect(sound.elp); sound.elp.connect(ng); ng.connect(trem); es.start();
   // 떨림(트레몰로)은 넣지 않는다: 더 부드러운 소리를 위해 뺐다
@@ -532,69 +537,81 @@ function initAudio() {
   const ws = a.createBufferSource(); ws.buffer = nb; ws.loop = true; const wf = a.createBiquadFilter(); wf.type = 'bandpass'; wf.frequency.value = 700; wf.Q.value = 0.6;
   sound.wg = a.createGain(); sound.wg.gain.value = 0; ws.connect(wf); wf.connect(sound.wg); sound.wg.connect(sound.master); ws.start();
 }
-function tone(freq, dur, type, vol, to, delay) {
+// 효과음은 파일 없이 합성하지만, 오락기 같은 사각파·삑삑 소리 대신 실제 소리의 구조를 흉내 낸다:
+// 잡음(공기·불·물)을 필터로 깎아 모양을 만들고, 낮은 사인파로 몸통을 받치고, 잔향으로 열린 바다의 공간감을 준다.
+function nz(o) {   // 필터를 지나는 잡음 한 겹
   const a = sound.ctx; if (!a || sound.muted) return;
-  const t = a.currentTime + (delay || 0), o = a.createOscillator(), g = a.createGain();
-  o.type = type || 'sine'; o.frequency.setValueAtTime(freq, t); if (to) o.frequency.exponentialRampToValueAtTime(to, t + dur);
-  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
-  o.connect(g); g.connect(sound.master); o.start(t); o.stop(t + dur + 0.02);
+  const t = a.currentTime + (o.d || 0), dur = o.dur, s = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
+  s.buffer = o.brown ? sound.brown : sound.noise; s.loop = true; s.playbackRate.value = 0.85 + Math.random() * 0.3;
+  f.type = o.type || 'lowpass'; f.Q.value = o.q || 0.7; f.frequency.setValueAtTime(o.f0, t); f.frequency.exponentialRampToValueAtTime(Math.max(20, o.f1 || o.f0), t + dur);
+  const att = o.att || 0.004; g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(o.vol, t + att); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  let node = f; s.connect(f);
+  if (o.sat) { const w = a.createWaveShaper(), c = new Float32Array(256); for (let i = 0; i < 256; i++) { const x = i / 128 - 1; c[i] = Math.tanh(x * o.sat); } w.curve = c; f.connect(w); node = w; }   // 살짝 찌그러뜨려 묵직한 맛
+  node.connect(g); g.connect(sound.master);
+  if (o.rev && sound.rev) { const sg = a.createGain(); sg.gain.value = o.rev; g.connect(sg); sg.connect(sound.rev); }
+  s.start(t, Math.random() * 1.5); s.stop(t + dur + 0.05);
 }
-function burst(freq, dur, vol, type, delay) {
+function sin(f0, f1, dur, vol, d, rev, type, lp) {   // 낮은 몸통·종소리·경적용 발진음
   const a = sound.ctx; if (!a || sound.muted) return;
-  const t = a.currentTime + (delay || 0), s = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
-  s.buffer = sound.noise; s.loop = true; f.type = type || 'bandpass'; f.frequency.value = freq; f.Q.value = 0.9;
-  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
-  s.connect(f); f.connect(g); g.connect(sound.master); s.start(t); s.stop(t + dur + 0.02);
+  const t = a.currentTime + (d || 0), o = a.createOscillator(), g = a.createGain(); o.type = type || 'sine'; o.frequency.setValueAtTime(f0, t); if (f1 && f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + (type === 'sawtooth' ? 0.03 : 0.006)); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  let node = o; if (lp) { const f = a.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = lp; o.connect(f); node = f; }
+  node.connect(g); g.connect(sound.master); if (rev && sound.rev) { const sg = a.createGain(); sg.gain.value = rev; g.connect(sg); sg.connect(sound.rev); }
+  o.start(t); o.stop(t + dur + 0.03);
 }
-// 필터가 훑고 내려가는 잡음: 처음엔 거칠고 높다가 점점 낮은 울림으로 가라앉는다 (폭발·물보라·바람소리의 기본 재료)
-function sweep(f0, f1, dur, vol, type, delay, q) {
-  const a = sound.ctx; if (!a || sound.muted) return;
-  const t = a.currentTime + (delay || 0), s = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
-  s.buffer = sound.noise; s.loop = true; s.playbackRate.value = 0.8 + Math.random() * 0.4; f.type = type || 'lowpass'; f.Q.value = q || 0.7;
-  f.frequency.setValueAtTime(f0, t); f.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
-  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.006); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
-  s.connect(f); f.connect(g); g.connect(sound.master); s.start(t, Math.random()); s.stop(t + dur + 0.05);
+function crackle(n, span, f, vol, d, rev) { for (let i = 0; i < n; i++) nz({ type: 'bandpass', f0: f * (0.5 + Math.random() * 1.5), q: 1.2, dur: 0.02 + Math.random() * 0.04, vol: vol * (0.4 + Math.random() * 0.6) * (1 - i / n * 0.6), d: (d || 0) + Math.pow(Math.random(), 1.6) * span, rev }); }   // 파편·불꽃 튀는 소리
+function bell(f, d, vol) { [[1, 1], [2.76, 0.35], [5.4, 0.12]].forEach(([m, a]) => sin(f * m, f * m, 1.1 / m ** 0.3, vol * a, d, 0.25)); }   // 배의 종
+function horn(f, dur, vol, d) { sin(f, f * 0.98, dur, vol, d, 0.2, 'sawtooth', 700); sin(f * 1.5, f * 1.48, dur, vol * 0.5, d, 0.2, 'sawtooth', 700); }
+function blast(size, o) {   // 폭발 한 번: 날카로운 파열 → 몸통(갈색 잡음) → 낮은 쿵 → 파편 → 멀어지는 잔향
+  const v = o.v === undefined ? 1 : o.v, hi = 0.5 + 0.5 * v, sz = size, nocrack = o.under;
+  if (!nocrack) nz({ type: 'highpass', f0: 1800, dur: 0.05 + 0.04 * sz, vol: (0.35 + 0.35 * sz) * v, att: 0.001 });
+  nz({ brown: true, type: 'lowpass', f0: (1400 + 1800 * sz) * hi, f1: 70, dur: 0.5 + 1.7 * sz, vol: (0.7 + 0.5 * sz) * v, sat: 2.2, rev: 0.25 + 0.4 * sz, att: 0.006 });
+  nz({ type: 'lowpass', f0: (4200 + 2000 * sz) * hi, f1: 240, dur: 0.25 + 0.7 * sz, vol: (0.3 + 0.25 * sz) * v, att: 0.003, rev: 0.2 });
+  sin(78 - 22 * sz, 26, 0.5 + 0.9 * sz, (0.35 + 0.55 * sz) * v, 0, 0.1);
+  if (!o.noDebris) crackle(Math.round(5 + 14 * sz), 0.8 + 1.4 * sz, 2400, 0.1 * v, 0.12, 0.2);
 }
-const thump = (f0, f1, dur, vol, delay) => tone(f0, dur, 'sine', vol, f1, delay);   // 낮은 사인파가 뚝 떨어지는 쿵
-// 폭발음: 종류와 크기에 따라 다르게 — 거친 파열(높은 잡음) + 몸통(낮은 쿵) + 꼬리(멀어지는 울림)
+function splashX(sz, v) {   // 물보라: 물이 터지는 소리 → 낮은 첨벙 → 방울
+  nz({ type: 'bandpass', f0: 4200, f1: 900, q: 0.7, dur: 0.22 + 0.55 * sz, vol: (0.2 + 0.35 * sz) * v, att: 0.003, rev: 0.2 });
+  if (sz >= 0.4) { nz({ brown: true, type: 'lowpass', f0: 900, f1: 120, dur: 0.4 + 0.9 * sz, vol: 0.55 * sz * v, sat: 1.5, rev: 0.3, att: 0.01 }); sin(110, 45, 0.4, 0.3 * sz * v, 0.02); }
+  for (let i = 0, n = Math.round(2 + 6 * sz); i < n; i++) { const f = 350 + Math.random() * 500; sin(f, f * 1.6, 0.07 + Math.random() * 0.06, 0.05 * v, 0.1 + Math.random() * (0.3 + sz * 0.9), 0.15); }
+}
 function boomSfx(o) {
-  const k = o.k || 'none', r = o.r || 10, j = 0.88 + Math.random() * 0.24, v = o.v === undefined ? 1 : o.v;
-  if (k === 'flak') { sweep(5200 * j, 900, 0.16, 0.55 * v, 'bandpass'); thump(150 * j, 70, 0.1, 0.3 * v); }
-  else if (k === 'rocket') { sweep(7000, 500, 0.4, 0.5 * v); thump(120 * j, 45, 0.45, 0.55 * v); sweep(1800, 150, 0.9, 0.22 * v, 'lowpass', 0.1); }
-  else if (k === 'bomb' && r >= 25) { thump(62 * j, 26, 0.9, 0.9 * v); sweep(3000, 120, 1.2, 0.6 * v); [0.25, 0.55, 0.9].forEach((d, n) => { thump((90 - n * 15) * j, 30, 0.5, 0.45 * v, d); sweep(2200 - n * 500, 140, 0.8, 0.35 * v, 'lowpass', d); }); }   // 연료고: 연쇄 폭발
-  else if (k === 'bomb') { thump(72 * j, 28, 0.8, 0.9 * v); sweep(2600, 130, 1.0, 0.55 * v); sweep(900, 100, 1.2, 0.2 * v, 'lowpass', 0.15); }
-  else if (k === 'torp') { thump(58 * j, 24, 1.3, 0.9 * v); sweep(1000, 80, 1.5, 0.5 * v); sweep(2800, 300, 0.5, 0.18 * v, 'bandpass', 0.05); }
-  else if (k === 'big') { thump(46, 20, 2.2, 0.95 * v); sweep(1600, 70, 2.6, 0.65 * v); [0.5, 1.1, 1.7].forEach((d, n) => sweep(1200 - n * 300, 90, 1.0, 0.28 * v, 'lowpass', d)); }
-  else if (k === 'plane') { sweep(3200, 160, 0.75, 0.5 * v); thump(100 * j, 40, 0.5, 0.5 * v); sweep(1400 * j, 500, 0.3, 0.16 * v, 'bandpass', 0.05, 4); }   // 찌그러지는 금속
-  else if (k === 'shell') { thump(105 * j, 45, 0.4, 0.6 * v); sweep(1900, 200, 0.45, 0.35 * v); }
-  else if (o.sea) { sweep(2000, 220, 0.8, 0.4 * v); thump(66 * j, 30, 0.55, 0.5 * v); }
-  else if (r <= 10) { sweep(2600, 180, 0.55, 0.38 * v); thump(85 * j, 38, 0.35, 0.5 * v); }
-  else { sweep(2800, 150, 0.9, 0.5 * v); thump(75 * j, 32, 0.6, 0.65 * v); }
+  const k = o.k || 'none', r = o.r || 10, v = o.v === undefined ? 1 : o.v;
+  if (k === 'flak') blast(0.1, { v: v * 1.1, noDebris: true });
+  else if (k === 'rocket') blast(0.45, o);
+  else if (k === 'bomb' && r >= 25) { blast(1.0, o); [0.28, 0.6, 1.0].forEach((d, n) => setTimeout(() => { if (sound.ctx && !sound.muted) blast(0.5 - n * 0.1, { v: v * 0.8, noDebris: true }); }, d * 1000)); }   // 연료고: 연쇄 폭발
+  else if (k === 'bomb') blast(0.7, o);
+  else if (k === 'torp') { blast(0.85, { v, under: true }); splashX(0.9, v * 0.7); }
+  else if (k === 'big') { blast(1.25, o); [0.5, 1.2, 1.9].forEach(d => setTimeout(() => { if (sound.ctx && !sound.muted) blast(0.7, { v: v * 0.7, noDebris: true }); }, d * 1000)); }
+  else if (k === 'plane') { blast(0.5, o); nz({ type: 'bandpass', f0: 1400, f1: 500, q: 5, dur: 0.35, vol: 0.18 * v, d: 0.05, rev: 0.2 }); crackle(8, 0.5, 1800, 0.12 * v, 0.1, 0.2); }
+  else if (k === 'shell') blast(0.35, o);
+  else if (o.sea) { blast(0.35, { v: v * 0.8, under: true, noDebris: true }); splashX(r >= 10 ? 0.9 : 0.5, v); }
+  else blast(r <= 10 ? 0.3 : 0.55, o);
 }
 function sfx(n, o) {
   if (!sound.ctx || sound.muted || sound.ctx.state !== 'running') return;   // 브라우저가 아직 소리를 막고 있으면 쌓아 두지 않는다
-  if (n === 'clunk') { tone(110, 0.12, 'square', 0.25, 60); burst(900, 0.08, 0.2); }
-  else if (n === 'thump') { thump(110, 45, 0.22, 0.7); sweep(2400, 300, 0.3, 0.2); }          // 접지 + 타이어
-  else if (n === 'wire') { tone(520, 0.3, 'triangle', 0.2, 150); sweep(4000, 1200, 0.3, 0.2, 'bandpass', 0, 3); thump(95, 50, 0.2, 0.4); }
-  else if (n === 'barrier') { burst(500, 0.6, 0.6); tone(90, 0.4, 'sawtooth', 0.4, 40); }
-  else if (n === 'crash') { sweep(3200, 140, 1.0, 0.6); thump(95, 34, 0.7, 0.7); sweep(1500, 600, 0.3, 0.15, 'bandpass', 0.04, 4); }
-  else if (n === 'splash') { sweep(3200, 500, 0.5, 0.4, 'bandpass', 0, 0.8); sweep(700, 140, 1.1, 0.35, 'lowpass', 0.08); thump(120, 50, 0.4, 0.4); [0.35, 0.5, 0.7, 0.85].forEach(d => tone(300 + Math.random() * 300, 0.12, 'sine', 0.05, 700, d)); }   // 첨벙, 물이 덮치는 소리, 잠기며 올라오는 방울
-  else if (n === 'wsplash') { const sz = (o && o.s) || 0, v = (o && o.v === undefined ? 1 : o && o.v) || 1; if (sz === 0) { sweep(4200, 1800, 0.09, 0.35 * v, 'bandpass', 0, 1.5); } else if (sz === 1) { sweep(3400, 600, 0.45, 0.32 * v, 'bandpass', 0, 0.8); sweep(800, 200, 0.5, 0.2 * v, 'lowpass', 0.05); } else { sweep(3000, 450, 0.8, 0.45 * v, 'bandpass', 0, 0.7); sweep(900, 120, 1.3, 0.4 * v, 'lowpass', 0.06); thump(95, 40, 0.5, 0.35 * v); [0.5, 0.7, 0.95].forEach(d => tone(280 + Math.random() * 260, 0.14, 'sine', 0.05 * v, 650, d)); } }   // 물보라: 0 작은 탄, 1 중간, 2 큰 물기둥
-  else if (n === 'green') { [660, 880, 1320].forEach((f, i) => tone(f, 0.35, 'triangle', 0.3, 0, i * 0.13)); }
-  else if (n === 'yellow') { [660, 880].forEach((f, i) => tone(f, 0.3, 'triangle', 0.28, 0, i * 0.14)); }
-  else if (n === 'brown') { tone(440, 0.35, 'triangle', 0.25); }
-  else if (n === 'red') { tone(240, 0.5, 'sawtooth', 0.25, 160); }
-  else if (n === 'cut') { tone(1500, 0.18, 'sine', 0.3, 1700); }                                   // 컷 호루라기
-  else if (n === 'waveoff') { tone(310, 0.16, 'square', 0.22); tone(310, 0.16, 'square', 0.22, 0, 0.22); }
-  else if (n === 'flag') { burst(1200, 0.25, 0.15); }
-  else if (n === 'stall') { tone(880, 0.09, 'square', 0.14); }
-  else if (n === 'turn') { burst(500, 0.9, 0.18); }
-  else if (n === 'gun') { sweep(6000, 2200, 0.05, 0.25, 'highpass'); thump(170, 90, 0.05, 0.15); }
-  else if (n === 'hit') { sweep(3400, 1200, 0.09, 0.5, 'bandpass', 0, 2); tone(430, 0.09, 'triangle', 0.15, 250); }
-  else if (n === 'rocket') { sweep(500, 2600, 0.5, 0.28, 'bandpass', 0, 0.8); sweep(2600, 700, 0.6, 0.18, 'bandpass', 0.35, 0.8); thump(140, 60, 0.25, 0.25); }
-  else if (n === 'bomb') { tone(1300, 0.8, 'sine', 0.05, 320); thump(90, 50, 0.12, 0.2); }
-  else if (n === 'boom') boomSfx(o || {});
-  else if (n === 'lift') { tone(120, 1.8, 'triangle', 0.1, 70); burst(260, 1.8, 0.05); }
+  const j = 0.9 + Math.random() * 0.2;
+  if (n === 'boom') boomSfx(o || {});
+  else if (n === 'crash') { blast(0.8, {}); nz({ type: 'bandpass', f0: 1600, f1: 400, q: 4, dur: 0.6, vol: 0.2, d: 0.05, rev: 0.2 }); crackle(14, 1.0, 1500, 0.12, 0.1, 0.2); }
+  else if (n === 'splash') { splashX(1, 1); }
+  else if (n === 'wsplash') { const sz = (o && o.s) || 0, v = (o && o.v === undefined ? 1 : o && o.v) || 1; splashX(sz === 0 ? 0.08 : sz === 1 ? 0.4 : 0.95, v * (sz === 0 ? 2.5 : sz === 1 ? 0.6 : 1)); }   // 물보라: 0 작은 탄, 1 중간, 2 큰 물기둥
+  else if (n === 'gun') { nz({ type: 'lowpass', f0: 5200 * j, f1: 900, dur: 0.07, vol: 0.9, att: 0.001, rev: 0.12 }); nz({ brown: true, type: 'lowpass', f0: 700, f1: 150, dur: 0.09, vol: 1.2, att: 0.002 }); sin(150 * j, 70, 0.06, 0.45, 0); }
+  else if (n === 'hit') { nz({ type: 'bandpass', f0: 2600, f1: 900, q: 1.2, dur: 0.07, vol: 0.9, att: 0.001 }); nz({ type: 'bandpass', f0: 1500 * j, f1: 1400 * j, q: 14, dur: 0.25, vol: 0.05, att: 0.001, rev: 0.1 }); sin(190, 95, 0.09, 0.4, 0); }   // 금속에 맞는 둔탁한 소리와 울림
+  else if (n === 'rocket') { nz({ type: 'bandpass', f0: 300, f1: 1800, q: 0.6, dur: 0.5, vol: 0.28, att: 0.03, rev: 0.2 }); nz({ type: 'lowpass', f0: 3000, f1: 500, dur: 1.3, vol: 0.32, d: 0.1, att: 0.05, sat: 1.5, rev: 0.3 }); nz({ brown: true, type: 'lowpass', f0: 320, f1: 120, dur: 1.3, vol: 0.5, d: 0.05, att: 0.05 }); }
+  else if (n === 'bomb') { nz({ type: 'highpass', f0: 3000, dur: 0.02, vol: 0.25, att: 0.001 }); nz({ type: 'bandpass', f0: 2800, f1: 850, q: 14, dur: 1.0, vol: 0.12, d: 0.15, att: 0.2 }); }   // 투하 고리 소리와 떨어지며 낮아지는 휘파람
+  else if (n === 'thump') { nz({ brown: true, type: 'lowpass', f0: 500, f1: 80, dur: 0.28, vol: 2.4, sat: 1.5, att: 0.002 }); nz({ type: 'bandpass', f0: 1600, f1: 700, q: 1.5, dur: 0.14, vol: 0.5, att: 0.001 }); sin(95, 45, 0.22, 0.6, 0); }   // 착륙: 타이어와 갑판
+  else if (n === 'wire') { nz({ type: 'bandpass', f0: 1900, f1: 700, q: 7, dur: 0.45, vol: 0.5, att: 0.002, rev: 0.2 }); sin(210, 90, 0.5, 0.18, 0, 0.1, 'triangle'); nz({ brown: true, type: 'lowpass', f0: 420, f1: 90, dur: 0.3, vol: 1.6, att: 0.003 }); }   // 와이어가 팽팽해지는 소리
+  else if (n === 'barrier') { blast(0.3, { noDebris: true }); nz({ type: 'bandpass', f0: 1400, f1: 400, q: 4, dur: 0.6, vol: 0.2 }); }
+  else if (n === 'clunk') { nz({ brown: true, type: 'lowpass', f0: 520, f1: 110, dur: 0.14, vol: 2.0, att: 0.002 }); nz({ type: 'bandpass', f0: 2200, f1: 1800, q: 6, dur: 0.06, vol: 0.3, att: 0.001 }); }
+  else if (n === 'flag') { nz({ type: 'bandpass', f0: 1400, f1: 700, q: 0.8, dur: 0.22, vol: 0.18, att: 0.02 }); }
+  else if (n === 'stall') { sin(520, 520, 0.1, 0.2, 0, 0, 'sawtooth', 1200); }
+  else if (n === 'green') { bell(880, 0, 0.14); bell(1175, 0.2, 0.12); }
+  else if (n === 'yellow') { bell(740, 0, 0.14); }
+  else if (n === 'brown') { nz({ brown: true, type: 'lowpass', f0: 320, f1: 100, dur: 0.25, vol: 0.5 }); }
+  else if (n === 'red') { horn(230, 0.5, 0.2, 0); }
+  else if (n === 'cut') { nz({ type: 'bandpass', f0: 2300, f1: 2600, q: 9, dur: 0.28, vol: 0.5, att: 0.02 }); }
+  else if (n === 'waveoff') { horn(290, 0.18, 0.09, 0); horn(290, 0.18, 0.09, 0.26); }
+  else if (n === 'lift') { nz({ brown: true, type: 'lowpass', f0: 420, f1: 380, dur: 1.8, vol: 0.4, att: 0.3 }); nz({ type: 'bandpass', f0: 1500, f1: 1100, q: 0.8, dur: 1.8, vol: 0.04, att: 0.3 }); }
 }
 const IS_PHONE = (() => { try { return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '') || (typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches); } catch (_) { return false; } })();   // 폰·태블릿(터치 기기)이면 비행 중 엔진·바람 소리를 내지 않는다
 // 첫 화면의 데모 비행에서도 소리가 나도록 시작하자마자 오디오를 준비한다. 브라우저가 막으면 처음 화면을 만지거나 키를 누르는 순간 켠다

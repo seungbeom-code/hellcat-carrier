@@ -1381,7 +1381,7 @@ function towerStep(dt) {   // 보초 타워의 병사가 기관총으로 쏜다 
 function quadStep(dt) {   // 일반 벙커의 4연장 기관포: 포신이 내 비행기를 따라 돌고, 맞춰지면 짧게 연사한다 (탄은 보이지 않는다)
   for (const t of TARGETS) {
     if ((t.type !== 'bunker' && t.type !== 'pill') || !t.alive) continue;
-    const pl = t.type === 'pill', off = pl ? 15 : 6, gx = t.x + (pl ? 0 : 1.5), gy = t.y + (pl ? 6.6 : 4.7), d = Math.hypot(p.x - gx, p.y - gy), tf = d / 520;
+    const pl = t.type === 'pill', off = pl ? 9 : 6, gx = t.x + (pl ? 0 : 1.5), gy = t.y + (pl ? 6.6 : 4.7), d = Math.hypot(p.x - gx, p.y - gy), tf = d / 520;
     const want = p.mode === 'air' && d < 700 ? clamp(Math.atan2(p.y + p.vy * tf - gy, p.x + p.vx * tf - gx), 0.05, Math.PI - 0.05) : 0.9;
     t.aim = t.aim === undefined ? want : t.aim + clamp(angd(want, t.aim), -1.4 * dt, 1.4 * dt);
     t.qcd = (t.qcd === undefined ? Math.random() * 3 : t.qcd) - dt; t.burst = (t.burst || 0) - dt;
@@ -1399,7 +1399,7 @@ function shellStep(dt) {   // 벙커의 곡사포: 내 비행기가 갈 곳을 �
     const d = Math.hypot(p.x - t.x, p.y - t.y); if (d > H.r || d < 120) continue;
     const T = clamp(d / 260, 1.6, 5), g = 22, err = 40 + d * 0.05;
     const tx = p.x + p.vx * T + (Math.random() - 0.5) * err * 2, ty = Math.max(gh(p.x) + 5, p.y + p.vy * T + (Math.random() - 0.5) * err);
-    const pb = t.type === 'pill' ? (t.aim === undefined ? Math.PI / 2 : t.aim) : 0, x0 = t.x + (t.type === 'pill' ? Math.cos(pb) * 15 : 2.5), y0 = t.y + (t.type === 'pill' ? 6.6 + Math.sin(pb) * 15 : 6.5), vx = (tx - x0) / T, vy = (ty - y0 + 0.5 * g * T * T) / T;
+    const pb = t.type === 'pill' ? (t.aim === undefined ? Math.PI / 2 : t.aim) : 0, x0 = t.x + (t.type === 'pill' ? Math.cos(pb) * 9 : 2.5), y0 = t.y + (t.type === 'pill' ? 6.6 + Math.sin(pb) * 9 : 6.5), vx = (tx - x0) / T, vy = (ty - y0 + 0.5 * g * T * T) / T;
     if (Math.abs(angd(Math.atan2(vy, vx), t.aim)) > 0.35) { t.hcd = 0.4; continue; }   // 포신이 아직 덜 돌았으면 조금 뒤에
     t.shotT = G.t; SHELL.push({ x: x0, y: y0, vx, vy, g, t: T });
     if (d < 1300) sfx('boom', { k: 'shell', v: clamp(1.2 - d / 1300, 0.3, 1) });
@@ -2334,7 +2334,7 @@ function drawTarget(c, t, dead) {
       {   // 옥상의 대공포: 포신만 지붕 위로 비죽 나와 있다 (포탑·받침은 보이지 않는다)
         const an = t.aim !== undefined ? t.aim : Math.PI / 2, ca = Math.cos(an), sa = Math.sin(an), nx = -sa, ny = ca;
         c.restore();
-        const px = 0, py = 4.4, L = 10;   // 지붕 한가운데가 회전축
+        const px = 0, py = 4.4, L = 6;   // 지붕 한가운데가 회전축
         c.fillStyle = '#1c1d1a'; c.beginPath(); c.arc(px, py, 0.85, 0, 7); c.fill(); c.fillStyle = '#4a4c46'; c.beginPath(); c.arc(px, py, 0.55, 0, 7); c.fill();
         c.lineCap = 'round'; c.strokeStyle = '#1c1d1a'; c.lineWidth = 0.62; c.beginPath(); c.moveTo(px, py); c.lineTo(px + ca * L, py + sa * L); c.stroke();
         c.strokeStyle = '#3a3c37'; c.lineWidth = 0.34; c.beginPath(); c.moveTo(px + ca * 0.2, py + sa * 0.2); c.lineTo(px + ca * (L - 0.15), py + sa * (L - 0.15)); c.stroke(); c.lineCap = 'butt';

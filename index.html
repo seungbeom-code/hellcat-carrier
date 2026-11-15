@@ -572,7 +572,7 @@ function boomSfx(o) {
   else { sweep(2800, 150, 0.9, 0.5 * v); thump(75 * j, 32, 0.6, 0.65 * v); }
 }
 function sfx(n, o) {
-  if (!sound.ctx || sound.muted) return;
+  if (!sound.ctx || sound.muted || sound.ctx.state !== 'running') return;   // 브라우저가 아직 소리를 막고 있으면 쌓아 두지 않는다
   if (n === 'clunk') { tone(110, 0.12, 'square', 0.25, 60); burst(900, 0.08, 0.2); }
   else if (n === 'thump') { thump(110, 45, 0.22, 0.7); sweep(2400, 300, 0.3, 0.2); }          // 접지 + 타이어
   else if (n === 'wire') { tone(520, 0.3, 'triangle', 0.2, 150); sweep(4000, 1200, 0.3, 0.2, 'bandpass', 0, 3); thump(95, 50, 0.2, 0.4); }
@@ -597,6 +597,9 @@ function sfx(n, o) {
   else if (n === 'lift') { tone(120, 1.8, 'triangle', 0.1, 70); burst(260, 1.8, 0.05); }
 }
 const IS_PHONE = (() => { try { return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '') || (typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches); } catch (_) { return false; } })();   // 폰·태블릿(터치 기기)이면 비행 중 엔진·바람 소리를 내지 않는다
+// 첫 화면의 데모 비행에서도 소리가 나도록 시작하자마자 오디오를 준비한다. 브라우저가 막으면 처음 화면을 만지거나 키를 누르는 순간 켠다
+try { initAudio(); } catch (_) {}
+['pointerdown', 'keydown', 'touchend', 'click'].forEach(t => window.addEventListener(t, () => { try { initAudio(); } catch (_) {} }, { passive: true }));
 function updateSound(dt) {
   const a = sound.ctx; if (!a) return;
   const t = a.currentTime, alive = (p.mode === 'air' || p.mode === 'deck' || p.mode === 'taxi' || p.mode === 'lift') && p.fuel > 0;

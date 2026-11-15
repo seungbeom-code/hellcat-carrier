@@ -1201,6 +1201,7 @@ function missionStep(dt) {
         if (u < 0.55 && Math.random() < dt * 12) FX.push({ k: Math.random() < 0.4 ? 'fire' : 'smoke', x: ship.x + 20 + Math.random() * (DECK_L - 40), y: dk, vx: -4, vy: 5 + Math.random() * 6, life: 1.4 + Math.random(), t: 0, s: 2 + Math.random() * 3 });
         if (u > 0.5 && Math.random() < dt * 8) FX.push({ k: 'smoke', x: ship.x + ISL_DX + 148 + (Math.random() - 0.5) * 8, y: Math.max(2, dk + 12), vx: -3, vy: 5, life: 1.2, t: 0, s: 2 + Math.random() * 2 });
       }
+      if (['deck', 'taxi', 'lift', 'dslide'].includes(p.mode) || (p.mode === 'down' && G.result && G.result.deck)) p.y -= SINK_DEPTH * Math.pow(u, 1.5);   // 갑판 위의 내 비행기도 항모와 함께 가라앉는다
       if (G.t - G.sink.t0 > SINK_T + 1.5) endMission(false, 'The carrier sank');
     }
   }
@@ -1256,14 +1257,14 @@ function enemyStep(dt) {
       }
     } else if (!e.rel) {
       tx = cx;
-      if (e.type === 'd4y') { if (Math.abs(e.x - cx) > 800 && e.st !== 'dive') ty = 320; else { e.st = 'dive'; ty = DECK_Y; } if (e.st === 'dive' && e.y - DECK_Y < 150) { e.rel = true; G.m.hits.push({ t: G.m.t + 0.8, d: 9 }); } }
-      else { ty = 22; if (Math.abs(e.x - cx) < 520) { e.rel = true; G.m.hits.push({ t: G.m.t + 5, d: 11 }); } }
+      if (e.type === 'd4y') { if (Math.abs(e.x - cx) > 800 && e.st !== 'dive') ty = 320; else { e.st = 'dive'; ty = DECK_Y; } if (e.st === 'dive' && e.y - DECK_Y < 150) { e.rel = true; G.m.hits.push({ t: G.m.t + 0.8, d: 5 }); } }
+      else { ty = 22; if (Math.abs(e.x - cx) < 520) { e.rel = true; G.m.hits.push({ t: G.m.t + 5, d: 6 }); } }
     } else { tx = e.x + (Math.cos(e.h) >= 0 ? 1 : -1) * 800; ty = e.type === 'd4y' ? 420 : 120; }
     // 앞쪽 지형을 미리 보고 목표 고도를 그 위로 잡는다 (급강하 폭격 중은 예외)
     const fwd = Math.cos(e.h) >= 0 ? 1 : -1; let gA = 0; for (let k = 0; k <= 8; k++) gA = Math.max(gA, gh(e.x + fwd * k * 70));
     const diving = e.st === 'dive';
     if (!diving) ty = Math.max(ty, gA + (bomber && e.type === 'b6n' ? 22 : 70));
-    if (bomber && Math.abs(e.x - cx) < 900) e.hp -= dt * 0.9;   // 항모의 대공포
+    if (bomber && Math.abs(e.x - cx) < 900) e.hp -= dt * 1.6;   // 항모의 대공포
     if (e.hp <= 0) { killEnemy(e); continue; }
     // 속도가 빠를수록 크게 못 돈다 (g 한계), 너무 느리면 거의 못 돈다
     const wmax = clamp(S.n * 9.8 / Math.max(e.v, 40), 0.15, 1.5) * (e.v < S.v * 0.55 ? 0.35 : 1);

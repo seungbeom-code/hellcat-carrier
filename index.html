@@ -2017,8 +2017,7 @@ function drawLife(c, t) {
     c.strokeStyle = '#3f6a30'; c.lineWidth = 0.3; for (let i = 0; i < 9; i++) { const x = -8 + i * 1.9; c.beginPath(); c.moveTo(x, 3.1); c.quadraticCurveTo(x + 1, 4.2, x + 2.2, 3.3 + Math.sin(T + i) * 0.1); c.stroke(); }   // 위장 잎
     crates(11.5, 2); drawQuad(c, t);   // 모래주머니 위로 솟은 4연장 기관포
     R(15.5, 0, 0.25, 7, '#5a4632'); c.strokeStyle = '#222'; c.lineWidth = 0.06; c.beginPath(); c.moveTo(15.6, 6.8); c.quadraticCurveTo(8, 4.5, 2.5, 3.6); c.stroke();   // 전화선
-  } else if (t.type === 'pill') {   // 콘크리트 벙커 주변: 드럼통만 (모래주머니·기관총은 새 설계에서 뺐다)
-    drum(10, '#55605a'); drum(11.8, '#55605a');
+  } else if (t.type === 'pill') {   // 콘크리트 벙커 주변: 아무것도 두지 않는다
   } else if (t.type === 'runway') {
     c.save(); c.translate(-rwPk(t).f * 215, 0);
     R(34, 0, 0.25, 7, '#d8d8d0');   // 바람자루

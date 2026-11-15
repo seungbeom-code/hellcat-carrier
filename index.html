@@ -2869,8 +2869,8 @@ function autoFly(dt) {
     const far = Math.abs(p.x - ship.x - DECK_L / 2);   // 바퀴는 항모 가까이에서 낮게 날 때만 내린다
     const since = G.t - p.liftT;   // 이륙한 지 몇 초째인가
     const climbed = since > 2.5 && since < 15 && p.y > DECK_Y + WH + 15;   // 이륙하고 어느 정도 날아오른 뒤에 바퀴를 접는다
-    if (p.gear && (climbed || far > APP_R + 150 || p.y > 100)) { p.gear = false; sfx('clunk'); }
-    if (!p.gear && since > 15 && far < APP_R && p.y < 80) { p.gear = true; sfx('clunk'); }   // 항모 주변(500m 안)에서 낮게 날 때만 내린다
+    if (p.gear && (climbed || far > APP_R + 150 || p.y > 100)) { p.gear = false; }
+    if (!p.gear && since > 15 && far < APP_R && p.y < 80) { p.gear = true; }   // 항모 주변(500m 안)에서 낮게 날 때만 내린다
   }
   if (p.mode !== 'air') p.neutral = false;
   p.thr += (tgt - p.thr) * Math.min(1, dt * 9);

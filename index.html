@@ -2765,7 +2765,7 @@ function startTurn() {
   if (p.mode !== 'air' || p.turn > 0 || p.off || p.y <= 12) { p.turnPend = false; return; }
   p.slowTurn = kts() < TURN_KT;   // 느릴 때도 돌 수는 있지만, 다 돌고 나면 실속한다
   if (Math.abs(Math.atan2(p.vy, Math.abs(p.vx))) > 0.14) { if (!p.turnPend) G.msg = { text: 'Leveling out before the turn', until: G.t + 1.5 }; p.turnPend = true; return; }   // 급상승·급강하 중이면 먼저 수평으로
-  p.turnPend = false; p.turn = TURN_T; p.v0 = p.vx; p.flipped = false; sfx('turn');
+  p.turnPend = false; p.turn = TURN_T; p.v0 = p.vx; p.flipped = false;
 }
 addEventListener('keydown', e => {
   if (e.repeat) return; keys[e.code] = true; initAudio();

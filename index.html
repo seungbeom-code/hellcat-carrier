@@ -1473,7 +1473,8 @@ function fireStep(dt) {
     while (p.gunT <= 0 && p.ammo.gun > 0) {
       p.gunT += 1 / 16; p.ammo.gun = Math.max(0, p.ammo.gun - 5); G.gunFireT = G.t;
       const a = p.th + (Math.random() - 0.5) * 0.02, dx = Math.cos(a), dy = Math.sin(a);
-      PROJ.push({ k: 'b', x: p.x + dx * 9, y: p.y + dy * 9 - 0.4, vx: p.vx + dx * 640, vy: p.vy + dy * 640, life: 0.95 });
+      if (!(p.trN > 0)) p.trN = 0; const trc = --p.trN < 0; if (trc) p.trN = 4 + ((Math.random() * 4) | 0);   // 예광탄: 5~8발에 한 발
+      PROJ.push({ k: 'b', x: p.x + dx * 9, y: p.y + dy * 9 - 0.4, vx: p.vx + dx * 640, vy: p.vy + dy * 640, life: 0.95, tr: trc });
       if (((p.ammo.gun / 5) | 0) % 2 === 0) { sfx('gun'); FX.push({ k: 'muz', x: p.x + dx * 6.5, y: p.y + dy * 6.5 - 0.4, vx: p.vx, vy: p.vy, a, s: 1.4 + Math.random() * 0.9, life: 0.05, t: 0 }); }
     }
   } else p.gunT = 0;
@@ -2465,7 +2466,10 @@ function drawEnemies(c) {
 }
 function drawProj(c) {
   for (const q of PROJ) {
-    if (q.k === 'b') continue;   // 기관총 탄환은 보이지 않는다 (맞은 곳의 물보라·흙만 보인다)
+    if (q.k === 'b') {   // 보통 탄은 보이지 않고, 예광탄만 밝은 줄로 보인다
+      if (q.tr) { const x2 = q.x - q.vx * 0.05, y2 = q.y - q.vy * 0.05; c.lineCap = 'round'; c.strokeStyle = 'rgba(255,120,40,0.55)'; c.lineWidth = Math.max(3, 1.1 * cam.z); c.beginPath(); c.moveTo(sx(q.x), sy(q.y)); c.lineTo(sx(x2), sy(y2)); c.stroke(); c.strokeStyle = '#fff2a0'; c.lineWidth = Math.max(1.5, 0.5 * cam.z); c.beginPath(); c.moveTo(sx(q.x), sy(q.y)); c.lineTo(sx(q.x - q.vx * 0.035), sy(q.y - q.vy * 0.035)); c.stroke(); c.lineCap = 'butt'; }
+      continue;
+    }
     if (q.k === 't') {
       if (q.run) { c.strokeStyle = 'rgba(235,245,250,0.8)'; c.lineWidth = Math.max(1.5, 0.5 * cam.z); c.beginPath(); c.moveTo(sx(q.x), sy(0.2)); c.lineTo(sx(q.x - q.d * 22), sy(0.2)); c.stroke(); }
       else world(q.x, q.y, () => { if (q.d < 0) c.scale(-1, 1); c.fillStyle = '#3a4048'; c.beginPath(); c.ellipse(0, 0, 3, 0.55, 0, 0, 7); c.fill(); c.fillStyle = '#5a6068'; c.fillRect(-3.4, -0.7, 0.6, 1.4); });

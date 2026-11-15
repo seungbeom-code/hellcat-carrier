@@ -2333,6 +2333,10 @@ function drawTarget(c, t, dead) {
       rr(-6.4, 5.7, 12.8, 1.6, 0.8, '#909189'); rect(-5.3, 6.75, 10.6, 0.22, 'rgba(255,255,255,0.14)');   // 납작한 둥근 지붕판
       {   // 옥상의 대공포: 포신만 지붕 위로 비죽 나와 있다 (포탑·받침은 보이지 않는다)
         const an = t.aim !== undefined ? t.aim : Math.PI / 2, ca = Math.cos(an), sa = Math.sin(an), nx = -sa, ny = ca;
+        {   // 밑부분: 흙이 완만하게 쌓여 땅과 매끄럽게 이어진다 (위로 갈수록 옅어져 벽에 스며든다)
+          const g = c.createLinearGradient(0, -0.4, 0, 2.3); g.addColorStop(0, 'rgba(112,100,72,1)'); g.addColorStop(0.55, 'rgba(112,100,72,0.7)'); g.addColorStop(1, 'rgba(112,100,72,0)');
+          c.fillStyle = g; c.beginPath(); c.moveTo(-12, -0.4); c.bezierCurveTo(-10, 0.1, -9, 0.8, -6.6, 1.4); c.bezierCurveTo(-3, 2.2, 3, 2.2, 6.6, 1.4); c.bezierCurveTo(9, 0.8, 10, 0.1, 12, -0.4); c.closePath(); c.fill();
+        }
         c.restore();
         const px = 0, py = 4.4, L = 6;   // 지붕 한가운데가 회전축
         c.fillStyle = '#1c1d1a'; c.beginPath(); c.arc(px, py, 0.85, 0, 7); c.fill(); c.fillStyle = '#4a4c46'; c.beginPath(); c.arc(px, py, 0.55, 0, 7); c.fill();

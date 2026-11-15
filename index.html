@@ -1158,7 +1158,7 @@ function missionStep(dt) {
   while (m.wave < M.waves.length && m.t >= M.waves[m.wave].t) spawnWave(M.waves[m.wave++].l);
   if (m.queue && m.queue.length) {
     m.qt = (m.qt || 0) - dt; const nf = ENE.filter(e => !e.dead && e.type !== 'd4y' && e.type !== 'b6n').length, nx = m.queue[0], isB = nx === 'd4y' || nx === 'b6n';
-    if (m.qt <= 0 && ENE.filter(e => !e.dead).length < 4) { m.queue.shift(); spawnEnemy(nx, ship.x + 2300 + Math.random() * 400, nx === 'b6n' ? 120 : 160 + Math.random() * 120); m.qt = isB ? 0.5 : 1.5; }
+    if (m.qt <= 0 && ENE.filter(e => !e.dead).length < 4) { m.queue.shift(); { m.sd = m.sd || (Math.random() < 0.5 ? 1 : -1); } spawnEnemy(nx, ship.x + m.sd * (10050 + Math.random() * 400), nx === 'b6n' ? 120 : 160 + Math.random() * 120); ENE[ENE.length - 1].h = m.sd > 0 ? Math.PI : 0; m.qt = isB ? 0.5 : 1.5; }
   }
   for (let i = m.hits.length - 1; i >= 0; i--) if (m.t >= m.hits[i].t) { hitCarrier(m.hits[i].d); m.hits.splice(i, 1); }
   for (const t of TARGETS) if (SHIPS[t.type] && t.alive) { const nx = t.x + t.dir * SP[t.type] * dt; if (ISLANDS.some(si => nx > si.a - 90 && nx < si.b + 90)) t.dir = -t.dir; else { t.x = nx; if (Math.abs(t.x - t.x0) > 90) t.dir = t.x > t.x0 ? -1 : 1; } }   // 순찰
@@ -1294,7 +1294,7 @@ function enemyStep(dt) {
       if ((e.bt <= 0 || d < 90) && (d < 130 || (d < 600 && Math.abs(angd(Math.atan2(p.y - e.y, p.x - e.x), e.h)) > 2.0))) { e.st = 'ext'; e.up = e.y >= p.y; e.xt = 2.4 + Math.random() * 1.6; e.att = false; e.cd = 1.2; e.bt = 0; }
     }
     if (e.att && (!air || Math.hypot(p.x - e.x, p.y - e.y) > 2200)) e.att = false;
-    if ((bomber && e.rel && Math.abs(e.x - cx) > 4500) || (Math.abs(e.x - p.x) > 8000 && Math.abs(e.x - cx) > 8000)) ENE.splice(i, 1);
+    if ((bomber && e.rel && Math.abs(e.x - cx) > 4500) || (Math.abs(e.x - p.x) > 14000 && Math.abs(e.x - cx) > 14000)) ENE.splice(i, 1);
   }
 }
 function ebStep(dt) {
@@ -2499,7 +2499,7 @@ function demoBot(dt) {
   if (G.result) { K(0); D.ct += dt; if (D.ct > 2.5) startDemo(); return; }
   if (D.t > 110) { startDemo(); return; }
   p.hp = 100; p.fuel = p.fuelMax; if (p.ammo.rk < 3) p.ammo.rk = 30; if (p.ammo.bm < 3) p.ammo.bm = 30; if (!(p.ammo.tp > 0)) p.ammo.tp = 6; if (p.ammo.gun < 300) p.ammo.gun = 3000;
-  if (D.t > 16 && !D.z) { D.z = 1; spawnEnemy('zero', p.x + 1400, 260); spawnEnemy('zero', p.x + 1700, 200); }
+  if (D.t > 16 && !D.z) { D.z = 1; spawnEnemy('zero', ship.x + 10100, 260); spawnEnemy('zero', ship.x + 10400, 200); }
   if (D.salvo > 0 && p.mode === 'air' && G.t >= (D.salvoT || 0)) { dropBomb(); D.salvo--; D.salvoT = G.t + 0.14; }   // 폭탄 연속 투하
   if (p.mode === 'taxi' || p.mode === 'deck') { K(p.mode === 'deck' && kts() >= TAKEOFF_KT ? 1 : 0, 0, 1); return; }
   if (p.mode !== 'air') { K(0); return; }

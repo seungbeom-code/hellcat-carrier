@@ -1437,8 +1437,10 @@ function flakStep(dt) {
     FLAK.splice(i, 1);
   }
 }
+const LOWERS = { barracks: 1, fuel: 1, radar: 1, tower: 1, bunker: 1, pill: 1 };
+const hFac = t => LOWERS[t.type] && t.alive && t.hp0 ? 1 - 0.5 * clamp(1 - t.hp / t.hp0, 0, 1) : 1;   // 피해를 입을수록 건물이 무너져 낮아진다 (체력 0 에 가까우면 절반 높이)
 function hitTest(x, y, pad) {
-  for (const t of TARGETS) { if (!t.alive) continue; const b = BOX[t.type], hh = SHIPS[t.type] ? HULL_H[t.type] + 9 : b.h;   // 함정은 갑판과 함포 높이까지만 맞는다
+  for (const t of TARGETS) { if (!t.alive) continue; const b = BOX[t.type], hh = SHIPS[t.type] ? HULL_H[t.type] + 9 : b.h * hFac(t);   // 함정은 갑판과 함포 높이까지만 맞는다
     if (Math.abs(x - t.x) <= b.w / 2 + pad && y >= t.y - pad && y <= t.y + hh + pad) return t; }
   return null;
 }
@@ -2430,7 +2432,7 @@ function drawTargets(c) {
     if (Math.abs(t.x - cam.x) > span / 2 + BOX[t.type].w) continue;
     const sea = SHIPS[t.type], dead = !t.alive, sink = dead && sea ? clamp((G.t - t.deadT) / 9, 0, 1) : 0;
     if (sea && sink >= 1) continue;
-    world(t.x, t.y + (sea ? (dead ? -sink * 16 : Math.sin(G.t * 2 + t.x) * 0.5) : 0), () => { if (sea) { if (dead) c.rotate(-sink * 0.35); c.scale(t.dir < 0 ? -SK[t.type] : SK[t.type], SK[t.type]); } else if (t.type === 'aa') c.scale(1.8, 1.8); else if (t.type === 'pill') c.scale(2, 2); drawTarget(c, t, dead); });
+    world(t.x, t.y + (sea ? (dead ? -sink * 16 : Math.sin(G.t * 2 + t.x) * 0.5) : 0), () => { if (sea) { if (dead) c.rotate(-sink * 0.35); c.scale(t.dir < 0 ? -SK[t.type] : SK[t.type], SK[t.type]); } else if (t.type === 'aa') c.scale(1.8, 1.8); else if (t.type === 'pill') c.scale(2, 2); if (!dead && LOWERS[t.type]) { t.hk = lerp(t.hk === undefined ? 1 : t.hk, hFac(t), 0.12); c.scale(1, t.hk); } drawTarget(c, t, dead); });
   }
 }
 function drawLanding(c) {

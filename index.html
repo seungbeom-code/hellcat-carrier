@@ -2816,7 +2816,7 @@ function drawScene() {
 function update(dt) {
   if (G.scene !== 'play' && G.scene !== 'title') return;
   if (G.scene === 'title') demoBot(dt);   // 첫 화면: 자동 조종 데모
-  G.t += dt; shipBob = 5 * Math.sin(G.t * 0.7) * (1 - clamp(sinkProg() * 2, 0, 1)); DECK_Y = DECK_Y0 + shipBob;   // 항모가 파도에 따라 느리게 위아래로 출렁인다 (최고점과 최저점 차이 10 m)
+  G.t += dt; shipBob = 3.5 * Math.sin(G.t * 0.7) * (1 - clamp(sinkProg() * 2, 0, 1)); DECK_Y = DECK_Y0 + shipBob;   // 항모가 파도에 따라 느리게 위아래로 출렁인다 (최고점과 최저점 차이 7 m)
   if (ship.x < G.holdX) ship.x += ship.v * dt;   // 섬에 너무 가까워지면 항모는 그 자리에 머문다
   if (!G.manual) autoFly(dt); p.flaps = p.gear;
   if (p.mode === 'deck') deckStep(dt);
@@ -3024,7 +3024,6 @@ function carrierBody(c) {
   for (let x = 14; x < 244; x += 8.8) rect(x, 5, 0.1, DY - 12, 'rgba(12,18,28,0.18)');   // 판 이음
   c.restore();
   hull(); c.strokeStyle = 'rgba(8,12,20,0.75)'; c.lineWidth = 0.3; c.stroke();
-  c.save(); hull(); c.clip(); c.fillStyle = 'rgba(18,100,130,0.62)'; c.fillRect(-8, -6, 290, 6); c.restore();   // 물에 잠긴 부분
   // 비행갑판을 받치는 선수·선미의 지지대(스트럿)
   [[-4.6, 0], [263.5, 1]].forEach(([x, bow]) => { c.strokeStyle = '#4a5666'; c.lineWidth = 0.5; c.beginPath(); c.moveTo(x, DY - 1.6); c.lineTo(x + (bow ? -7 : 7), DY - 6.5); c.moveTo(x + (bow ? -2 : 2), DY - 1.6); c.lineTo(x + (bow ? -8.5 : 8.5), DY - 5); c.stroke(); });
   // 닻 구멍과 닻 (선수), 선체 가운데의 구명정 거치대
@@ -3170,7 +3169,7 @@ function drawShip0() {
   { const half = W / cam.z / 2; if (ship.x + DECK_L + 60 < cam.x - half || ship.x - 320 > cam.x + half) return; }   // 화면 밖이면 그리지 않는다
   const su = sinkProg(); if (su >= 1) return;   // 완전히 가라앉았다
   const sinkDy = -SINK_DEPTH * Math.pow(su, 1.5) + shipBob, tilt = 0.1 * clamp(su * 1.6, 0, 1);
-  if (su > 0) { c.save(); c.beginPath(); c.rect(-50, -50, W + 100, sy(0) + 50); c.clip(); }   // 수면 아래는 보이지 않는다
+  c.save(); c.beginPath(); c.rect(-50, -50, W + 100, sy(0) + 50); c.clip();   // 수면 아래는 보이지 않는다: 배가 출렁여도 물은 그대로 있다
   world(ship.x, sinkDy, () => {
     if (su > 0) { c.translate(DECK_L / 2, 10); c.rotate(tilt); c.translate(-DECK_L / 2, -10); }   // 이물이 들리며 기운다
     carrierBody(c);
@@ -3256,14 +3255,14 @@ function drawShip0() {
       c.restore();
     }
   });
-  if (su > 0) { c.restore(); return; }
+  c.restore(); if (su > 0) return;
   {   // 구역 이름표 (선체 쪽)
-    const lx = sx(ship.x + (ZONE_A + ZONE_B) / 2), ly = sy(DECK_Y - 5.5);
+    const lx = sx(ship.x + (ZONE_A + ZONE_B) / 2), ly = sy(DECK_Y + shipBob - 5.5);
     c.font = '800 13px system-ui,sans-serif'; c.textAlign = 'center'; c.lineJoin = 'round'; c.lineWidth = 4; c.strokeStyle = 'rgba(20,30,45,0.85)';
     c.strokeText('Arresting zone', lx, ly); c.fillStyle = '#ffd23f'; c.fillText('Arresting zone', lx, ly);
   }
   {
-    const lx = sx(ship.x + ELEV_C), ly = sy(DECK_Y - 5.5);
+    const lx = sx(ship.x + ELEV_C), ly = sy(DECK_Y + shipBob - 5.5);
     c.font = '800 13px system-ui,sans-serif'; c.textAlign = 'center'; c.lineJoin = 'round'; c.lineWidth = 4; c.strokeStyle = 'rgba(20,30,45,0.85)';
     c.strokeText('Elevator', lx, ly); c.fillStyle = '#e8ecf0'; c.fillText('Elevator', lx, ly);
   }

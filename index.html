@@ -851,7 +851,7 @@ function genMission(L, seed, rnd) {   // rnd: 정해진 레벨 계획 대신 무
   const goal = spec.goal, tint = L < 3 ? 'day' : pick(L >= 5 ? ['day', 'day', 'dawn', 'dusk', 'night'] : ['day', 'day', 'dawn', 'dusk']);
   const place = pick(PLACES), M = { gen: true, skirmish: !!rnd, lvl: L, seed, name: 'Operation ' + pick(OPS) + ' · ' + place, place, tint, goal, islands: [], waves: [] };
   const fighters = () => { const l = []; for (let k = 0, n = Math.min(7, 2 + Math.floor(L / 3) + ri(0, 1)); k < n; k++) l.push(L >= 7 && R() < 0.2 ? 'n1k' : L >= 4 && R() < 0.15 ? 'ace' : ZR); return l; };
-  for (let k = 0; k < (L >= 6 ? spec.waves : 0); k++) {   // 적기는 6레벨부터 나온다
+  for (let k = 0; k < (L >= 6 && (L > 14 || goal === 'defend') ? spec.waves : 0); k++) {   // 공습은 15레벨부터 (함대 방어 임무만 예외)
     if (goal === 'defend') { const l = []; for (let j = 0, nb = Math.min(8, 2 + Math.floor(L / 2) + ri(0, 1)); j < nb; j++) l.push(R() < 0.5 ? 'd4y' : 'b6n'); M.waves.push({ t: 25 + k * 70, l: l.concat(fighters().slice(0, ri(1, 3))) }); }
     else M.waves.push({ t: 40 + k * 95 + ri(0, 20), l: L <= 2 ? [ZR, ZR] : fighters() });
   }

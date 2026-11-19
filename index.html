@@ -1534,7 +1534,7 @@ function explode(x, y, r, kind, sea) {
     for (let i = 0; i < Math.max(3, r / 4); i++) FX.push({ k: 'smoke', x: x + (Math.random() - 0.5) * r * 0.5, y: y + 2, vx: (Math.random() - 0.5) * 8, vy: 4 + Math.random() * 8, life: 1.4 + Math.random(), t: 0, s: 2 + Math.random() * 3 });
   }
   damageAt(x, y, r, kind);
-  if (kind !== 'none') for (const o of SOLD) if (o.alive && Math.abs(o.x - x) < r + 2 && Math.abs(o.y - y) < r) killSoldier(o);
+  if (kind !== 'none') for (const o of SOLD) if (o.alive && Math.abs(o.x - x) < r + 2 && Math.abs(o.y - y) < r + 8) killSoldier(o);
   if (kind !== 'none') for (const e of ENE) if (!e.dead && Math.hypot(e.x - x, e.y - y) <= r + 6) { e.hp -= kind === 'bomb' ? 16 : kind === 'rocket' ? 18 : 6; if (e.hp <= 0) killEnemy(e); }
   if (!sea && gh(x) > 0) { dirtBurst(x, y, Math.max(2, r / 5)); if (kind !== 'none') for (const t of TREES) if (t.alive && Math.hypot(t.x - x, t.y - y) <= r) { t.alive = false; chips(t.x, t.y + 2, 10, ['#4f8a3c', '#7a5a36']); } }
   if (Math.abs(x - p.x) < 1500) sfx('boom', { k: kind === 'rocket' ? 'rocket' : kind === 'bomb' ? 'bomb' : 'none', r, sea, v: clamp(1.15 - Math.abs(x - p.x) / 1500, 0.25, 1) });
@@ -1596,11 +1596,12 @@ function bombImpact(q, hit, g, sea) {   // 폭탄은 표적에 직격했을 때�
     const y = Math.max(q.y, g); chips(q.x, y + 0.5, 14, ['#6e4e2c', '#8a6b43', '#a8885a', '#4d3720'], 1.5); dirtBurst(q.x, y, 1.5); FX.push({ k: 'flash', x: q.x, y: y + 1, vx: 0, vy: 0, life: 0.12, t: 0 });
     for (let i = 0; i < 4; i++) FX.push({ k: 'smoke', x: q.x + (Math.random() - 0.5) * 4, y: y + 1, vx: (Math.random() - 0.5) * 6, vy: 3 + Math.random() * 4, life: 0.8 + Math.random() * 0.5, t: 0, s: 1.2 + Math.random() * 1.2 });
     alarmFauna(q.x, y, 170); sfx('thump');
+    for (const o of SOLD) if (o.alive && Math.abs(o.x - q.x) < R * 0.5 + 2) killSoldier(o);   // 빗나가도 폭발 근처의 병사는 죽는다
     if (!G.toast || G.toast.until < G.t) G.toast = { text: 'Near miss! A bomb only damages what it hits directly', grade: 'yellow', until: G.t + 2.5 };
     return;
   }
   explode(q.x, q.y, R, 'none', false);   // 직격: 큰 폭발 연출
-  for (const o of SOLD) if (o.alive && Math.abs(o.x - q.x) < 9 && Math.abs(o.y - q.y) < 9) killSoldier(o);
+  for (const o of SOLD) if (o.alive && Math.abs(o.x - q.x) < R * 0.5 + 2) killSoldier(o);
   for (const e of ENE) if (!e.dead && Math.hypot(e.x - q.x, e.y - q.y) <= 14) { e.hp -= 8; if (e.hp <= 0) killEnemy(e); }
   if (SHIPS[hit.type]) { hit.hitAt = G.t; if (!G.toast || G.toast.until < G.t) G.toast = { text: 'Ships sink only to torpedoes · rockets knock out their guns', grade: 'yellow', until: G.t + 3 }; return; }
   if (hit.type === 'runway') { killParkedNear(hit, q.x, q.y, 14); return; }

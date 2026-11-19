@@ -579,10 +579,9 @@ function blast(size, o) {   // 폭발 한 번: 날카로운 파열 → 몸통(�
   sin(78 - 22 * sz, 26, 0.5 + 0.9 * sz, (0.35 + 0.55 * sz) * v, 0, 0.1);
   if (!o.noDebris) crackle(Math.round(5 + 14 * sz), 0.8 + 1.4 * sz, 2400, 0.1 * v, 0.12, 0.2);
 }
-function splashX(sz, v) {   // 물보라: 물이 터지는 소리 → 낮은 첨벙 → 방울
+function splashX(sz, v) {   // 물보라: 물이 터지는 소리 → 낮은 첨벙 (방울 소리는 없다)
   nz({ type: 'bandpass', f0: 4200, f1: 900, q: 0.7, dur: 0.22 + 0.55 * sz, vol: (0.2 + 0.35 * sz) * v, att: 0.003, rev: 0.2 });
   if (sz >= 0.4) { nz({ brown: true, type: 'lowpass', f0: 900, f1: 120, dur: 0.4 + 0.9 * sz, vol: 0.55 * sz * v, sat: 1.5, rev: 0.3, att: 0.01 }); sin(110, 45, 0.4, 0.3 * sz * v, 0.02); }
-  for (let i = 0, n = Math.round(2 + 6 * sz); i < n; i++) { const f = 350 + Math.random() * 500; sin(f, f * 1.6, 0.07 + Math.random() * 0.06, 0.05 * v, 0.1 + Math.random() * (0.3 + sz * 0.9), 0.15); }
 }
 function boomSfx(o) {
   const k = o.k || 'none', r = o.r || 10, v = o.v === undefined ? 1 : o.v;

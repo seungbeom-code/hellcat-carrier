@@ -187,11 +187,6 @@ function deckStep(dt) {
       p.eng = true; p.engT = G.t; sfx('wire');
       for (let i = 0; i < 16; i++) FX.push({ k: 'spark', x: ship.x + hookX, y: DECK_Y + 0.4, vx: ship.v - d * (4 + Math.random() * 16), vy: 4 + Math.random() * 11, life: 0.35 + Math.random() * 0.35, t: 0 });
     }
-    if (p.eng && p.vr !== 0 && fk && p.gaArm) {   // 후크가 걸린 채 가속하면 기체가 상한다
-      p.hp -= 35 * dt; p.smokeT = G.t + 0.6;
-      if (G.t - (p.wireDmgT || -9) > 0.35) { p.wireDmgT = G.t; sfx('hit'); FX.push({ k: 'spark', x: p.x, y: DECK_Y + 0.6, vx: ship.v + (Math.random() - 0.5) * 8, vy: 3 + Math.random() * 6, life: 0.3, t: 0 }); if (!G.toast || G.toast.until < G.t) G.toast = { text: 'Throttle against the arresting wire damages the airframe!', grade: 'red', until: G.t + 1.6 }; }
-      if (p.hp <= 0) { p.hp = 0; return crash('Strained the engine against the arresting wire and tore the airframe apart.'); }
-    }
     let dec;
     if (p.wx === null) dec = 6;   // 걸 와이어가 없다: 바퀴 제동뿐이라 갑판 끝에서 떨어지기 쉽다
     else if (p.eng) {   // 와이어가 걸렸다: 남은 갑판 안에서 세워 준다

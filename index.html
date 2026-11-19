@@ -1450,7 +1450,7 @@ function flakStep(dt) {
     FLAK.splice(i, 1);
   }
 }
-const LOWERS = { barracks: 1, fuel: 1, radar: 1, tower: 1, bunker: 1 };   // 콘크리트 벙커는 높이가 줄지 않는다 (구멍과 균열로만 피해를 보여 준다)
+const LOWERS = { barracks: 1, fuel: 1, radar: 1, bunker: 1 };   // 콘크리트 벙커는 높이가 줄지 않는다 (구멍과 균열로만 피해를 보여 준다)
 const hFac = t => LOWERS[t.type] && t.alive && t.hp0 ? 1 - 0.5 * clamp(1 - t.hp / t.hp0, 0, 1) : 1;   // 피해를 입을수록 건물이 무너져 낮아진다 (체력 0 에 가까우면 절반 높이)
 function hitTest(x, y, pad) {
   for (const t of TARGETS) { if (!t.alive) continue; const b = BOX[t.type], hh = SHIPS[t.type] ? HULL_H[t.type] + 9 : b.h * hFac(t);   // 함정은 갑판과 함포 높이까지만 맞는다
@@ -2489,12 +2489,12 @@ function hpBar(c, X, Y, bw, fr) {   // 체력바: 물체보다 좁고, 화면 �
 }
 function drawPlayerHp(c) {   // 내 비행기 위에 항상 보이는 체력바
   if (!SMOKY[p.mode] || G.scene !== 'play') return;
-  hpBar(c, sx(p.x), sy(p.y + 8) - 3 * cam.z, 9 * cam.z, clamp(p.hp / 100, 0, 1));
+  hpBar(c, sx(p.x), sy(p.y + 8) - 3 * cam.z, 11.7 * cam.z, clamp(p.hp / 100, 0, 1));
 }
 function drawEnemyHp(c) {   // 적기 위에 항상 보이는 체력바
   for (const e of ENE) {
     if (e.dead || Math.abs(e.x - cam.x) > W / cam.z / 2 + 40) continue;
-    e.hpM = Math.max(e.hpM || 0, e.hp, (ES[e.type] || {}).hp || 0); hpBar(c, sx(e.x), sy(e.y + 7) - 3 * cam.z, 8 * cam.z, clamp(e.hp / e.hpM, 0, 1));
+    e.hpM = Math.max(e.hpM || 0, e.hp, (ES[e.type] || {}).hp || 0); hpBar(c, sx(e.x), sy(e.y + 7) - 3 * cam.z, 10.4 * cam.z, clamp(e.hp / e.hpM, 0, 1));
   }
 }
 function drawHpBars(c) {   // 적 구조물·함정이 맞으면 잠깐 체력바를 보여 준다 (군함은 남은 대공화기 수도)
@@ -2502,7 +2502,7 @@ function drawHpBars(c) {   // 적 구조물·함정이 맞으면 잠깐 체력�
   for (const t of TARGETS) {
     const age = G.t - (t.hitAt === undefined ? -99 : t.hitAt); if (!t.alive || age > SHOW || t.type === 'runway') continue;
     if (Math.abs(t.x - cam.x) > W / cam.z / 2 + 60) continue;
-    const fr = clamp(t.hp / t.hp0, 0, 1), bw = Math.max(8, BOX[t.type].w * cam.z * 0.6), bh = Math.max(2.5, bw * 0.1), X = sx(t.x), Y = sy(t.y + BOX[t.type].h + (SHIPS[t.type] ? 14 : 3)) - 3 * cam.z;
+    const fr = clamp(t.hp / t.hp0, 0, 1), bw = Math.max(8, BOX[t.type].w * cam.z * 0.78), bh = Math.max(2.5, bw * 0.1), X = sx(t.x), Y = sy(t.y + BOX[t.type].h + (SHIPS[t.type] ? 14 : 3)) - 3 * cam.z;
     const a = age > SHOW - 0.6 ? (SHOW - age) / 0.6 : 1;
     c.save(); c.globalAlpha = a;
     c.fillStyle = 'rgba(8,12,20,0.78)'; c.beginPath(); c.roundRect(X - bw / 2 - 1, Y - 1, bw + 2, bh + 2, bh / 2 + 1); c.fill();

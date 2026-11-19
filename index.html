@@ -604,6 +604,7 @@ function sfx(n, o) {
   else if (n === 'crash') { blast(0.8, {}); nz({ type: 'bandpass', f0: 1600, f1: 400, q: 4, dur: 0.6, vol: 0.2, d: 0.05, rev: 0.2 }); crackle(14, 1.0, 1500, 0.12, 0.1, 0.2); }
   else if (n === 'splash') { splashX(1, 1); }
   else if (n === 'wsplash') { const sz = (o && o.s) || 0, v = (o && o.v === undefined ? 1 : o && o.v) || 1; splashX(sz === 0 ? 0.08 : sz === 1 ? 0.4 : 0.95, v * (sz === 0 ? 2.5 : sz === 1 ? 0.6 : 1)); }   // 물보라: 0 작은 탄, 1 중간, 2 큰 물기둥
+  else if (n === 'die') { sin(420 * j, 190, 0.32, 0.1, 0, 0.25, 'sawtooth', 1300); nz({ type: 'bandpass', f0: 1100 * j, f1: 500, q: 1.5, dur: 0.28, vol: 0.12, att: 0.01, rev: 0.2 }); nz({ brown: true, type: 'lowpass', f0: 260, f1: 90, dur: 0.14, vol: 0.35, att: 0.002, d: 0.18 }); }   // 병사의 짧은 비명과 쓰러지는 소리
   else if (n === 'egun') { nz({ type: 'lowpass', f0: 4300 * j, f1: 1100, dur: 0.06, vol: 0.85, att: 0.001, rev: 0.16 }); nz({ brown: true, type: 'lowpass', f0: 880, f1: 190, dur: 0.075, vol: 1.0, att: 0.002 }); sin(185 * j, 85, 0.05, 0.4, 0); }   // 적 기관총: 아군 총소리(gun)를 살짝 높고 짧게 변형한 것
   else if (n === 'gun') { nz({ type: 'lowpass', f0: 5200 * j, f1: 900, dur: 0.07, vol: 0.9, att: 0.001, rev: 0.12 }); nz({ brown: true, type: 'lowpass', f0: 700, f1: 150, dur: 0.09, vol: 1.2, att: 0.002 }); sin(150 * j, 70, 0.06, 0.45, 0); }
   else if (n === 'hit') { nz({ type: 'bandpass', f0: 2600, f1: 900, q: 1.2, dur: 0.07, vol: 0.9, att: 0.001 }); nz({ type: 'bandpass', f0: 1500 * j, f1: 1400 * j, q: 14, dur: 0.25, vol: 0.05, att: 0.001, rev: 0.1 }); sin(190, 95, 0.09, 0.4, 0); }   // 금속에 맞는 둔탁한 소리와 울림
@@ -1130,7 +1131,7 @@ function killEnemy(e) {
 }
 const angd = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
 function spawnSoldiers(t, n) { for (let k = 0; k < n; k++) SOLD.push({ x: t.x + (Math.random() - 0.5) * 10, y: t.y, isl: t.isl, dir: Math.random() < 0.5 ? -1 : 1, v: 4 + Math.random() * 2.5, alive: true, st: 'walk', t: 0, ph: Math.random() * 6, deadT: 0, gun: null }); }
-function killSoldier(o) { o.alive = false; o.deadT = G.t; FX.push({ k: 'dust', x: o.x, y: o.y + 1, vx: 0, vy: 2, life: 0.7, t: 0 }); }
+function killSoldier(o) { o.alive = false; o.deadT = G.t; if (G.t - (killSoldier.last || -9) > 0.15 && Math.abs(o.x - p.x) < 1400) { killSoldier.last = G.t; sfx('die'); } FX.push({ k: 'dust', x: o.x, y: o.y + 1, vx: 0, vy: 2, life: 0.7, t: 0 }); }
 function bunkerRepair(dt) {   // 안에 들어간 일본군이 7초 동안 고치면 일반 벙커가 다시 싸운다
   for (const t of TARGETS) if (t.type === 'bunker' && !t.alive && t.inside > 0) {
     t.repT -= dt; if (t.repT > 0) continue;

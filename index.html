@@ -178,11 +178,18 @@ function levelPitch() { const a = p.s > 0 ? p.th : Math.PI - p.th; return Math.a
 
 function tailSit(V) { return 0.2 * clamp(1 - (V * KT - 34) / 30, 0, 1); }   // 느릴 때는 꼬리바퀴로 앉고, 빨라지면 꼬리가 들린다
 function deckStep(dt) {
+  const fk = p.landing && (p.ld > 0 ? ctl.right : ctl.left); if (p.landing && !fk) p.gaArm = true;   // 접지할 때 이미 누르고 있던 키는 손을 뗀 뒤에 다시 눌러야 가속으로 친다
+  if (fk && p.gaArm && !p.eng) { p.landing = false; p.rollT = 1; p.wx = null; if (!G.toast || G.toast.until < G.t) G.toast = { text: 'Go around! Full throttle', grade: 'yellow', until: G.t + 1.8 }; }   // 와이어에 걸리기 전에 가속하면 그대로 다시 이륙 활주(터치 앤 고)
   if (p.landing) {                        // 착함 뒤: 후크가 와이어를 잡아 급히 멈춘다 (어느 방향이든)
     const d = p.ld, hookX = p.xr - d * HOOK_BACK;
     if (!p.eng && p.wx !== null && (hookX - p.wx) * d >= 0) {   // 후크가 와이어를 걸었다
       p.eng = true; p.engT = G.t; sfx('wire');
       for (let i = 0; i < 16; i++) FX.push({ k: 'spark', x: ship.x + hookX, y: DECK_Y + 0.4, vx: ship.v - d * (4 + Math.random() * 16), vy: 4 + Math.random() * 11, life: 0.35 + Math.random() * 0.35, t: 0 });
+    }
+    if (p.eng && p.vr !== 0 && fk && p.gaArm) {   // 후크가 걸린 채 가속하면 기체가 상한다
+      p.hp -= 35 * dt; p.smokeT = G.t + 0.6;
+      if (G.t - (p.wireDmgT || -9) > 0.35) { p.wireDmgT = G.t; sfx('hit'); FX.push({ k: 'spark', x: p.x, y: DECK_Y + 0.6, vx: ship.v + (Math.random() - 0.5) * 8, vy: 3 + Math.random() * 6, life: 0.3, t: 0 }); if (!G.toast || G.toast.until < G.t) G.toast = { text: 'Throttle against the arresting wire damages the airframe!', grade: 'red', until: G.t + 1.6 }; }
+      if (p.hp <= 0) { p.hp = 0; return crash('Strained the engine against the arresting wire and tore the airframe apart.'); }
     }
     let dec;
     if (p.wx === null) dec = 6;   // 걸 와이어가 없다: 바퀴 제동뿐이라 갑판 끝에서 떨어지기 쉽다
@@ -491,7 +498,7 @@ function checkContact() {
     p.td = { kt, sink: -p.vy, pitch }; sfx('thump');
     p.ld = p.s > 0 ? 1 : -1; const hx0 = xr - p.ld * HOOK_BACK;   // 후크가 처음 닿을 와이어: 진행 방향 앞쪽 첫 번째
     p.wx = p.ld > 0 ? (WIRES.find(w => w >= hx0) ?? null) : ([...WIRES].reverse().find(w => w <= hx0) ?? null);
-    p.eng = false; p.relT = 0;
+    p.eng = false; p.relT = 0; p.gaArm = false;
     p.mode = 'deck'; p.landing = true; p.held = false; p.xr = xr; p.vr = p.vx - ship.v; p.vy = 0; p.y = DECK_Y + WH;
   }
 }

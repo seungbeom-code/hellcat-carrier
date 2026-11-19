@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Campaign Editor</title>
+<style>
+:root { --bg:#0e1622; --panel:#17243a; --panel2:#1d2e49; --line:#2c4266; --txt:#e6edf5; --dim:#93a6bf; --acc:#ffd23f; --ok:#59d37a; --bad:#ff7a5c; --blue:#3478be; }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--txt); font:14px/1.45 system-ui,sans-serif; }
+header { display:flex; flex-wrap:wrap; gap:10px; align-items:center; padding:10px 16px; background:var(--panel); border-bottom:1px solid var(--line); position:sticky; top:0; z-index:5; }
+header h1 { font-size:17px; margin:0 8px 0 0; color:var(--acc); }
+button, select, input { font:inherit; color:var(--txt); background:var(--panel2); border:1px solid var(--line); border-radius:6px; padding:5px 10px; }
+button { cursor:pointer; } button:hover { border-color:var(--acc); }
+button.pri { background:var(--blue); border-color:var(--blue); } button.go { background:#2d8f55; border-color:#2d8f55; }
+button.sm { padding:2px 8px; font-size:12px; }
+input[type=text], input[type=number], select { background:#0f1a2b; }
+input[type=number] { width:70px; }
+.wrap { display:grid; grid-template-columns:240px 1fr; gap:14px; padding:14px 16px; max-width:1320px; margin:0 auto; }
+@media (max-width: 900px) { .wrap { grid-template-columns:1fr; } }
+.card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:12px; margin-bottom:14px; }
+.card h2 { margin:0 0 8px; font-size:14px; color:var(--acc); letter-spacing:.3px; }
+#list { list-style:none; margin:0 0 8px; padding:0; }
+#list li { padding:7px 9px; border:1px solid transparent; border-radius:6px; cursor:pointer; display:flex; justify-content:space-between; gap:6px; }
+#list li:hover { background:var(--panel2); } #list li.on { background:var(--panel2); border-color:var(--acc); }
+#list li small { color:var(--dim); }
+.row { display:flex; flex-wrap:wrap; gap:10px 16px; align-items:center; margin-bottom:8px; }
+.row label { display:flex; align-items:center; gap:6px; color:var(--dim); }
+.row label input[type=text] { width:260px; }
+.row label[hidden] { display:none; }
+.tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; }
+.tabs button.on { border-color:var(--acc); color:var(--acc); }
+.pal { display:flex; gap:6px; flex-wrap:wrap; margin:8px 0; }
+.pal button { display:flex; align-items:center; gap:6px; }
+.pal button.on { border-color:var(--acc); background:#26406a; }
+.sw { width:12px; height:12px; border-radius:3px; display:inline-block; }
+canvas { width:100%; height:auto; background:#0f1a2b; border:1px solid var(--line); border-radius:8px; display:block; touch-action:none; }
+.hint { color:var(--dim); font-size:12.5px; margin:6px 0 0; }
+.warn { color:var(--bad); font-size:13px; margin:4px 0; } .okmsg { color:var(--ok); }
+table { border-collapse:collapse; width:100%; } td, th { padding:4px 6px; border-bottom:1px solid var(--line); text-align:left; font-weight:500; }
+th { color:var(--dim); font-size:12px; }
+.cnt { display:inline-flex; align-items:center; gap:4px; } .cnt b { min-width:18px; text-align:center; }
+#msg { color:var(--ok); min-height:20px; }
+textarea { width:100%; height:80px; background:#0f1a2b; color:var(--txt); border:1px solid var(--line); border-radius:6px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Campaign Editor</h1>
+  <label>Campaign name <input type="text" id="cname" style="width:200px"></label>
+  <button class="pri" id="bSave">Save</button>
+  <button id="bExport">Export file</button>
+  <button id="bImport">Import file</button>
+  <button id="bLink">Copy phone link</button>
+  <button class="go" id="bPlay">Play (new tab)</button>
+  <span id="msg"></span>
+  <input type="file" id="file" accept=".json,application/json" hidden>
+</header>
+
+<div class="wrap">
+  <aside>
+    <div class="card">
+      <h2>Missions</h2>
+      <ul id="list"></ul>
+      <div class="row" style="margin:0">
+        <button id="mAdd" class="sm">+ New</button>
+        <button id="mDup" class="sm">Duplicate</button>
+        <button id="mDel" class="sm">Delete</button>
+        <button id="mUp" class="sm">▲</button>
+        <button id="mDn" class="sm">▼</button>
+      </div>
+      <p class="hint">Missions play in this order. After a win the game goes to the next one.</p>
+    </div>
+    <div class="card">
+      <h2>How it works</h2>
+      <p class="hint">Build missions here, press <b>Save</b>, then open the game and pick the <b>Custom</b> tab. Saved data lives in this browser. To play on another device use <b>Copy phone link</b> (open it once on that device) or Export / Import a file.</p>
+    </div>
+  </aside>
+
+  <main id="main"></main>
+</div>
+
+<script>
+// ───── 게임과 같은 정의 ─────
+const KEY = 'hellcat-custom';
+const TYPES = {   // 섬 시설: 색, 이름, 너비(m)
+  bunker:   { n: 'Bunker',           c: '#8a7a55', w: 20 },
+  pill:     { n: 'Concrete bunker',  c: '#9a9a96', w: 21 },
+  barracks: { n: 'Barracks',         c: '#a0623c', w: 40 },
+  aa:       { n: 'AA gun',           c: '#5f8f5a', w: 11 },
+  radar:    { n: 'Radar',            c: '#55a0c8', w: 6 },
+  fuel:     { n: 'Fuel tanks',       c: '#d0a030', w: 15 },
+  tank:     { n: 'Tank',             c: '#6f7f3f', w: 9 },
+  cave:     { n: 'Cave gun',         c: '#6a5a78', w: 8 },
+  tower:    { n: 'Watch tower',      c: '#c0824a', w: 8 },
+  runway:   { n: 'Airfield',         c: '#555d69', w: 520 }
+};
+const SHIPS = { dd: 'Destroyer', tr: 'Transport', bm: 'Small battleship', bb: 'Large battleship', cv: 'Carrier' };
+const PLANES = { zero: 'Zero', ace: 'Ace Zero', n1k: 'N1K', d4y: 'Bomber (D4Y)', b6n: 'Torpedo (B6N)' };
+const ISLAND_LEN = { s: 3000, b: 7200 };
+const GOALS = { capture: 'Capture islands', air: 'Airbase strike', fleet: 'Fleet strike', defend: 'Fleet defense' };
+const TINTS = { day: 'Day', dawn: 'Dawn', dusk: 'Dusk', night: 'Night' };
+
+// ───── 상태 ─────
+let data = load(), cur = 0, isl = 0, tool = 'bunker', sel = -1, drag = null;
+function blank(n) { return { name: 'Mission ' + (n + 1), brief: '', lvl: 3, goal: 'capture', tint: 'day', zeroN: 8, islands: [{ size: 's', items: [] }], ships: [], waves: [] }; }
+function load() { try { const v = JSON.parse(localStorage.getItem(KEY)); if (v && Array.isArray(v.missions)) return v; } catch (_) {} return { name: 'My Campaign', missions: [blank(0)] }; }
+const M = () => data.missions[cur];
+const $ = s => document.querySelector(s);
+const say = (t, bad) => { const m = $('#msg'); m.textContent = t; m.style.color = bad ? 'var(--bad)' : 'var(--ok)'; clearTimeout(say.t); say.t = setTimeout(() => m.textContent = '', 3500); };
+
+// ───── 저장 ─────
+function save() { try { localStorage.setItem(KEY, JSON.stringify(data)); say('Saved. Pick the Custom tab in the game.'); } catch (e) { say('Could not save: ' + e.message, true); } }
+$('#bSave').onclick = save;
+$('#cname').oninput = e => { data.name = e.target.value; };
+$('#bExport').onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' })); a.download = (data.name || 'campaign').replace(/[^\w-]+/g, '_') + '.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); };
+$('#bImport').onclick = () => $('#file').click();
+$('#file').onchange = e => { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => { try { const v = JSON.parse(r.result); if (!v || !Array.isArray(v.missions)) throw new Error('not a campaign file'); data = v; if (!data.missions.length) data.missions.push(blank(0)); cur = 0; isl = 0; sel = -1; renderAll(); say('Imported ' + data.missions.length + ' missions (press Save to keep them).'); } catch (err) { say('Import failed: ' + err.message, true); } }; r.readAsText(f); e.target.value = ''; };
+$('#bLink').onclick = () => {
+  const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(data)))).replace(/\+/g, '-').replace(/\//g, '_');
+  const url = new URL('index.html', location.href); url.search = '?cmp=' + b64;
+  const s = url.toString();
+  (navigator.clipboard ? navigator.clipboard.writeText(s) : Promise.reject()).then(() => say('Link copied (' + Math.round(s.length / 1000) + 'k chars). Open it on the other device once.'), () => { prompt('Copy this link:', s); });
+};
+$('#bPlay').onclick = () => { save(); window.open('index.html', '_blank'); };
+
+// ───── 미션 목록 ─────
+function renderList() {
+  $('#cname').value = data.name || '';
+  const ul = $('#list'); ul.innerHTML = '';
+  data.missions.forEach((m, i) => { const li = document.createElement('li'); if (i === cur) li.className = 'on'; li.innerHTML = '<span>' + (i + 1) + '. ' + esc(m.name || 'Untitled') + '</span><small>Lv ' + m.lvl + '</small>'; li.onclick = () => { cur = i; isl = 0; sel = -1; renderAll(); }; ul.appendChild(li); });
+}
+$('#mAdd').onclick = () => { data.missions.push(blank(data.missions.length)); cur = data.missions.length - 1; isl = 0; sel = -1; renderAll(); };
+$('#mDup').onclick = () => { const c = JSON.parse(JSON.stringify(M())); c.name += ' copy'; data.missions.splice(cur + 1, 0, c); cur++; renderAll(); };
+$('#mDel').onclick = () => { if (data.missions.length === 1) { data.missions[0] = blank(0); } else { if (!confirm('Delete "' + M().name + '"?')) return; data.missions.splice(cur, 1); cur = Math.min(cur, data.missions.length - 1); } isl = 0; sel = -1; renderAll(); };
+$('#mUp').onclick = () => { if (cur > 0) { [data.missions[cur - 1], data.missions[cur]] = [data.missions[cur], data.missions[cur - 1]]; cur--; renderAll(); } };
+$('#mDn').onclick = () => { if (cur < data.missions.length - 1) { [data.missions[cur + 1], data.missions[cur]] = [data.missions[cur], data.missions[cur + 1]]; cur++; renderAll(); } };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// ───── 본문 ─────
+function renderMain() {
+  const m = M();
+  if (isl >= m.islands.length) isl = Math.max(0, m.islands.length - 1);
+  const opt = (o, v) => Object.entries(o).map(([k, n]) => '<option value="' + k + '"' + (k === v ? ' selected' : '') + '>' + n + '</option>').join('');
+  $('#main').innerHTML = `
+  <div class="card"><h2>Mission</h2>
+    <div class="row">
+      <label>Name <input type="text" id="fName" value="${esc(m.name)}"></label>
+      <label>Difficulty (1-20) <input type="number" id="fLvl" min="1" max="20" value="${m.lvl}"></label>
+      <label>Goal <select id="fGoal">${opt(GOALS, m.goal)}</select></label>
+      <label>Time of day <select id="fTint">${opt(TINTS, m.tint)}</select></label>
+      <label id="lZero" ${m.goal === 'air' ? '' : 'hidden'}>Zeros to shoot down <input type="number" id="fZero" min="1" max="40" value="${m.zeroN}"></label>
+    </div>
+    <div class="row"><label style="flex:1">Briefing text (optional) <input type="text" id="fBrief" style="width:min(640px,60vw)" value="${esc(m.brief)}" placeholder="Leave empty for an automatic briefing"></label></div>
+    <p class="hint">Difficulty sets enemy strength and how many bunker shots the gunners fire, like campaign level numbers. Concrete bunkers are only used where you place them.</p>
+    <div id="warns"></div>
+  </div>
+
+  <div class="card" id="islCard"><h2>Islands <small style="color:var(--dim);font-weight:400">(left to right on the map; the carrier starts to the left)</small></h2>
+    <div class="tabs" id="islTabs"></div>
+    <div id="islBody"></div>
+  </div>
+
+  <div class="card"><h2>Ships</h2><div id="shipRow" class="row"></div>
+    <p class="hint">Ships are placed in the sea automatically. Sink them with torpedoes.</p></div>
+
+  <div class="card"><h2>Enemy air raids</h2><div id="waves"></div>
+    <button id="wAdd" class="sm">+ Add wave</button>
+    <p class="hint">Time is in seconds after takeoff. Fleet defense needs at least one wave with bombers (D4Y / B6N).</p></div>`;
+  $('#fName').oninput = e => { m.name = e.target.value; renderList(); };
+  $('#fBrief').oninput = e => { m.brief = e.target.value; };
+  $('#fLvl').oninput = e => { m.lvl = Math.max(1, Math.min(20, +e.target.value || 1)); renderList(); };
+  $('#fGoal').onchange = e => { m.goal = e.target.value; renderMain(); };
+  $('#fTint').onchange = e => { m.tint = e.target.value; };
+  $('#fZero').oninput = e => { m.zeroN = Math.max(1, Math.min(40, +e.target.value || 1)); };
+  renderIslands(); renderShips(); renderWaves(); renderWarns();
+}
+
+function renderIslands() {
+  const m = M(), tabs = $('#islTabs'); tabs.innerHTML = '';
+  m.islands.forEach((q, i) => { const b = document.createElement('button'); b.textContent = 'Island ' + (i + 1) + ' (' + (q.size === 'b' ? 'large' : 'small') + ')'; if (i === isl) b.className = 'on'; b.onclick = () => { isl = i; sel = -1; renderIslands(); }; tabs.appendChild(b); });
+  if (m.islands.length < 5) { const a = document.createElement('button'); a.textContent = '+ Add island'; a.onclick = () => { m.islands.push({ size: 's', items: [] }); isl = m.islands.length - 1; sel = -1; renderIslands(); renderWarns(); }; tabs.appendChild(a); }
+  const body = $('#islBody');
+  if (!m.islands.length) { body.innerHTML = '<p class="hint">No islands. This mission is ' + (m.goal === 'defend' ? 'a fleet defense' : 'sea only') + '.</p>'; return; }
+  const q = m.islands[isl], len = ISLAND_LEN[q.size];
+  body.innerHTML = `
+    <div class="row">
+      <label>Size <select id="iSize"><option value="s"${q.size === 's' ? ' selected' : ''}>Small (3,000 m)</option><option value="b"${q.size === 'b' ? ' selected' : ''}>Large (7,200 m)</option></select></label>
+      <button id="iClear" class="sm">Clear all</button>
+      <button id="iDel" class="sm">Remove island</button>
+      <span style="color:var(--dim)" id="iInfo"></span>
+    </div>
+    <div class="pal" id="pal"></div>
+    <canvas id="cv" width="1200" height="300"></canvas>
+    <p class="hint">Pick a building type, then <b>click</b> the island to place it. <b>Drag</b> to move, <b>right-click</b> or <b>Delete</b> to remove. An island surrenders when every building and soldier on it is gone, so give it at least one building.</p>`;
+  $('#iSize').onchange = e => { q.size = e.target.value; renderIslands(); renderWarns(); };
+  $('#iClear').onclick = () => { if (!q.items.length || confirm('Remove all buildings on this island?')) { q.items = []; sel = -1; draw(); renderWarns(); } };
+  $('#iDel').onclick = () => { if (confirm('Remove this island and its buildings?')) { m.islands.splice(isl, 1); isl = 0; sel = -1; renderIslands(); renderWarns(); } };
+  const pal = $('#pal');
+  Object.entries(TYPES).forEach(([k, t]) => { const b = document.createElement('button'); b.innerHTML = '<span class="sw" style="background:' + t.c + '"></span>' + t.n; if (k === tool) b.className = 'on'; b.onclick = () => { tool = k; [...pal.children].forEach(x => x.className = ''); b.className = 'on'; }; pal.appendChild(b); });
+  bindCanvas(); draw();
+}
+
+// 섬 그림: 가운데가 솟은 완만한 지형
+const cvY = u => 215 - 70 * Math.pow(Math.sin(Math.PI * Math.min(1, Math.max(0, u))), 0.7) * (0.85 + 0.15 * Math.sin(u * 17));
+function bindCanvas() {
+  const cv = $('#cv'), q = () => M().islands[isl];
+  const pos = e => { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) * cv.width / r.width, y: (e.clientY - r.top) * cv.height / r.height }; };
+  const PAD = 30, uOf = x => Math.max(0.04, Math.min(0.96, (x - PAD) / (cv.width - 2 * PAD)));
+  const hit = x => { const L = ISLAND_LEN[q().size]; let best = -1, bd = 1e9; q().items.forEach((it, i) => { const cx = PAD + it.u * (cv.width - 2 * PAD), hw = Math.max(9, TYPES[it.t].w / L * (cv.width - 2 * PAD) / 2); const d = Math.abs(x - cx); if (d <= hw + 3 && d < bd) { bd = d; best = i; } }); return best; };
+  cv.onmousedown = e => { const p = pos(e); if (e.button === 2) return; const h = hit(p.x); if (h >= 0) { sel = h; drag = h; } else { q().items.push({ t: tool, u: +uOf(p.x).toFixed(4) }); sel = q().items.length - 1; drag = sel; renderWarns(); } draw(); };
+  cv.onmousemove = e => { if (drag === null) return; q().items[drag].u = +uOf(pos(e).x).toFixed(4); draw(); };
+  cv.oncontextmenu = e => { e.preventDefault(); const h = hit(pos(e).x); if (h >= 0) { q().items.splice(h, 1); sel = -1; draw(); renderWarns(); } };
+}
+addEventListener('mouseup', () => { if (drag !== null) { drag = null; renderWarns(); } });
+addEventListener('keydown', e => { if ((e.key === 'Delete' || e.key === 'Backspace') && sel >= 0 && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) { const q = M().islands[isl]; if (q && q.items[sel]) { q.items.splice(sel, 1); sel = -1; draw(); renderWarns(); e.preventDefault(); } } });
+
+function draw() {
+  const cv = $('#cv'); if (!cv) return; const c = cv.getContext('2d'), m = M(), q = m.islands[isl]; if (!q) return;
+  const W = cv.width, H = cv.height, PAD = 30, span = W - 2 * PAD, L = ISLAND_LEN[q.size];
+  const sky = c.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, '#173456'); sky.addColorStop(1, '#2c5b7e'); c.fillStyle = sky; c.fillRect(0, 0, W, H);
+  c.fillStyle = '#1b4a6e'; c.fillRect(0, 232, W, H - 232);   // 바다
+  c.beginPath(); c.moveTo(PAD, 232); for (let i = 0; i <= 200; i++) { const u = i / 200; c.lineTo(PAD + u * span, cvY(u) + 17); } c.lineTo(W - PAD, 232); c.closePath(); c.fillStyle = '#4f8a45'; c.fill(); c.strokeStyle = '#2f5a2a'; c.lineWidth = 2; c.stroke();
+  // 눈금 (500 m)
+  c.fillStyle = '#9bb0c8'; c.font = '11px system-ui'; c.textAlign = 'center';
+  for (let mtr = 0; mtr <= L; mtr += 500) { const x = PAD + mtr / L * span; c.fillRect(x, 238, 1, 6); c.fillText(mtr + ' m', x, 258); }
+  const over = overlaps(q);
+  q.items.forEach((it, i) => {
+    const t = TYPES[it.t], cx = PAD + it.u * span, w = Math.max(14, t.w / L * span), base = cvY(it.u) + 17, h = it.t === 'tower' ? 44 : it.t === 'radar' ? 28 : it.t === 'runway' ? 6 : 22;
+    c.fillStyle = t.c; c.fillRect(cx - w / 2, base - h, w, h);
+    c.strokeStyle = over.has(i) ? '#ff5a3c' : i === sel ? '#ffd23f' : 'rgba(0,0,0,.6)'; c.lineWidth = over.has(i) || i === sel ? 3 : 1.5; c.strokeRect(cx - w / 2, base - h, w, h);
+    c.fillStyle = '#fff'; c.font = 'bold 11px system-ui'; c.textAlign = 'center'; c.fillText(t.n, cx, base - h - 5 - (i % 2) * 12);
+  });
+  $('#iInfo').textContent = q.items.length + ' buildings · 1 px ≈ ' + Math.round(L / span) + ' m';
+}
+function overlaps(q) {   // 서로 너무 가깝게 겹친 시설 (활주로 위에는 다른 시설을 놓지 못한다)
+  const L = ISLAND_LEN[q.size], bad = new Set();
+  q.items.forEach((a, i) => q.items.forEach((b, j) => { if (j <= i) return; const d = Math.abs(a.u - b.u) * L, lim = (TYPES[a.t].w + TYPES[b.t].w) / 2 + 4; if (d < lim && a.t !== 'runway' && b.t !== 'runway') { bad.add(i); bad.add(j); } }));
+  return bad;
+}
+
+function renderShips() {
+  const m = M(), row = $('#shipRow'); row.innerHTML = '';
+  Object.entries(SHIPS).forEach(([k, n]) => {
+    const cnt = m.ships.filter(s => s === k).length, d = document.createElement('div'); d.className = 'cnt';
+    d.innerHTML = '<span style="min-width:120px;color:var(--dim)">' + n + '</span><button class="sm">−</button><b>' + cnt + '</b><button class="sm">+</button>';
+    const [bm, , bp] = d.querySelectorAll('button, b');
+    bm.onclick = () => { const i = m.ships.lastIndexOf(k); if (i >= 0) { m.ships.splice(i, 1); renderShips(); renderWarns(); } };
+    bp.onclick = () => { if (m.ships.length < 8) { m.ships.push(k); renderShips(); renderWarns(); } };
+    row.appendChild(d);
+  });
+}
+
+function renderWaves() {
+  const m = M(), box = $('#waves');
+  if (!m.waves.length) { box.innerHTML = '<p class="hint">No air raids.</p>'; } else {
+    box.innerHTML = '<table><tr><th>#</th><th>Time (s)</th>' + Object.values(PLANES).map(n => '<th>' + n + '</th>').join('') + '<th></th></tr>' + m.waves.map((w, i) => '<tr><td>' + (i + 1) + '</td><td><input type="number" min="5" max="1200" value="' + w.t + '" data-t="' + i + '"></td>' + Object.keys(PLANES).map(k => '<td><input type="number" min="0" max="14" style="width:56px" value="' + w.l.filter(x => x === k).length + '" data-i="' + i + '" data-k="' + k + '"></td>').join('') + '<td><button class="sm" data-d="' + i + '">Remove</button></td></tr>').join('') + '</table>';
+    box.querySelectorAll('[data-t]').forEach(el => el.oninput = () => { m.waves[+el.dataset.t].t = Math.max(5, +el.value || 5); });
+    box.querySelectorAll('[data-k]').forEach(el => el.oninput = () => { const w = m.waves[+el.dataset.i], k = el.dataset.k, n = Math.max(0, Math.min(14, +el.value || 0)); w.l = w.l.filter(x => x !== k); for (let j = 0; j < n; j++) w.l.push(k); renderWarns(); });
+    box.querySelectorAll('[data-d]').forEach(el => el.onclick = () => { m.waves.splice(+el.dataset.d, 1); renderWaves(); renderWarns(); });
+  }
+  $('#wAdd').onclick = () => { if (m.waves.length >= 12) return; const last = m.waves[m.waves.length - 1]; m.waves.push({ t: last ? last.t + 60 : 40, l: ['zero', 'zero'] }); renderWaves(); renderWarns(); };
+}
+
+function renderWarns() {
+  const m = M(), w = [];
+  const hasRw = m.islands.some(q => q.items.some(i => i.t === 'runway'));
+  if (m.goal === 'capture' && !m.islands.length) w.push('"Capture islands" needs at least one island. The game will switch to ' + (m.ships.length ? 'a fleet strike' : 'fleet defense') + '.');
+  if (m.goal === 'air' && !hasRw) w.push('"Airbase strike" needs an Airfield on an island. The game will fall back to capturing the islands.');
+  if (m.goal === 'fleet' && !m.ships.length) w.push('"Fleet strike" with no ships: the game adds one large battleship.');
+  if (m.goal === 'defend' && !m.waves.some(x => x.l.some(t => t === 'd4y' || t === 'b6n'))) w.push('Fleet defense has no bombers or torpedo planes, so a default raid will be added.');
+  m.islands.forEach((q, i) => { if (!q.items.length) w.push('Island ' + (i + 1) + ' has no buildings, so it counts as captured immediately.'); const o = overlaps(q); if (o.size) w.push('Island ' + (i + 1) + ': ' + o.size + ' buildings overlap (shown with a red outline).'); });
+  $('#warns').innerHTML = w.length ? w.map(x => '<div class="warn">⚠ ' + esc(x) + '</div>').join('') : '<div class="okmsg">✓ Looks good.</div>';
+}
+
+function renderAll() { renderList(); renderMain(); }
+renderAll();
+</script>
+</body>
+</html>

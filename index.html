@@ -822,7 +822,7 @@ const BONUS_TXT = ['one perfect (green) landing', 'no wrecked bunker or AA gun g
 const PLACES = ['Majuro', 'Kwajalein', 'Eniwetok', 'Truk', 'Saipan', 'Tinian', 'Guam', 'Peleliu', 'Angaur', 'Iwo', 'Bougainville', 'Tarawa', 'Makin', 'Rabaul', 'Palau', 'Yap', 'Wake', 'Midway', 'Solomon', 'Gilbert', 'Marshall', 'Caroline', 'Mariana', 'Bonin', 'Rota', 'Ulithi'];
 const OPS = ['Storm', 'Lightning', 'Hammer', 'Spear', 'Wave', 'Eagle', 'Hawk', 'Flame', 'Dawn', 'Thunder', 'Shield', 'Arrow', 'Wind', 'Star', 'Anchor', 'Gull', 'Coral', 'Typhoon'];
 const TINT_KO = { day: 'Day', dawn: 'Dawn', dusk: 'Dusk', night: 'Night' };
-const mLabel = M => M.skirmish ? 'Skirmish Lv ' + M.lvl + ' — ' + M.name : M.gen ? 'Op ' + M.lvl + ' — ' + M.name : (G.mi + 1) + '. ' + M.name;
+const mLabel = M => M.custom ? 'Custom ' + ((M.cusIdx || 0) + 1) + ' — ' + M.name : M.skirmish ? 'Skirmish Lv ' + M.lvl + ' — ' + M.name : M.gen ? 'Op ' + M.lvl + ' — ' + M.name : (G.mi + 1) + '. ' + M.name;
 function rngOf(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 // 레벨 1~10은 정해진 순서로 조금씩 어렵게, 11부터는 무작위로 점점 어렵게 (s 작은 섬, b 큰 섬, 함정 dd 구축함·tr 수송선·bb 전함·cv 항모)
 const LEVEL_PLAN = [null,
@@ -903,13 +903,49 @@ function genMission(L, seed, rnd) {   // rnd: 정해진 레벨 계획 대신 무
   }
   return M;
 }
+
+// ───────── 사용자 캠페인 (editor.html 에서 만든 작전) ─────────
+const CUS_KEY = 'hellcat-custom', CUS_ITEMS = ['bunker', 'pill', 'barracks', 'aa', 'radar', 'fuel', 'tank', 'cave', 'tower', 'runway'], CUS_SHIPS = ['dd', 'tr', 'bm', 'bb', 'cv'];
+function loadCustom() { try { const v = JSON.parse(localStorage.getItem(CUS_KEY)); if (v && Array.isArray(v.missions)) return v; } catch (_) {} return { name: 'My Campaign', missions: [] }; }
+function importCustomFromUrl() {   // index.html?cmp=<base64 JSON> 로 열면 사용자 캠페인을 이 기기에 저장한다
+  try { const q = new URLSearchParams(location.search).get('cmp'); if (!q) return; const v = JSON.parse(decodeURIComponent(escape(atob(q.replace(/-/g, '+').replace(/_/g, '/'))))); if (v && Array.isArray(v.missions)) { localStorage.setItem(CUS_KEY, JSON.stringify(v)); G.cus = v; G.mode = 'custom'; } history.replaceState(null, '', location.pathname); } catch (_) {}
+}
+const customList = () => (G.cus || (G.cus = loadCustom())).missions;
+function customMission(def, i) {
+  const L = clamp(Math.round(def.lvl || 1), 1, MAX_LVL), isl = (def.islands || []).slice(0, 5).map(q => ({ size: q.size === 'b' ? 'b' : 's', items: (q.items || []).filter(it => CUS_ITEMS.includes(it.t) && isFinite(it.u)).slice(0, 80) }));
+  let ships = (def.ships || []).filter(t => CUS_SHIPS.includes(t)).slice(0, 8), goal = ['capture', 'air', 'fleet', 'defend'].includes(def.goal) ? def.goal : 'capture';
+  if (goal === 'capture' && !isl.length) goal = ships.length ? 'fleet' : 'defend';
+  if (goal === 'air' && !isl.some(q => q.items.some(it => it.t === 'runway'))) goal = isl.length ? 'capture' : ships.length ? 'fleet' : 'defend';
+  if (goal === 'fleet' && !ships.length) ships = ['bb'];
+  let seed = 7; for (const ch of (def.name || '') + i) seed = (seed * 31 + ch.charCodeAt(0)) >>> 0;
+  const tint = TINTS[def.tint] ? def.tint : 'day', zt = Object.keys(ES);
+  const M = { custom: true, skirmish: true, gen: false, cusIdx: i, lvl: L, seed, name: def.name || 'Mission ' + (i + 1), place: '', tint, goal, islands: [], waves: [], cus: isl };
+  let x = 6000; isl.forEach(q => { const w = q.size === 'b' ? 1700 : 1000; M.islands.push([x, w, 20]); x += w + 300; });
+  (def.waves || []).slice(0, 12).forEach((w, k) => { const l = (w.l || []).filter(t => zt.includes(t)).slice(0, 14); if (l.length) M.waves.push({ t: Math.max(5, +w.t || 40 + k * 60), l }); });
+  if (goal === 'defend' && !M.waves.length) M.waves.push({ t: 25, l: ['d4y', 'd4y', 'b6n', ZR] });
+  M.waves.sort((a, b) => a.t - b.t);
+  const sh = ships.map((t, j) => [t, isl.length ? 4700 - j * 650 : 6900 + j * 700]);
+  M.build = (add, P) => { isl.forEach((q, k) => q.items.forEach(it => add(it.t, P(k, clamp(it.u, 0.04, 0.96))))); sh.forEach(([ty, sx]) => add(ty, sx)); };
+  const SN = { cv: 'carrier', bb: 'large battleship', bm: 'small battleship', tr: 'transport', dd: 'destroyer' }, nBig = isl.filter(q => q.size === 'b').length, nSm = isl.length - nBig;
+  const shipTxt = Object.entries(ships.reduce((o, t) => (o[t] = (o[t] || 0) + 1, o), {})).map(([t, n]) => n + ' ' + SN[t] + (n > 1 ? 's' : '')).join(', ');
+  M.isl = [nSm ? nSm + ' small island' + (nSm > 1 ? 's' : '') : '', nBig ? nBig + ' large island' + (nBig > 1 ? 's' : '') : '', shipTxt].filter(Boolean).join(' · ') || ('Air raids ' + M.waves.length);
+  const fleetT = [...new Set(ships)];
+  if (goal === 'capture') { M.kind = ships.length ? 'Island + fleet' : 'Island assault'; if (ships.length) { M.fleet = fleetT; M.landAfter = true; } M.brief = def.brief || 'Clear every island of buildings and soldiers' + (ships.length ? ' and sink ' + shipTxt : ''); M.bonus = m => !m.revived; M.bonusTxt = 'no wrecked bunker or AA gun gets restored'; }
+  else if (goal === 'air') { M.kind = 'Airbase strike'; M.zeroN = clamp(Math.round(def.zeroN || 5 + L), 1, 40); M.brief = def.brief || 'Shoot down ' + M.zeroN + ' Zeros and destroy every enemy aircraft parked on the airfields'; M.bonus = m => !m.revived; M.bonusTxt = 'no wrecked bunker or AA gun gets restored'; }
+  else if (goal === 'fleet') { M.fleet = fleetT.filter(t => t !== 'dd').length ? fleetT.filter(t => t !== 'dd') : fleetT; M.landAfter = true; M.kind = 'Fleet strike'; M.brief = def.brief || 'Sink ' + shipTxt + ' with torpedoes'; M.bonus = () => p.fuel >= 10; M.bonusTxt = 'return with over 10% fuel'; }
+  else { M.kind = 'Fleet defense'; M.brief = def.brief || 'Stop the incoming bombers and torpedo planes to protect the carrier'; M.bonus = () => G.carrierHp >= 70; M.bonusTxt = 'carrier above 70%'; }
+  return M;
+}
+const cusEmpty = () => ({ custom: true, empty: true, lvl: 1, name: 'No custom missions yet', kind: 'Custom', tint: 'day', isl: 'Create missions in editor.html (PC)', waves: [], brief: 'Open editor.html in a browser, build a campaign, press Save, then come back here', bonusTxt: '' });
+function customCur() { const l = customList(); if (!l.length) return cusEmpty(); G.cusIdx = clamp(G.cusIdx | 0, 0, l.length - 1); if (!G.cusM || G.cusM.cusIdx !== G.cusIdx || G.cusM.empty) G.cusM = customMission(l[G.cusIdx], G.cusIdx); return G.cusM; }
+function menuGo() { const M = menuMission(); if (M.empty) { G.menuMsg = 'No custom missions yet — build some in editor.html'; return; } startMission(M); }
 const newSeed = () => (Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0;
-const MODE_CAM = { x: 560, y: 38, w: 118, h: 36 }, MODE_SK = { x: 686, y: 38, w: 118, h: 36 };   // 모드 고르기 버튼
+const MODE_CAM = { x: 560, y: 38, w: 118, h: 36 }, MODE_SK = { x: 686, y: 38, w: 118, h: 36 }, MODE_CU = { x: 812, y: 38, w: 118, h: 36 };   // 모드 고르기 버튼
 function mkSk(L) { return genMission(clamp(Math.round(L), 1, MAX_LVL), newSeed(), true); }
 const skMission = () => (G.sk || (G.sk = mkSk(1 + Math.floor(Math.random() * MAX_LVL))));
-const menuMission = () => G.mode === 'skirmish' ? skMission() : nextMission();
-function menuReroll() { if (G.mode === 'skirmish') G.sk = mkSk(1 + Math.floor(Math.random() * MAX_LVL)); else G.next = genMission(pickLvl(), newSeed()); }   // 스커미시: 레벨까지 새로 / 캠페인: 같은 레벨 다른 지도
-function menuLvl(d) { if (G.mode === 'skirmish') G.sk = mkSk(skMission().lvl + d); else G.pick = d > 0 ? Math.min(G.save.lvl, pickLvl() + 1) : Math.max(1, pickLvl() - 1); }
+const menuMission = () => G.mode === 'custom' ? customCur() : G.mode === 'skirmish' ? skMission() : nextMission();
+function menuReroll() { if (G.mode === 'custom') { G.cusM = null; return; } if (G.mode === 'skirmish') G.sk = mkSk(1 + Math.floor(Math.random() * MAX_LVL)); else G.next = genMission(pickLvl(), newSeed()); }   // 스커미시: 레벨까지 새로 / 캠페인: 같은 레벨 다른 지도
+function menuLvl(d) { if (G.mode === 'custom') { const n = customList().length; if (n) G.cusIdx = clamp((G.cusIdx | 0) + d, 0, n - 1); return; } if (G.mode === 'skirmish') G.sk = mkSk(skMission().lvl + d); else G.pick = d > 0 ? Math.min(G.save.lvl, pickLvl() + 1) : Math.max(1, pickLvl() - 1); }
 function pickLvl() { const top = G.save.lvl; if (!(G.pick >= 1)) G.pick = top; G.pick = clamp(Math.round(G.pick), 1, top); return G.pick; }   // 메뉴에서 고른 레벨 (1 ~ 열린 최고 레벨)
 function nextMission() { const L = pickLvl(); if (!G.next || G.next.lvl !== L) G.next = genMission(L, newSeed()); return G.next; }
 function launchLevel(L) { G.pick = clamp(L, 1, G.save.lvl); G.next = genMission(G.pick, newSeed()); startMission(G.next); }
@@ -979,7 +1015,7 @@ function endMission(win, why) {
 function makeTargets(M) {
   TARGETS.length = 0; TREES.length = 0; BUSH.length = 0;
   const P = (k, f) => ISLANDS[k].a + (ISLANDS[k].b - ISLANDS[k].a) * f + OFF;
-  const add = (type, x0, raw) => { if (type === 'pill' && ((G.cur && G.cur.lvl) || 1) < 4) type = 'bunker';   // 콘크리트 벙커는 레벨 4부터
+  const add = (type, x0, raw) => { if (type === 'pill' && !M.custom && ((G.cur && G.cur.lvl) || 1) < 4) type = 'bunker';   // 콘크리트 벙커는 레벨 4부터
     let x = (SHIPS[type] && !raw ? G.isx(x0) : x0) - OFF;
     if (SHIPS[type] && type !== 'boat' && G.HC !== null) x = G.shipX[G.shipN++];   // 함정 자리는 위에서 정해 둔 순서대로
     else if (type === 'boat' && !raw && G.HC !== null && ISLANDS.length) { const k = (G.boatK = (G.boatK || 0) + 1) % ISLANDS.length, q = ISLANDS[k], out = (q.a + q.b) / 2 > G.HC ? 1 : -1, n = G.boatN[k] = (G.boatN[k] || 0) + 1; x = (out > 0 ? q.b + 90 + 70 * n : q.a - 90 - 70 * n); }   // 작은 배는 섬 바깥쪽 바다에
@@ -987,11 +1023,12 @@ function makeTargets(M) {
     const t = { bv: Math.floor(bvx * 5), type, x, y: SHIPS[type] ? 0 : gh(x), hp: HP[type], hp0: HP[type], alive: true, burn: 0, fire: Math.random() * 2, deadT: 0, x0: x, dir: TARGETS.length % 2 ? -1 : 1, launch: 10 + Math.random() * 12 }; t.isl = ISLANDS.findIndex(s => x > s.a && x < s.b); if (SHIP_GUNS[type]) t.guns = SHIP_GUNS[type].xs.map((lx, gi) => { const mg = (SHIP_GUNS[type].mg || []).includes(gi); return { lx, hp: mg ? 1 : 2, alive: true, mg, cd: 1 + Math.random() * 3, bn: 0, bt: 0 }; }); TARGETS.push(t); return t; };
   const rwIsl = new Set();
   const CREW_W = { barracks: 1 };   // 일본군은 병영(집)에만 산다
-  M.build((type, x0) => { const k = ISLANDS.findIndex(q => x0 - OFF > q.a && x0 - OFF < q.b); if (k >= 0 && (type === 'bunker' || type === 'barracks' || type === 'runway')) { if (type === 'runway') rwIsl.add(k); return null; } return add(type, x0); }, P);
+  M.build((type, x0) => { const k = ISLANDS.findIndex(q => x0 - OFF > q.a && x0 - OFF < q.b); if (k >= 0 && !M.custom && (type === 'bunker' || type === 'barracks' || type === 'runway')) { if (type === 'runway') rwIsl.add(k); return null; } return add(type, x0); }, P);
   // 섬마다 양 끝에서 가운데로: 콘크리트 벙커(로켓만) → 일반 벙커(로켓·폭탄) → 병영 → 비행장(있을 때) → 깃발(정중앙)
-  ISLANDS.forEach((q, k) => { q.flat = null; if (q.big && ((G.cur && G.cur.lvl) || 1) >= 6) {  const w = q.b - q.a, e = 90 / w, cx = q.a + w * 0.5 + 60 + RUNWAY_L / 2; q.flat = { a: cx - RUNWAY_L / 2, b: cx + RUNWAY_L / 2, h: 0 }; q.flat.h = (() => { const f = q.flat; q.flat = null; const v = Math.max(gh(cx - RUNWAY_L / 2), gh(cx), gh(cx + RUNWAY_L / 2)) * 0.5 + gh(cx) * 0.5; q.flat = f; return v; })(); } });   // 적 비행장은 6레벨부터
+  ISLANDS.forEach((q, k) => { q.flat = null; const rwI = M.custom ? M.cus[k].items.find(i => i.t === 'runway') : null; if (M.custom ? !!rwI : q.big && ((G.cur && G.cur.lvl) || 1) >= 6) {  const w = q.b - q.a, e = 90 / w, cx = M.custom ? q.a + w * clamp(rwI.u, 0.04, 0.96) : q.a + w * 0.5 + 60 + RUNWAY_L / 2; q.flat = { a: cx - RUNWAY_L / 2, b: cx + RUNWAY_L / 2, h: 0 }; q.flat.h = (() => { const f = q.flat; q.flat = null; const v = Math.max(gh(cx - RUNWAY_L / 2), gh(cx), gh(cx + RUNWAY_L / 2)) * 0.5 + gh(cx) * 0.5; q.flat = f; return v; })(); } });   // 적 비행장은 6레벨부터
   for (const t of TARGETS) if (!SHIPS[t.type]) t.y = gh(t.x);
   ISLANDS.forEach((q, k) => {
+    if (M.custom) return;   // 사용자 지도: 건물은 편집기에서 놓은 자리 그대로
     const w = q.b - q.a, m = u => Math.min(u, 0.45), e = 90 / w;
     { const LV = (G.cur && G.cur.lvl) || 1, nB = clamp(2 + Math.floor(LV / 3), 2, 7), kinds = ['pill', 'bunker', 'bunker', 'pill', 'bunker', 'bunker', 'pill'], u0 = m(0.05 + e);   // 양끝에 벙커를 나란히 붙여 세운다
       for (let j = 0; j < nB; j++) { add(kinds[j], P(k, u0 + j * 25 / w)); add(kinds[j], P(k, 1 - u0 - j * 25 / w)); } }
@@ -1006,7 +1043,7 @@ function makeTargets(M) {
   const CREW_N = { barracks: 5, bunker: 3, pill: 3, aa: 3, cave: 4, fuel: 3, radar: 3, tank: 3, tower: 3 };   // 건물 하나에 들어 있는 병사 수 (모두 3명 이상)
   for (const t of TARGETS) if (!SHIPS[t.type] && t.isl >= 0 && CREW_N[t.type]) t.crew = CREW_N[t.type];
   const LAY = { pill: 1, bunker: 1, barracks: 1, runway: 1 };
-  for (const t of TARGETS) { if (SHIPS[t.type] || LAY[t.type] || t.isl < 0) continue; const q = ISLANDS[t.isl], cx = (q.a + q.b) / 2;
+  for (const t of TARGETS) { if (SHIPS[t.type] || LAY[t.type] || t.isl < 0 || M.custom) continue; const q = ISLANDS[t.isl], cx = (q.a + q.b) / 2;
     for (let n = 0; n < 40; n++) { const o = TARGETS.find(u => u !== t && !SHIPS[u.type] && Math.abs(u.x - t.x) < (BOX[u.type].w + BOX[t.type].w) / 2 + 16); if (!o) break; t.x = clamp(t.x + (t.x <= o.x ? -18 : 18), q.a + 40, q.b - 40); t.x0 = t.x; }   // 겹친 것에서 멀어지는 쪽으로 비킨다
     t.y = gh(t.x); }
   for (const rw of TARGETS) if (rw.type === 'runway') for (const t of TARGETS) {   // 활주로 위에는 다른 시설을 두지 않는다 (가장 가까운 끝 바깥으로 비킨다)
@@ -1015,7 +1052,7 @@ function makeTargets(M) {
     if (Math.abs(t.x - rw.x) < half) { t.x = rw.x + (t.x >= rw.x ? half : -half); t.x0 = t.x; t.y = gh(t.x); }
   }
   ISLANDS.forEach((q, k) => {   // 대공포 진지: 흩어진 대공포를 모아서 목적이 있는 배치로 다시 세운다
-    const aas = TARGETS.filter(t => t.type === 'aa' && t.isl === k && !t.hill); if (!aas.length) return;
+    const aas = TARGETS.filter(t => t.type === 'aa' && t.isl === k && !t.hill); if (!aas.length || M.custom) return;
     const near = (type, dx) => TARGETS.filter(t => t.isl === k && t.type === type).flatMap(t => [t.x - dx, t.x + dx]);
     const slots = [];
     TARGETS.filter(t => t.isl === k && t.type === 'fuel').forEach(t => { slots.push(t.x - 16, t.x + 16); });   // 연료 저장고 양옆
@@ -2646,9 +2683,9 @@ function sceneKey(e) {
   if (G.scene === 'menu' && e.code === 'Escape') { startDemo(); return; }
   if (G.scene === 'menu') {
     G.menuMsg = '';
-    if (e.code === 'Enter' || e.code === 'Space') startMission(menuMission());
+    if (e.code === 'Enter' || e.code === 'Space') menuGo();
     else if (e.code === 'KeyR') menuReroll();
-    else if (e.code === 'KeyM' || e.code === 'Tab') G.mode = G.mode === 'skirmish' ? 'campaign' : 'skirmish';   // 캠페인 ↔ 스커미시
+    else if (e.code === 'KeyM' || e.code === 'Tab') G.mode = G.mode === 'campaign' ? 'skirmish' : G.mode === 'skirmish' ? 'custom' : 'campaign';   // 캠페인 → 스커미시 → 사용자 캠페인
     else if (e.code === 'ArrowLeft') menuLvl(-1);
     else if (e.code === 'ArrowRight') menuLvl(1);
     else if (e.code === 'KeyH') G.help = true;
@@ -2657,7 +2694,8 @@ function sceneKey(e) {
     else if (e.code === 'KeyN' || e.code === 'Space') resultGo();
   }
 }
-function resultGo() {   // 이기면 다음 레벨, 지면 같은 레벨을 새 지도로 (스커미시: 이기면 새 무작위 레벨, 지면 같은 레벨 새 지도)
+function resultGo() {
+  if (G.cur.custom) { const l = customList(); if (!l.length) { goMenu(); return; } const i = G.res.win ? (G.cur.cusIdx + 1) % l.length : G.cur.cusIdx; G.cusIdx = i; G.cusM = null; startMission(customMission(l[i], i)); return; }   // 이기면 다음 레벨, 지면 같은 레벨을 새 지도로 (스커미시: 이기면 새 무작위 레벨, 지면 같은 레벨 새 지도)
   if (G.cur.skirmish) { G.sk = mkSk(G.res.win ? 1 + Math.floor(Math.random() * MAX_LVL) : G.cur.lvl); startMission(G.sk); return; }
   if (!G.cur.gen) { startMission(G.mi); return; }
   launchLevel(G.res.win ? G.cur.lvl + 1 : G.cur.lvl);
@@ -2667,8 +2705,8 @@ function sceneTap(m) {
   if (G.scene === 'ending') { if (endClock() > 2) goMenu(); return; }
   if (G.scene === 'menu') {
     if (G.help) { G.help = false; return; }
-    if (inR(m, MODE_CAM)) G.mode = 'campaign'; else if (inR(m, MODE_SK)) G.mode = 'skirmish';
-    else if (inR(m, MENU_GO)) startMission(menuMission()); else if (inR(m, MENU_RE)) menuReroll(); else if (inR(m, MENU_HELP)) G.help = true;
+    if (inR(m, MODE_CAM)) G.mode = 'campaign'; else if (inR(m, MODE_SK)) G.mode = 'skirmish'; else if (inR(m, MODE_CU)) G.mode = 'custom';
+    else if (inR(m, MENU_GO)) menuGo(); else if (inR(m, MENU_RE)) menuReroll(); else if (inR(m, MENU_HELP)) G.help = true;
     else if (inR(m, MENU_PREV)) menuLvl(-1); else if (inR(m, MENU_NEXT)) menuLvl(1);
   }
   else if (G.scene === 'result') { if (inR(m, RES_BTN[0])) goMenu(); else if (inR(m, RES_BTN[1])) resultGo(); }
@@ -2780,23 +2818,23 @@ function drawScene() {
   if (G.scene === 'ending') return drawEnding();
   const c = ctx; c.fillStyle = 'rgba(6,14,26,0.88)'; c.fillRect(0, 0, W, H); c.textAlign = 'left';
   if (G.scene === 'menu') {
-    const sk = G.mode === 'skirmish', N = menuMission(), L = N.lvl, top = sk ? MAX_LVL : G.save.lvl, st = sk ? 0 : (G.save.st || {})[L] || 0;
+    const cu = G.mode === 'custom', sk = G.mode === 'skirmish' || cu, N = menuMission(), nCu = customList().length, L = cu ? (G.cusIdx | 0) + 1 : N.lvl, top = cu ? Math.max(1, nCu) : sk ? MAX_LVL : G.save.lvl, st = sk ? 0 : (G.save.st || {})[L] || 0;
     const card = (r, fill, line) => { c.fillStyle = fill; c.beginPath(); c.roundRect(r.x, r.y, r.w, r.h, 12); c.fill(); if (line) { c.strokeStyle = line; c.lineWidth = 2; c.stroke(); } };
-    const tip = G.menuMsg || (sk ? '◀ ▶ difficulty · R random mission · M campaign · Enter launch · H how to play · Esc title' : '◀ ▶ pick any operation you have unlocked · Enter launch · R new map · M skirmish · H how to play · Esc title');
+    const tip = G.menuMsg || (cu ? '◀ ▶ pick a mission · Enter launch · M campaign · H how to play · Esc title · Build missions in editor.html (PC)' : sk ? '◀ ▶ difficulty · R random mission · M campaign · Enter launch · H how to play · Esc title' : '◀ ▶ pick any operation you have unlocked · Enter launch · R new map · M skirmish · H how to play · Esc title');
     c.fillStyle = '#fff'; c.font = '800 28px system-ui,sans-serif'; c.fillText('Blue Wings of the Pacific 1942', 60, 58);
     c.fillStyle = '#ffd23f'; c.font = '700 15px system-ui,sans-serif'; c.fillText('Rank ' + rankOf(G.save.best) + ' · Best: Op ' + G.save.best + ' · Stars ' + starSum(), 62, 84);
-    [[MODE_CAM, 'Campaign', !sk], [MODE_SK, 'Skirmish', sk]].forEach(([r, nm, on]) => { card(r, on ? 'rgba(52,120,190,0.95)' : 'rgba(46,56,70,0.7)', on ? '#ffd23f' : null); c.fillStyle = on ? '#fff' : '#9fb0c4'; c.font = '800 15px system-ui,sans-serif'; c.textAlign = 'center'; c.fillText(nm, r.x + r.w / 2, r.y + 24); });
+    [[MODE_CAM, 'Campaign', !sk], [MODE_SK, 'Skirmish', sk && !cu], [MODE_CU, 'Custom', cu]].forEach(([r, nm, on]) => { card(r, on ? 'rgba(52,120,190,0.95)' : 'rgba(46,56,70,0.7)', on ? '#ffd23f' : null); c.fillStyle = on ? '#fff' : '#9fb0c4'; c.font = '800 15px system-ui,sans-serif'; c.textAlign = 'center'; c.fillText(nm, r.x + r.w / 2, r.y + 24); });
     c.textAlign = 'left';
     card({ x: 160, y: 108, w: 640, h: 248 }, 'rgba(30,44,62,0.92)', '#ffd23f');
     c.textAlign = 'center';
     [[MENU_PREV, '◀', L > 1], [MENU_NEXT, '▶', L < top]].forEach(([r, g, on]) => { card(r, on ? 'rgba(70,82,98,0.95)' : 'rgba(46,56,70,0.6)'); c.fillStyle = on ? '#fff' : '#5d6b7c'; c.font = '800 24px system-ui,sans-serif'; c.fillText(g, r.x + r.w / 2, r.y + 34); });   // 레벨 고르기
-    c.fillStyle = '#ffd23f'; c.font = '900 34px system-ui,sans-serif'; c.fillText(sk ? 'Skirmish · Level ' + N.lvl : 'Op ' + N.lvl, 480, 150);
-    c.font = '700 14px system-ui,sans-serif'; c.fillStyle = st ? '#ffd23f' : '#9fb0c4'; c.fillText(sk ? 'Free play · random level and map · no campaign progress saved' : st ? '★'.repeat(st) + '☆'.repeat(3 - st) + '  cleared' : L === top ? 'New operation' : 'Not cleared yet', 480, 173);
+    c.fillStyle = '#ffd23f'; c.font = '900 34px system-ui,sans-serif'; c.fillText(cu ? 'Custom ' + (N.empty ? '' : L + ' / ' + nCu) : sk ? 'Skirmish · Level ' + N.lvl : 'Op ' + N.lvl, 480, 150);
+    c.font = '700 14px system-ui,sans-serif'; c.fillStyle = st ? '#ffd23f' : '#9fb0c4'; c.fillText(cu ? 'Your own campaign · difficulty ' + (N.empty ? '-' : N.lvl) + ' · no progress saved' : sk ? 'Free play · random level and map · no campaign progress saved' : st ? '★'.repeat(st) + '☆'.repeat(3 - st) + '  cleared' : L === top ? 'New operation' : 'Not cleared yet', 480, 173);
     c.fillStyle = '#fff'; c.font = '800 22px system-ui,sans-serif'; c.fillText(N.name, 480, 204);
     c.fillStyle = '#b9c7d8'; { const kl = N.kind + ' · ' + TINT_KO[N.tint] + ' · ' + N.isl + ' · Enemy planes ' + N.waves.reduce((q, w) => q + w.l.length, 0); fitFont(c, kl, 15, '600', 600); c.fillText(kl, 480, 232); }
     c.fillStyle = '#e6edf5'; fitFont(c, N.brief, 17, '700', 600); c.fillText(N.brief, 480, 268);
     c.fillStyle = '#ffd23f'; fitFont(c, '★3: lose no aircraft and ' + N.bonusTxt, 14, '600', 600); c.fillText('★3: lose no aircraft and ' + N.bonusTxt, 480, 296);
-    c.fillStyle = '#9fb0c4'; c.font = '600 13px system-ui,sans-serif'; c.fillText(sk ? 'R rolls a new random mission · ◀ ▶ sets the difficulty (1-20)' : 'Campaign: levels 1-20 get harder in order · clear Level 20 for the medal ceremony', 480, 332);
+    c.fillStyle = '#9fb0c4'; c.font = '600 13px system-ui,sans-serif'; c.fillText(cu ? 'Missions come from editor.html · ◀ ▶ chooses which one' : sk ? 'R rolls a new random mission · ◀ ▶ sets the difficulty (1-20)' : 'Campaign: levels 1-20 get harder in order · clear Level 20 for the medal ceremony', 480, 332);
     card(MENU_GO, 'rgba(52,150,84,0.95)'); c.fillStyle = '#fff'; c.font = '800 20px system-ui,sans-serif'; c.fillText('Launch (Enter)', 480, MENU_GO.y + 37);
     card(MENU_RE, 'rgba(70,82,98,0.95)'); c.font = '700 15px system-ui,sans-serif'; c.fillStyle = '#fff'; c.fillText('New map (R)', MENU_RE.x + MENU_RE.w / 2, MENU_RE.y + 28);
     card(MENU_HELP, 'rgba(26,90,150,0.95)'); c.fillStyle = '#fff'; c.fillText('How to play (H)', MENU_HELP.x + MENU_HELP.w / 2, MENU_HELP.y + 28);
@@ -2812,7 +2850,7 @@ function drawScene() {
     c.fillStyle = '#c9d4de'; c.font = '600 14px system-ui,sans-serif';
     c.fillText('Kills ' + m.zeros + ' · Targets ' + m.kills + ' · Landings ' + m.landings + ' · Aircraft lost ' + (3 - G.lives), 480, 280);
     fitFont(c, '★1: complete · ★2: lose at most 1 aircraft · ★3: lose none and ' + (G.cur.bonusTxt || BONUS_TXT[G.mi]), 12, '600', 440); c.fillText('★1: complete · ★2: lose at most 1 aircraft · ★3: lose none and ' + (G.cur.bonusTxt || BONUS_TXT[G.mi]), 480, 308);
-    RES_BTN.forEach((r, i) => { c.fillStyle = i ? 'rgba(52,150,84,0.95)' : 'rgba(70,82,98,0.95)'; c.beginPath(); c.roundRect(r.x, r.y, r.w, r.h, 12); c.fill(); c.fillStyle = '#fff'; c.font = '800 16px system-ui,sans-serif'; c.fillText(i ? (R.win ? 'Next: Op ' + (M.gen ? M.lvl + 1 : '') + ' (N)' : 'Retry (new map)') : 'Operations (Enter)', r.x + r.w / 2, r.y + 31); });
+    RES_BTN.forEach((r, i) => { c.fillStyle = i ? 'rgba(52,150,84,0.95)' : 'rgba(70,82,98,0.95)'; c.beginPath(); c.roundRect(r.x, r.y, r.w, r.h, 12); c.fill(); c.fillStyle = '#fff'; c.font = '800 16px system-ui,sans-serif'; c.fillText(i ? (R.win ? (M.custom ? 'Next mission (N)' : 'Next: Op ' + (M.gen ? M.lvl + 1 : '') + ' (N)') : 'Retry (new map)') : 'Operations (Enter)', r.x + r.w / 2, r.y + 31); });
   }
   c.textAlign = 'left';
 }
@@ -3507,7 +3545,7 @@ function frame(ts) {
   drawWorld(); ctx.restore(); if (G.scene === 'play') drawHudFaded(); else drawScene();
   requestAnimationFrame(frame);
 }
-reset(); startDemo(); cam.x = p.x; cam.y = 60;
+importCustomFromUrl(); reset(); startDemo(); cam.x = p.x; cam.y = 60;
 requestAnimationFrame(frame);
 // 오프라인에서도 열리게 (실제 사이트에서만 등록한다)
 if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator && typeof location !== 'undefined' && location.protocol === 'https:' && window.top === window) navigator.serviceWorker.register('sw.js').catch(() => {});

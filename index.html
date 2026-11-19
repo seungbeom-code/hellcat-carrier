@@ -1236,7 +1236,10 @@ function missionStep(dt) {
   if (G.tick && G.tick.length) { const T = G.tick[0]; if (T.t0 === undefined) T.t0 = G.t; if (G.t - T.t0 > 6) G.tick.shift(); }   // 속보 한 줄은 6초 동안 보인다
   if (G.carrierHp < 70 && Math.abs(ship.x + DECK_L / 2 - cam.x) < W / cam.z + DECK_L / 2 && Math.random() < dt * 6) FX.push({ k: 'smoke', x: ship.x + 40 + Math.random() * (DECK_L - 90), y: DECK_Y + 2, vx: ship.v - 6, vy: 5, life: 1.6, t: 0, s: 2 + Math.random() * 2 });
   if (p.mode === 'air' && G.t < (p.smokeT || 0) && Math.random() < dt * 40) FX.push({ k: 'trail', x: p.x - Math.cos(p.th) * 6 + (Math.random() - 0.5) * 2, y: p.y - Math.sin(p.th) * 6 + (Math.random() - 0.5), vx: p.vx * 0.3, vy: 3, life: 0.9, t: 0, s: 1.3 });   // 피격 직후 하얀 연기
-  if (SMOKY[p.mode] && p.hp < 45 && Math.random() < dt * 12) FX.push({ k: 'smoke', x: p.x - Math.cos(p.th) * 5, y: p.y - Math.sin(p.th) * 5, vx: p.vx * 0.2, vy: 2, life: 1, t: 0, s: 1.4 });
+  if (SMOKY[p.mode] && p.hp < 40 && Math.random() < dt * 12) { let ex = p.x - Math.cos(p.th) * 5, ey = p.y - Math.sin(p.th) * 5;   // 연기는 기체 뒤쪽(꼬리 부근)에서 난다. 회전 중에는 돌아가는 기체를 따라간다
+    if (p.flip > 0) { const f = clamp(1 - p.flip / DECK_FLIP_T, 0, 1), ph = (p.flipFrom > 0 ? 0 : Math.PI) + Math.PI * f; ex = p.x - Math.cos(ph) * 5; ey = p.y + 0.6; }
+    else if (p.turn > 0) { const f = clamp(1 - p.turn / TURN_T, 0, 1), ph = (p.v0 > 0 ? 0 : Math.PI) + Math.PI * f; ex = p.x - Math.cos(ph) * 5; ey = p.y + Math.sin(Math.PI * f) * 1.0 + 0.6; }
+    FX.push({ k: 'smoke', x: ex, y: ey, vx: p.vx * 0.2, vy: 2, life: 1, t: 0, s: 1.4 }); }
   if (!m.obj && GOALS[M.goal](m, M)) { m.obj = true; G.toast = { text: 'Mission complete! Return, land on the carrier and take the elevator down', grade: 'green', until: G.t + 6 }; }
   if (m.obj && p.mode === 'lift' && p.el && p.el.st === 'svc') endMission(true);   // 귀환해서 엘리베이터로 격납고까지 내려가면 끝
   else if (G.carrierHp <= 0) {   // 체력이 0이 되면 항모가 서서히 가라앉고, 마지막에 함교만 물 위에 남았다가 사라진다

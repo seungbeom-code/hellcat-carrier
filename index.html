@@ -128,7 +128,7 @@ function airStep(dt) {
     p.turn -= dt;
     const f = clamp(1 - p.turn / TURN_T, 0, 1);
     p.vx = Math.sign(p.v0) * Math.max(Math.abs(p.v0) * lerp(1, 0.85, f), p.gear ? 0 : MIN_KT / KT) * Math.cos(Math.PI * f);
-    p.vy += (-3 - p.vy) * Math.min(1, 2.5 * dt);
+    p.vy += (-3 + p.in * 14 - p.vy) * Math.min(1, 2.5 * dt);   // 선회 중에도 ▲▼ 로 조금씩 오르내린다
     if (f >= 0.5 && !p.flipped) { p.s = -p.s; p.a = -p.a; p.flipped = true; }
     p.th = p.s > 0 ? -0.06 : Math.PI + 0.06;
     if (p.turn <= 0) { p.vx = -Math.sign(p.v0) * Math.max(Math.abs(p.v0) * 0.85, p.gear ? 0 : MIN_KT / KT); p.turn = 0; p.turnEndT = G.t; p.holdG = null; if (p.slowTurn) { p.stalled = true; p.slowTurn = false; G.msg = { text: 'Stalled by turning too slowly! Falling until you gain speed', until: G.t + 2.5 }; sfx('stall'); } }

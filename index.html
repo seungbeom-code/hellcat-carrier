@@ -2522,13 +2522,6 @@ function drawEnemyMarks(c) {
   if (G.scene !== 'play' && G.scene !== 'title') return;
   drawHpBars(c); drawPlayerHp(c); if (G.scene === 'play') drawEnemyHp(c);
   c.save(); c.font = '800 12px system-ui,sans-serif'; c.textAlign = 'center';
-  // 섬에 남은 것이 5개 이하가 되면 남은 건물과 병사 위에 노란 화살표 (마지막 몇 개를 찾기 쉽게)
-  if (G.scene === 'play') ISLANDS.forEach((q, k) => {
-    if (q.cleared) return;
-    const left = TARGETS.filter(t => t.alive && t.isl === k && !SHIPS[t.type]).map(t => ({ x: t.x, y: t.y + BOX[t.type].h })).concat(SOLD.filter(o => o.alive && o.isl === k).map(o => ({ x: o.x, y: o.y + 9 })));
-    if (!left.length || left.length > 5) return;
-    for (const m of left) { const X = sx(m.x), Y = sy(m.y) - 14 + Math.sin(G.t * 5 + m.x) * 3; if (X < 0 || X > W || Y < 60 || Y > H) continue; c.fillStyle = '#ffd23f'; c.strokeStyle = 'rgba(0,0,0,0.65)'; c.lineWidth = 2; c.beginPath(); c.moveTo(X, Y + 9); c.lineTo(X - 7, Y); c.lineTo(X + 7, Y); c.closePath(); c.stroke(); c.fill(); }
-  });
   for (const e of ENE) {
     if (e.dead) continue;
     const X = sx(e.x), Y = sy(e.y), bomber = e.type === 'd4y' || e.type === 'b6n', col = bomber ? '#ffb020' : '#ff3b30';

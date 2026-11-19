@@ -130,7 +130,8 @@ function airStep(dt) {
     p.vx = Math.sign(p.v0) * Math.max(Math.abs(p.v0) * lerp(1, 0.85, f), p.gear ? 0 : MIN_KT / KT) * Math.cos(Math.PI * f);
     p.vy += (-3 + p.in * 14 - p.vy) * Math.min(1, 2.5 * dt);   // 선회 중에도 ▲▼ 로 조금씩 오르내린다
     if (f >= 0.5 && !p.flipped) { p.s = -p.s; p.a = -p.a; p.flipped = true; }
-    p.th = p.s > 0 ? -0.06 : Math.PI + 0.06;
+    p.tp = (p.tp || 0) + (clamp(Math.atan2(p.vy, Math.max(Math.abs(p.v0) * 0.85, 25)), -0.6, 0.6) - p.tp) * Math.min(1, 4 * dt);   // 선회 중 기수 각도: 오르내리는 만큼 부드럽게 따라간다
+    p.th = p.s > 0 ? p.tp : Math.PI - p.tp;
     if (p.turn <= 0) { p.vx = -Math.sign(p.v0) * Math.max(Math.abs(p.v0) * 0.85, p.gear ? 0 : MIN_KT / KT); p.turn = 0; p.turnEndT = G.t; p.holdG = null; if (p.slowTurn) { p.stalled = true; p.slowTurn = false; G.msg = { text: 'Stalled by turning too slowly! Falling until you gain speed', until: G.t + 2.5 }; sfx('stall'); } }
     p.x += p.vx * dt; p.y = Math.min(MAX_ALT, p.y + p.vy * dt);
     return;
@@ -2829,7 +2830,7 @@ function startTurn() {
   if (p.mode !== 'air' || p.turn > 0 || p.off || p.y <= 12) { p.turnPend = false; return; }
   p.slowTurn = kts() < TURN_KT;   // 느릴 때도 돌 수는 있지만, 다 돌고 나면 실속한다
   if (Math.abs(Math.atan2(p.vy, Math.abs(p.vx))) > 0.5236) { if (!p.turnPend) G.msg = { text: 'Leveling out before the turn', until: G.t + 1.5 }; p.turnPend = true; return; }   // 급상승·급강하 중이면 먼저 수평으로
-  p.turnPend = false; p.turn = TURN_T; p.v0 = p.vx; p.flipped = false;
+  p.turnPend = false; p.turn = TURN_T; p.v0 = p.vx; p.flipped = false; p.tp = clamp(Math.atan2(p.vy, Math.abs(p.vx)), -0.6, 0.6);
 }
 addEventListener('keydown', e => {
   if (e.repeat) return; keys[e.code] = true; initAudio();
@@ -3293,7 +3294,7 @@ function drawWorld() {
       if (p.flip > 0) { const f = clamp(1 - p.flip / DECK_FLIP_T, 0, 1); drawPlane3D((p.flipFrom > 0 ? 0 : Math.PI) + Math.PI * f, 0, true); }
       else if (p.turn > 0) {
         const f = clamp(1 - p.turn / TURN_T, 0, 1);
-        drawPlane3D((p.v0 > 0 ? 0 : Math.PI) + Math.PI * f, Math.sin(Math.PI * f) * 1.0, p.gear);
+        { const ph = (p.v0 > 0 ? 0 : Math.PI) + Math.PI * f; c.rotate((p.tp || 0) * Math.cos(ph)); drawPlane3D(ph, Math.sin(Math.PI * f) * 1.0, p.gear); }   // 기울어진 채 돌면 기수가 위·아래를 향한 채로 돈다
       } else {
         c.rotate(p.th); c.scale(1, p.s);
         drawPlane({ gear: p.gear, flaps: p.flaps, hook: p.hook, thr: p.fuel > 0 ? p.thr : 0 });

@@ -756,7 +756,7 @@ const DMG = {
   rocket: { aa: 6, bunker: 13, fuel: 6, radar: 6, boat: 6, runway: 4, tank: 8, cave: 16, dd: 6, tr: 6, bm: 3.5, bb: 3.5, cv: 5 },   // 로켓: 강력한 탄두 — 직격 한 발로 대부분의 시설이 부서진다
   bomb: { aa: 10, bunker: 14, fuel: 10, radar: 10, boat: 12, runway: 10, tank: 10, cave: 8, dd: 14, tr: 14, bm: 12, bb: 12, cv: 16 }
 };
-Object.assign(HP, { barracks: 12, pill: 14, tower: 8 }); BOX.tower = { w: 8, h: 25 }; DMG.gun.tower = 0.3; DMG.rocket.tower = 12; DMG.bomb.tower = 8; BOX.pill = { w: 21, h: 7.4 }; DMG.gun.pill = 0.05; DMG.rocket.pill = 4; DMG.bomb.pill = 0; DMG.gun.bunker = 0.12;   // 콘크리트 벙커: 체력 14, 로켓 한 발에 4 → 4발을 맞아야 부서진다
+Object.assign(HP, { barracks: 12, pill: 14, tower: 8 }); BOX.tower = { w: 8, h: 25 }; DMG.gun.tower = 0; DMG.rocket.tower = 12; DMG.bomb.tower = 8; BOX.pill = { w: 21, h: 7.4 }; DMG.gun.pill = 0.05; DMG.rocket.pill = 4; DMG.bomb.pill = 0; DMG.gun.bunker = 0.12;   // 콘크리트 벙커: 체력 14, 로켓 한 발에 4 → 4발을 맞아야 부서진다
 Object.assign(HP, { barracks: 12 }); Object.assign(BOX, { barracks: { w: 40, h: 7 }, aa: { w: 11, h: 9 } }); DMG.gun.barracks = 0.15; DMG.rocket.barracks = 14; DMG.bomb.barracks = 10;
 const JP = { pill: 1, aa: 1, bunker: 1, cave: 1, radar: 1, barracks: 1, tank: 1 };   // 일본군이 있는 시설
 const SHIPS = { boat: 1, dd: 1, tr: 1, bm: 1, bb: 1, cv: 1 }, DEF_W = { pill: 2, aa: 1, bunker: 1.5, cave: 2, radar: 1 }, AA_N = { pill: 1, aa: 1, dd: 2, bm: 3, bb: 5, cv: 3, tr: 1, cave: 1 }, AA_R = { pill: 500, aa: 500, cave: 500, dd: 500, bm: 500, bb: 500, cv: 500, tr: 500 };

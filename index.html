@@ -139,7 +139,7 @@ function airStep(dt) {
   if (p.s * Math.cos(g) < -0.3 && Math.abs(p.in) < 0.2) { p.s = -p.s; p.a = -p.a; }   // 뒤집힌 채 놓으면 바로 선다
   const aTrim = clamp((GRAV * 0.985 / (KL * V * V) - CL_BASE) / 5, -0.25, 0.25);   // 키를 안 눌러도 속도에 맞춰 수평에 가깝게 맞춰 준다
   const pg = clamp(Math.pow(60 / V, 1.6), 0.3, 2.0);                                  // 빠를수록 같은 입력에 덜 꺾이게 해서 조작감을 같게 한다
-  let aCmd = p.s * (aTrim + p.in * (p.in > 0 ? 0.3 : 0.24) * pg);
+  let aCmd = p.s * clamp(aTrim + p.in * (p.in > 0 ? 0.6 : 0.48) * pg, -0.62, 0.62);   // 상승·하강 반응을 2배로 (조금만 눌러도 잘 오르내린다)
   const recov = Math.max(TURN_KT + 20, stallKt() * 1.35);   // 이만큼 속도가 붙어야 실속에서 벗어난다
   const climbA = Math.atan2(p.vy, Math.abs(p.vx));
   if (!p.stalled && climbA > Math.PI / 3) { p.stalled = true; G.msg = { text: 'Climbed too steeply and stalled! The nose drops', until: G.t + 2.5 }; sfx('stall'); }   // 60도 넘게 오르면 실속

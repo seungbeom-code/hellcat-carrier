@@ -2550,8 +2550,10 @@ function drawHpBars(c) {   // 적 구조물·함정이 맞으면 잠깐 체력�
     const fr = clamp(t.hp / t.hp0, 0, 1), bw = Math.max(8, BOX[t.type].w * cam.z * 0.78), bh = Math.max(2.5, bw * 0.1), X = sx(t.x), Y = sy(t.y + BOX[t.type].h + (SHIPS[t.type] ? 14 : 3)) - 3 * cam.z;
     const a = age > SHOW - 0.6 ? (SHOW - age) / 0.6 : 1;
     c.save(); c.globalAlpha = a;
-    c.fillStyle = 'rgba(205,208,214,0.8)'; c.beginPath(); c.roundRect(X - bw / 2 - 1, Y - 1, bw + 2, bh + 2, bh / 2 + 1); c.fill();
-    c.fillStyle = enemyCol(fr); c.beginPath(); c.roundRect(X - bw / 2, Y, Math.max(bh, bw * fr), bh, bh / 2); c.fill();
+    if (!SHIPS[t.type]) {   // 배에는 체력바를 달지 않는다 (남은 대공화기 수만 보인다)
+      c.fillStyle = 'rgba(205,208,214,0.8)'; c.beginPath(); c.roundRect(X - bw / 2 - 1, Y - 1, bw + 2, bh + 2, bh / 2 + 1); c.fill();
+      c.fillStyle = enemyCol(fr); c.beginPath(); c.roundRect(X - bw / 2, Y, Math.max(bh, bw * fr), bh, bh / 2); c.fill();
+    }
     if (t.guns && SHIP_GUNS[t.type]) { const n = t.guns.filter(g => g.alive).length; c.fillStyle = '#fff'; c.font = '700 11px system-ui,sans-serif'; c.textAlign = 'center'; c.lineWidth = 3; c.strokeStyle = 'rgba(8,12,20,0.8)'; const tx = 'AA guns ' + n + '/' + t.guns.length; c.strokeText(tx, X, Y - 5); c.fillText(tx, X, Y - 5); }
     c.restore();
   }

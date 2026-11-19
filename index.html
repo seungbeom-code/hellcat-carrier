@@ -25,7 +25,7 @@ const W = 960, H = 540, KT = 1.944;
 const GRAV = 9.8, KL = 0.004375, KD0 = 0.000276, AMAX = 10, PWR = 2500;   // 바퀴·플랩은 모양일 뿐, 비행에는 영향이 없다 (항상 같은 날개·항력)
 const CL_MAX = 1.17, CL_BASE = 0.35;   // 실속 속도 약 85노트 (그 아래에서는 날개가 양력을 못 낸다)
 const SHIP_V = 11;                 // 갑판 맞바람 30노트
-const DECK_Y = 20, DECK_L = 520, WH = 3.2, CS = DECK_L / 260, ISL_DX = 124;   // 갑판 길이는 예전의 2배 (선체 그림은 가로로 2배로 늘이고, 함교는 그대로 두고 자리만 옮긴다)   // 갑판 높이, 길이, 바퀴 밑까지 거리
+let DECK_Y = 20, shipBob = 0; const DECK_Y0 = 20, DECK_L = 520, WH = 3.2, CS = DECK_L / 260, ISL_DX = 124;   // 갑판 길이는 예전의 2배 (선체 그림은 가로로 2배로 늘이고, 함교는 그대로 두고 자리만 옮긴다)   // 갑판 높이, 길이, 바퀴 밑까지 거리
 const ZONE_B = 196, ZONE_A = 85, ZONE_L = ZONE_B - ZONE_A;   // 어레스팅 와이어 구역: 와이어 3개 (예전 4개에서 선미 쪽 하나를 줄여 함 중앙 쪽으로 좁혔다)
 const WIRES = [0, 1, 2].map(i => ZONE_A + 10 + i * (ZONE_L - 20) / 2);
 const TURN_T = 3.2;   // 선회에 걸리는 시간(초): 예전의 2배라 회전 반경도 2배
@@ -2815,7 +2815,8 @@ function drawScene() {
 function update(dt) {
   if (G.scene !== 'play' && G.scene !== 'title') return;
   if (G.scene === 'title') demoBot(dt);   // 첫 화면: 자동 조종 데모
-  G.t += dt; if (ship.x < G.holdX) ship.x += ship.v * dt;   // 섬에 너무 가까워지면 항모는 그 자리에 머문다
+  G.t += dt; shipBob = 5 * Math.sin(G.t * 0.7) * (1 - clamp(sinkProg() * 2, 0, 1)); DECK_Y = DECK_Y0 + shipBob;   // 항모가 파도에 따라 느리게 위아래로 출렁인다 (최고점과 최저점 차이 10 m)
+  if (ship.x < G.holdX) ship.x += ship.v * dt;   // 섬에 너무 가까워지면 항모는 그 자리에 머문다
   if (!G.manual) autoFly(dt); p.flaps = p.gear;
   if (p.mode === 'deck') deckStep(dt);
   else if (p.mode === 'air') { airStep(dt); checkContact(); }
@@ -3161,11 +3162,12 @@ function lsoSmall(c) {
   c.restore();
 }
 
-function drawShip() {
+function drawShip() { const k = DECK_Y; DECK_Y = DECK_Y0; try { drawShip0(); } finally { DECK_Y = k; } }   // 그림은 기준 높이로 그리고 출렁임만큼 통째로 옮긴다
+function drawShip0() {
   const c = ctx;
   { const half = W / cam.z / 2; if (ship.x + DECK_L + 60 < cam.x - half || ship.x - 320 > cam.x + half) return; }   // 화면 밖이면 그리지 않는다
   const su = sinkProg(); if (su >= 1) return;   // 완전히 가라앉았다
-  const sinkDy = -SINK_DEPTH * Math.pow(su, 1.5), tilt = 0.1 * clamp(su * 1.6, 0, 1);
+  const sinkDy = -SINK_DEPTH * Math.pow(su, 1.5) + shipBob, tilt = 0.1 * clamp(su * 1.6, 0, 1);
   if (su > 0) { c.save(); c.beginPath(); c.rect(-50, -50, W + 100, sy(0) + 50); c.clip(); }   // 수면 아래는 보이지 않는다
   world(ship.x, sinkDy, () => {
     if (su > 0) { c.translate(DECK_L / 2, 10); c.rotate(tilt); c.translate(-DECK_L / 2, -10); }   // 이물이 들리며 기운다

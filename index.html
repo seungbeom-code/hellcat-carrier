@@ -2470,18 +2470,19 @@ function fireBtns() {   // 화면의 발사 버튼: 기관총과, 이번에 실�
   return w ? [{ ...FIRE[0], x: 788, y: 432, w: 150, h: 84 }, { ...w, x: 788, y: 338, w: 150, h: 84 }] : [{ ...FIRE[0], x: 788, y: 432, w: 150, h: 84 }];   // 오른쪽 아래: 기관총 + 이번에 실은 무기 하나
 }
 const SMOKY = { air: 1, deck: 1, taxi: 1, lift: 1, slide: 1, dslide: 1 };   // 연기·체력바가 보이는 상태 (추락 중에는 제외)
+function hpBar(c, X, Y, bw, fr) {   // 체력바: 물체보다 좁고, 화면 확대율에 따라 같이 커지고 작아진다
+  bw = Math.max(8, bw); const bh = Math.max(2.5, bw * 0.14);
+  c.save(); c.fillStyle = 'rgba(8,12,20,0.78)'; c.beginPath(); c.roundRect(X - bw / 2 - 1, Y - 1, bw + 2, bh + 2, bh / 2 + 1); c.fill();
+  c.fillStyle = fr > 0.6 ? '#59d37a' : fr > 0.3 ? '#ffd23f' : '#ff5a3c'; c.beginPath(); c.roundRect(X - bw / 2, Y, Math.max(bh, bw * fr), bh, bh / 2); c.fill(); c.restore();
+}
 function drawPlayerHp(c) {   // 내 비행기 위에 항상 보이는 체력바
   if (!SMOKY[p.mode] || G.scene !== 'play') return;
-  const fr = clamp(p.hp / 100, 0, 1), bw = 64, X = sx(p.x), Y = sy(p.y + 8) - 12;
-  c.save(); c.fillStyle = 'rgba(8,12,20,0.78)'; c.beginPath(); c.roundRect(X - bw / 2 - 2, Y - 2, bw + 4, 10, 4); c.fill();
-  c.fillStyle = fr > 0.6 ? '#59d37a' : fr > 0.3 ? '#ffd23f' : '#ff5a3c'; c.beginPath(); c.roundRect(X - bw / 2, Y, Math.max(2, bw * fr), 6, 3); c.fill(); c.restore();
+  hpBar(c, sx(p.x), sy(p.y + 8) - 3 * cam.z, 9 * cam.z, clamp(p.hp / 100, 0, 1));
 }
 function drawEnemyHp(c) {   // 적기 위에 항상 보이는 체력바
   for (const e of ENE) {
     if (e.dead || Math.abs(e.x - cam.x) > W / cam.z / 2 + 40) continue;
-    e.hpM = Math.max(e.hpM || 0, e.hp, (ES[e.type] || {}).hp || 0); const fr = clamp(e.hp / e.hpM, 0, 1), bw = 40, X = sx(e.x), Y = sy(e.y + 7) - 12;
-    c.save(); c.fillStyle = 'rgba(8,12,20,0.78)'; c.beginPath(); c.roundRect(X - bw / 2 - 2, Y - 2, bw + 4, 8, 4); c.fill();
-    c.fillStyle = fr > 0.6 ? '#59d37a' : fr > 0.3 ? '#ffd23f' : '#ff5a3c'; c.beginPath(); c.roundRect(X - bw / 2, Y, Math.max(2, bw * fr), 4, 2); c.fill(); c.restore();
+    e.hpM = Math.max(e.hpM || 0, e.hp, (ES[e.type] || {}).hp || 0); hpBar(c, sx(e.x), sy(e.y + 7) - 3 * cam.z, 8 * cam.z, clamp(e.hp / e.hpM, 0, 1));
   }
 }
 function drawHpBars(c) {   // 적 구조물·함정이 맞으면 잠깐 체력바를 보여 준다 (군함은 남은 대공화기 수도)
@@ -2489,11 +2490,11 @@ function drawHpBars(c) {   // 적 구조물·함정이 맞으면 잠깐 체력�
   for (const t of TARGETS) {
     const age = G.t - (t.hitAt === undefined ? -99 : t.hitAt); if (!t.alive || age > SHOW || t.type === 'runway') continue;
     if (Math.abs(t.x - cam.x) > W / cam.z / 2 + 60) continue;
-    const fr = clamp(t.hp / t.hp0, 0, 1), bw = clamp(BOX[t.type].w * cam.z * 0.55, 46, 140), X = sx(t.x), Y = sy(t.y + BOX[t.type].h + (SHIPS[t.type] ? 14 : 3)) - 14;
+    const fr = clamp(t.hp / t.hp0, 0, 1), bw = Math.max(8, BOX[t.type].w * cam.z * 0.6), bh = Math.max(2.5, bw * 0.1), X = sx(t.x), Y = sy(t.y + BOX[t.type].h + (SHIPS[t.type] ? 14 : 3)) - 3 * cam.z;
     const a = age > SHOW - 0.6 ? (SHOW - age) / 0.6 : 1;
     c.save(); c.globalAlpha = a;
-    c.fillStyle = 'rgba(8,12,20,0.78)'; c.beginPath(); c.roundRect(X - bw / 2 - 2, Y - 2, bw + 4, 10, 4); c.fill();
-    c.fillStyle = fr > 0.6 ? '#59d37a' : fr > 0.3 ? '#ffd23f' : '#ff5a3c'; c.beginPath(); c.roundRect(X - bw / 2, Y, Math.max(2, bw * fr), 6, 3); c.fill();
+    c.fillStyle = 'rgba(8,12,20,0.78)'; c.beginPath(); c.roundRect(X - bw / 2 - 1, Y - 1, bw + 2, bh + 2, bh / 2 + 1); c.fill();
+    c.fillStyle = fr > 0.6 ? '#59d37a' : fr > 0.3 ? '#ffd23f' : '#ff5a3c'; c.beginPath(); c.roundRect(X - bw / 2, Y, Math.max(bh, bw * fr), bh, bh / 2); c.fill();
     if (t.guns && SHIP_GUNS[t.type]) { const n = t.guns.filter(g => g.alive).length; c.fillStyle = '#fff'; c.font = '700 11px system-ui,sans-serif'; c.textAlign = 'center'; c.lineWidth = 3; c.strokeStyle = 'rgba(8,12,20,0.8)'; const tx = 'AA guns ' + n + '/' + t.guns.length; c.strokeText(tx, X, Y - 5); c.fillText(tx, X, Y - 5); }
     c.restore();
   }

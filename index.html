@@ -1163,7 +1163,7 @@ function soldierStep(dt) {
       }
     }
     if (G.t - (o.sh || -9) < 0.45) { o.ph += 0; continue; }   // 사격 중에는 멈춰 선다
-    const REV = { pill: 1, bunker: 1, aa: 1 };
+    const REV = { bunker: 1, aa: 1 };
     let goal = null; if (!(o.cool > G.t)) for (const t of TARGETS) if (REV[t.type] && !t.alive && (t.type === 'bunker' || !t.claim) && t.isl === o.isl && Math.abs(t.x - o.x) < 500 && (!goal || Math.abs(t.x - o.x) < Math.abs(goal.x - o.x))) goal = t;   // 막 나온 병사는 잠시 돌아다닌다
     if (goal) o.dir = goal.x > o.x ? 1 : -1;
     else {   // 떠돌다가 가끔 다른 건물로 들어간다

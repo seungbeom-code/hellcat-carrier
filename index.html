@@ -1403,7 +1403,7 @@ function quadStep(dt) {   // 일반 벙커의 4연장 기관포: 포신이 내 �
     t.aim = t.aim === undefined ? want : t.aim + clamp(angd(want, t.aim), -1.4 * dt, 1.4 * dt);
     t.qcd = (t.qcd === undefined ? Math.random() * 3 : t.qcd) - dt; t.burst = (t.burst || 0) - dt;
     if (t.burst <= 0 && t.qcd <= 0 && p.mode === 'air' && d < 500 && d > 40 && Math.abs(angd(want, t.aim)) < 0.12) { t.burst = 0.5; alarmFauna(gx, gy, 220); t.qcd = 6.5 + Math.random() * 2; t.qn = 0; t.qe = (Math.random() - 0.5) * (0.2 + d / 4500); if (d < 1200) sfx('egun'); }
-    if (t.burst > 0) { t.qt = (t.qt || 0) - dt; while (t.qt <= 0) { t.qt += 1 / 12; t.qn = (t.qn || 0) + 1; const a = t.aim + t.qe + (Math.random() - 0.5) * 0.12, k = t.qn % 4; EB.push({ x: gx + Math.cos(t.aim) * off, y: gy + Math.sin(t.aim) * off + (k - 1.5) * 0.4, vx: Math.cos(a) * 520, vy: Math.sin(a) * 520, life: 2.2, why: 'Shot down by bunker cannon fire.', dmg: 1, aa: true }); t.qf = G.t; } }
+    if (t.burst > 0) { t.qt = (t.qt || 0) - dt; while (t.qt <= 0) { t.qt += 1 / 12; t.qn = (t.qn || 0) + 1; const a = t.aim + t.qe + (Math.random() - 0.5) * 0.12, k = t.qn % 4; const sd = pl ? (k % 2 ? 1 : -1) * 0.9 : 0; EB.push({ x: gx + Math.cos(t.aim) * off - Math.sin(t.aim) * sd, y: gy + Math.sin(t.aim) * off + Math.cos(t.aim) * sd + (pl ? 0 : (k - 1.5) * 0.4), vx: Math.cos(a) * 520, vy: Math.sin(a) * 520, life: 2.2, why: 'Shot down by bunker cannon fire.', dmg: pl ? 2 : 1, aa: true }); t.qf = G.t; } }
   }
 }
 function shellStep(dt) {   // 벙커의 곡사포: 내 비행기가 갈 곳을 내다보고 포물선으로 쏜다, 가까이에서 터지면 피해
@@ -2358,9 +2358,14 @@ function drawTarget(c, t, dead) {
         c.restore();
         const px = 0, py = 4.4, L = 6;   // 지붕 한가운데가 회전축
         c.fillStyle = '#1c1d1a'; c.beginPath(); c.arc(px, py, 0.85, 0, 7); c.fill(); c.fillStyle = '#4a4c46'; c.beginPath(); c.arc(px, py, 0.55, 0, 7); c.fill();
-        c.lineCap = 'round'; c.strokeStyle = '#5f625d'; c.lineWidth = 0.62; c.beginPath(); c.moveTo(px, py); c.lineTo(px + ca * L, py + sa * L); c.stroke();
-        c.strokeStyle = '#8d908a'; c.lineWidth = 0.34; c.beginPath(); c.moveTo(px + ca * 0.2, py + sa * 0.2); c.lineTo(px + ca * (L - 0.15), py + sa * (L - 0.15)); c.stroke(); c.lineCap = 'butt';
-        if (G.t - (t.flashT || -9) < 0.12 || (t.burst > 0 && ((G.t * 24) | 0) % 2 === 0)) { c.fillStyle = 'rgba(255,220,120,0.95)'; c.beginPath(); c.arc(px + ca * (L + 0.7), py + sa * (L + 0.7), 1.1, 0, 7); c.fill(); }
+        c.lineCap = 'round';
+        for (const sd of [-0.9, 0.9]) {   // 포신 두 개가 나란히 같은 방향을 겨눈다
+          const qx = px + nx * sd, qy = py + ny * sd;
+          c.strokeStyle = '#5f625d'; c.lineWidth = 0.5; c.beginPath(); c.moveTo(qx, qy); c.lineTo(qx + ca * L, qy + sa * L); c.stroke();
+          c.strokeStyle = '#8d908a'; c.lineWidth = 0.27; c.beginPath(); c.moveTo(qx + ca * 0.2, qy + sa * 0.2); c.lineTo(qx + ca * (L - 0.15), qy + sa * (L - 0.15)); c.stroke();
+          if (G.t - (t.flashT || -9) < 0.12 || (t.burst > 0 && ((G.t * 24 + (sd > 0 ? 1 : 0)) | 0) % 2 === 0)) { c.fillStyle = 'rgba(255,220,120,0.95)'; c.beginPath(); c.arc(qx + ca * (L + 0.7), qy + sa * (L + 0.7), 0.9, 0, 7); c.fill(); }
+        }
+        c.lineCap = 'butt';
       }
       c.restore();
       break;

@@ -1236,7 +1236,7 @@ function missionStep(dt) {
   if (G.tick && G.tick.length) { const T = G.tick[0]; if (T.t0 === undefined) T.t0 = G.t; if (G.t - T.t0 > 6) G.tick.shift(); }   // 속보 한 줄은 6초 동안 보인다
   if (G.carrierHp < 70 && Math.abs(ship.x + DECK_L / 2 - cam.x) < W / cam.z + DECK_L / 2 && Math.random() < dt * 6) FX.push({ k: 'smoke', x: ship.x + 40 + Math.random() * (DECK_L - 90), y: DECK_Y + 2, vx: ship.v - 6, vy: 5, life: 1.6, t: 0, s: 2 + Math.random() * 2 });
   if (p.mode === 'air' && G.t < (p.smokeT || 0) && Math.random() < dt * 40) FX.push({ k: 'trail', x: p.x - Math.cos(p.th) * 6 + (Math.random() - 0.5) * 2, y: p.y - Math.sin(p.th) * 6 + (Math.random() - 0.5), vx: p.vx * 0.3, vy: 3, life: 0.9, t: 0, s: 1.3 });   // 피격 직후 하얀 연기
-  if (p.mode === 'air' && p.hp < 45 && Math.random() < dt * 12) FX.push({ k: 'smoke', x: p.x - Math.cos(p.th) * 5, y: p.y - Math.sin(p.th) * 5, vx: p.vx * 0.2, vy: 2, life: 1, t: 0, s: 1.4 });
+  if (SMOKY[p.mode] && p.hp < 45 && Math.random() < dt * 12) FX.push({ k: 'smoke', x: p.x - Math.cos(p.th) * 5, y: p.y - Math.sin(p.th) * 5, vx: p.vx * 0.2, vy: 2, life: 1, t: 0, s: 1.4 });
   if (!m.obj && GOALS[M.goal](m, M)) { m.obj = true; G.toast = { text: 'Mission complete! Return, land on the carrier and take the elevator down', grade: 'green', until: G.t + 6 }; }
   if (m.obj && p.mode === 'lift' && p.el && p.el.st === 'svc') endMission(true);   // 귀환해서 엘리베이터로 격납고까지 내려가면 끝
   else if (G.carrierHp <= 0) {   // 체력이 0이 되면 항모가 서서히 가라앉고, 마지막에 함교만 물 위에 남았다가 사라진다
@@ -2469,6 +2469,21 @@ function fireBtns() {   // 화면의 발사 버튼: 기관총과, 이번에 실�
   const cap = LOAD_AMMO[G.loadout], w = FIRE.find(b => b.k !== 'gun' && cap[FIRE_KEY[b.k]] > 0);
   return w ? [{ ...FIRE[0], x: 788, y: 432, w: 150, h: 84 }, { ...w, x: 788, y: 338, w: 150, h: 84 }] : [{ ...FIRE[0], x: 788, y: 432, w: 150, h: 84 }];   // 오른쪽 아래: 기관총 + 이번에 실은 무기 하나
 }
+const SMOKY = { air: 1, deck: 1, taxi: 1, lift: 1, slide: 1, dslide: 1 };   // 연기·체력바가 보이는 상태 (추락 중에는 제외)
+function drawPlayerHp(c) {   // 내 비행기 위에 항상 보이는 체력바
+  if (!SMOKY[p.mode] || G.scene !== 'play') return;
+  const fr = clamp(p.hp / 100, 0, 1), bw = 64, X = sx(p.x), Y = sy(p.y + 8) - 12;
+  c.save(); c.fillStyle = 'rgba(8,12,20,0.78)'; c.beginPath(); c.roundRect(X - bw / 2 - 2, Y - 2, bw + 4, 10, 4); c.fill();
+  c.fillStyle = fr > 0.6 ? '#59d37a' : fr > 0.3 ? '#ffd23f' : '#ff5a3c'; c.beginPath(); c.roundRect(X - bw / 2, Y, Math.max(2, bw * fr), 6, 3); c.fill(); c.restore();
+}
+function drawEnemyHp(c) {   // 적기 위에 항상 보이는 체력바
+  for (const e of ENE) {
+    if (e.dead || Math.abs(e.x - cam.x) > W / cam.z / 2 + 40) continue;
+    e.hpM = Math.max(e.hpM || 0, e.hp, (ES[e.type] || {}).hp || 0); const fr = clamp(e.hp / e.hpM, 0, 1), bw = 40, X = sx(e.x), Y = sy(e.y + 7) - 12;
+    c.save(); c.fillStyle = 'rgba(8,12,20,0.78)'; c.beginPath(); c.roundRect(X - bw / 2 - 2, Y - 2, bw + 4, 8, 4); c.fill();
+    c.fillStyle = fr > 0.6 ? '#59d37a' : fr > 0.3 ? '#ffd23f' : '#ff5a3c'; c.beginPath(); c.roundRect(X - bw / 2, Y, Math.max(2, bw * fr), 4, 2); c.fill(); c.restore();
+  }
+}
 function drawHpBars(c) {   // 적 구조물·함정이 맞으면 잠깐 체력바를 보여 준다 (군함은 남은 대공화기 수도)
   const SHOW = 2.8;
   for (const t of TARGETS) {
@@ -2485,7 +2500,7 @@ function drawHpBars(c) {   // 적 구조물·함정이 맞으면 잠깐 체력�
 }
 function drawEnemyMarks(c) {
   if (G.scene !== 'play' && G.scene !== 'title') return;
-  drawHpBars(c);
+  drawHpBars(c); drawPlayerHp(c); if (G.scene === 'play') drawEnemyHp(c);
   c.save(); c.font = '800 12px system-ui,sans-serif'; c.textAlign = 'center';
   // 섬에 남은 것이 5개 이하가 되면 남은 건물과 병사 위에 노란 화살표 (마지막 몇 개를 찾기 쉽게)
   if (G.scene === 'play') ISLANDS.forEach((q, k) => {

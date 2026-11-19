@@ -220,6 +220,8 @@ function deckStep(dt) {
   }
   p.xr += p.vr * dt;
   p.x = ship.x + p.xr; p.y = DECK_Y + WH; p.vx = p.vr + ship.v; p.vy = 0;
+  { const Vm = p.vr + ship.v;   // 150노트를 넘으면 갑판 중간에서도 떠오른다
+    if (p.xr > 0 && p.xr < DECK_L && Math.abs(Vm) * KT >= 150 && Math.sign(Vm) === d) { p.mode = 'air'; p.vx = Vm; p.vy = 0.5; p.a = 0.06 * d; p.tookOff = true; p.liftT = G.t; p.y = DECK_Y + WH + 0.05; p.x = ship.x + p.xr; p.turnPend = false; p.stalled = false; p.slowTurn = false; return; } }
   if (p.xr > DECK_L + 1 || p.xr < -1) {   // 갑판 끝: 속도가 충분하면 떠오르고, 모자라면 떨어진다
     const V2 = p.vr + ship.v;
     if (Math.abs(V2) * KT >= TAKEOFF_KT && Math.sign(V2) === d) { p.mode = 'air'; p.vx = V2; p.vy = 0.5; p.a = 0.06 * d; p.tookOff = true; p.liftT = G.t; p.y = DECK_Y + WH + 0.05; p.x = ship.x + p.xr; p.turnPend = false; p.stalled = false; p.slowTurn = false; }

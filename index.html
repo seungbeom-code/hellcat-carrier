@@ -3383,17 +3383,11 @@ function drawHUD() {
   drawMiniMap(c);
   c.save(); c.translate(0, 24);   // 위쪽 표시판은 지도 아래로
   // 속도, 고도
-  panel(360, 10, 240, 44);
   c.fillStyle = '#fff'; c.textAlign = 'center'; c.font = '800 20px system-ui,sans-serif';
   const stall = p.mode === 'air' && (p.stalled || kt < stallKt() * 1.04);
-  c.fillStyle = stall ? '#ff8a73' : '#fff'; c.fillText(Math.round(kt) + ' kt', 420, 39);
-  c.fillStyle = '#fff'; c.fillText(Math.round(Math.max(0, p.y - WH)) + ' m', 540, 39);
   if (stall && Math.sin(G.t * 12) > 0) { c.fillStyle = '#ff5a3c'; c.font = '800 22px system-ui,sans-serif'; c.fillText('STALL!', 480, 84); }
   // 연료
-  panel(92, 10, 150, 36); c.fillStyle = '#243447'; c.fillRect(140, 22, 92, 12);
-  const ff = p.fuel / p.fuelMax; c.fillStyle = ff < 0.2 ? '#ff5a3c' : '#59d37a'; c.fillRect(140, 22, 92 * ff, 12);
   if (p.mode === 'air') { const fX = focusX(); if (fX !== null) { const dI = fX - p.x; panel(612, 50, 112, 26, 0.6); c.fillStyle = '#fff'; c.font = '700 12px system-ui,sans-serif'; c.fillText((dI < 0 ? '◀ Target ' : 'Target ▶ ') + (Math.abs(dI) / 1000).toFixed(1) + 'km', 622, 67); } }
-  c.fillStyle = '#fff'; c.font = '700 13px system-ui,sans-serif'; c.textAlign = 'left'; c.fillText('Fuel', 104, 33);
   // 항모 방향
   if (p.mode === 'air') {
     const d = (ship.x + DECK_L / 2) - p.x, far = Math.abs(d) > W / cam.z * 0.6;

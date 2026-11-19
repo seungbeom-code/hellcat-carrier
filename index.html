@@ -166,7 +166,7 @@ function airStep(dt) {
   if (!p.gear) { const Vm = MIN_KT / KT, V1 = Math.hypot(p.vx, p.vy); if (V1 < Vm && V1 > 0.01) { const kk = 1 + Math.min(1, 12 * dt) * (Vm / V1 - 1); p.vx *= kk; p.vy *= kk; } }   // 바퀴를 올리고 날 때는 150kt 아래로 느려지지 않는다
   if (p.turnPend) {   // 선회 대기: 부드럽게 수평으로 돌아온 다음 선회한다
     p.vy += (0 - p.vy) * Math.min(1, 2.2 * dt);
-    if (Math.abs(Math.atan2(p.vy, Math.abs(p.vx))) < 0.1) startTurn();
+    if (Math.abs(Math.atan2(p.vy, Math.abs(p.vx))) < 0.5) startTurn();
   }
   if (G.t - p.liftT < 4) p.vy = Math.min(p.vy, 1 + (G.t - p.liftT) * 3);
   if (p.y > MAX_ALT - 80 && p.vy > 0) { p.vy = Math.min(p.vy, Math.max(0, MAX_ALT - p.y) * 0.4); if (p.y > MAX_ALT - 15 && (!G.msg || G.msg.until < G.t)) G.msg = { text: 'Maximum altitude ' + MAX_ALT + ' m', until: G.t + 1.5 }; }   // 600m 가까이 가면 부드럽게 멈춘다
@@ -2829,7 +2829,7 @@ const keys = {}, ctl = { up: false, down: false, left: false, right: false };
 function startTurn() {
   if (p.mode !== 'air' || p.turn > 0 || p.off || p.y <= 12) { p.turnPend = false; return; }
   p.slowTurn = kts() < TURN_KT;   // 느릴 때도 돌 수는 있지만, 다 돌고 나면 실속한다
-  if (Math.abs(Math.atan2(p.vy, Math.abs(p.vx))) > 0.14) { if (!p.turnPend) G.msg = { text: 'Leveling out before the turn', until: G.t + 1.5 }; p.turnPend = true; return; }   // 급상승·급강하 중이면 먼저 수평으로
+  if (Math.abs(Math.atan2(p.vy, Math.abs(p.vx))) > 0.5236) { if (!p.turnPend) G.msg = { text: 'Leveling out before the turn', until: G.t + 1.5 }; p.turnPend = true; return; }   // 급상승·급강하 중이면 먼저 수평으로
   p.turnPend = false; p.turn = TURN_T; p.v0 = p.vx; p.flipped = false;
 }
 addEventListener('keydown', e => {

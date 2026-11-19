@@ -484,6 +484,7 @@ function checkContact() {
     return crash(soft ? 'Ditched in the sea. A destroyer rescued the pilot.' : 'Crashed into the sea.', soft);
   }
   if (p.off) return;
+  if (p.tookOff && G.t - p.liftT < 2.5 && xr > -4 && xr < DECK_L + 4 && wheel < DECK_Y && wheel > DECK_Y - 2.5) { p.y = DECK_Y + WH + 0.05; p.prevY = p.y; p.vy = Math.max(p.vy, 0.5); return; }   // 막 이륙했을 때는 출렁이며 올라오는 갑판이 받쳐 준다 (착함으로 잘못 보지 않는다)
   if (xr > -4 && xr < DECK_L + 4 && wheel < DECK_Y) {
     if (G.t < (p.bounceT || 0)) { p.y = DECK_Y + WH; p.prevY = p.y; if (p.vy < 0) p.vy = 0; return; }   // 튕기는 동안에는 갑판이 받쳐 준다 (갑판을 뚫고 내려가지 않는다)
     const wasAbove = p.prevY - WH >= DECK_Y - 0.6 && xr >= 0 && xr <= DECK_L;

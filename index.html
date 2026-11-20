@@ -3706,6 +3706,7 @@ function hint() {
   if (p.mode === 'taxi') {
     if (G.t < p.lock) return '';
     if (overElev()) return 'Space: elevator down — refuel, repair and choose your weapons';
+    if (G.m) { if (G.m.tipT0 === undefined) G.m.tipT0 = performance.now(); if (performance.now() - G.m.tipT0 > 10000) return ''; }   // 조작 안내는 처음 10초만
     return 'Hold ◀ or ▶ to speed up and take off · Space on elevator: service · Air: Space gun, C weapon';
   }
   if (p.mode === 'lift') return p.el && (p.el.st === 'svc' || p.el.st === 'pick') ? '' : 'Elevator moving';

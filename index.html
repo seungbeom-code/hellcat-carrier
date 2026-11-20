@@ -3136,7 +3136,18 @@ function drawWing(c) {
   const onDeck = w.st === 'roll' || w.st === 'rollout' || w.st === 'taxi' || w.st === 'eup' || w.st === 'edown', low = w.st === 'final' || w.st === 'app' || onDeck;
   world(w.x, w.y, () => { if (w.turn > 0) { const f = clamp(1 - w.turn / TURN_T, 0, 1), ph = (w.s0 > 0 ? 0 : Math.PI) + Math.PI * f; c.rotate((w.tp || 0) * Math.cos(ph)); drawPlane3D(ph, Math.sin(Math.PI * f), false); return; } c.rotate(w.h); c.scale(1, w.s === -1 ? -1 : 1); drawPlane({ gear: low && (onDeck || w.st === 'final'), flaps: w.st === 'final' || onDeck, hook: w.st === 'final' || w.st === 'rollout', thr: onDeck && w.st === 'park' ? 0 : 1 }); });
   const X = sx(w.x), Y = sy(w.y) - 30;
-  { c.save(); c.font = '700 12px system-ui,sans-serif'; c.textAlign = 'center'; c.lineWidth = 3; c.strokeStyle = 'rgba(0,0,0,0.6)'; c.fillStyle = '#9fd8ff'; c.strokeText('Wingman', X, Y); c.fillText('Wingman', X, Y); c.restore(); }
+  { c.save(); c.font = '700 12px system-ui,sans-serif'; c.textAlign = 'center'; c.lineWidth = 3; c.strokeStyle = 'rgba(0,0,0,0.6)'; c.fillStyle = '#9fd8ff'; c.strokeText('Wingman', X, Y); c.fillText('Wingman', X, Y);
+    // 장착 무기: 기관총·로켓·어뢰를 그림과 남은 수로 (다 쓴 무기는 흐리게)
+    const items = [['gun', w.ammo.gun, w.ammo.gun >= 1000 ? (w.ammo.gun / 1000).toFixed(1) + 'k' : String(w.ammo.gun)], ['rk', w.ammo.rk, String(w.ammo.rk)], ['tp', w.ammo.tp, String(w.ammo.tp)]], cw = 46; let ix = X - (items.length * cw) / 2 + 10; const iy = Y - 19;
+    c.font = '700 12px system-ui,sans-serif'; c.textAlign = 'left'; c.lineWidth = 2.5;
+    for (const [k, n, tx] of items) {
+      c.globalAlpha = n > 0 ? 1 : 0.35; c.lineJoin = 'round';
+      if (k === 'gun') { c.fillStyle = '#ffd54a'; c.fillRect(ix - 8, iy - 2, 3, 6); c.beginPath(); c.moveTo(ix - 8, iy - 2); c.lineTo(ix - 6.5, iy - 5); c.lineTo(ix - 5, iy - 2); c.fill(); c.fillRect(ix - 3, iy - 2, 3, 6); c.beginPath(); c.moveTo(ix - 3, iy - 2); c.lineTo(ix - 1.5, iy - 5); c.lineTo(ix, iy - 2); c.fill(); }
+      else if (k === 'rk') { c.fillStyle = '#e8ecf0'; c.fillRect(ix - 10, iy - 1.5, 9, 3); c.fillStyle = '#e04a3a'; c.beginPath(); c.moveTo(ix - 1, iy - 1.5); c.lineTo(ix + 3, iy); c.lineTo(ix - 1, iy + 1.5); c.fill(); c.fillStyle = '#9aa3ad'; c.beginPath(); c.moveTo(ix - 10, iy - 1.5); c.lineTo(ix - 12, iy - 4); c.lineTo(ix - 8, iy - 1.5); c.moveTo(ix - 10, iy + 1.5); c.lineTo(ix - 12, iy + 4); c.lineTo(ix - 8, iy + 1.5); c.fill(); }
+      else { c.fillStyle = '#7f8c99'; c.beginPath(); c.ellipse(ix - 5, iy, 6.5, 2.6, 0, 0, 7); c.fill(); c.fillStyle = '#c0392b'; c.fillRect(ix - 10, iy - 0.8, 2, 1.6); c.fillStyle = '#5d6975'; c.fillRect(ix - 11.5, iy - 3.8, 2, 7.6); }
+      c.fillStyle = '#fff'; c.strokeStyle = 'rgba(0,0,0,0.6)'; c.strokeText(tx, ix + 5, iy + 4); c.fillText(tx, ix + 5, iy + 4); c.globalAlpha = 1; ix += cw;
+    }
+    c.restore(); }
 }
 function update(dt) {
   if (G.scene !== 'play' && G.scene !== 'title') return;

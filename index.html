@@ -1213,6 +1213,7 @@ function spawnEnemy(type, x, y) { ENE.push({ type, x, y, h: Math.PI, v: ES[type]
 function spawnWave(l) { const m = G.m; (m.queue = m.queue || []).push(...l); }
 function hitCarrier(d) { if (G.sink) return; G.carrierHp = Math.max(0, G.carrierHp - d); explode(ship.x + 60 + Math.random() * (DECK_L - 120), DECK_Y + 2, 18, 'none', false); G.toast = { text: 'The carrier is hit!', grade: 'brown', until: G.t + 3 }; }
 function hurt(d, why) {
+  if (p === WP) { wingHurt(d); return; }   // 적의 사격 대상이 동료기일 때
   if (p.mode !== 'air' || G.result) return; d *= 1.3; p.hp -= d; p.smokeT = G.t + 1.4; sfx('hit');   // 적의 공격력 +30%, 맞으면 잠시 하얀 연기
   for (let i = 0, n = 3 + Math.min(4, Math.round(d)); i < n; i++) FX.push({ k: 'dirt', x: p.x + (Math.random() - 0.5) * 7, y: p.y + (Math.random() - 0.5) * 2.5, vx: p.vx * 0.5 + (Math.random() - 0.5) * 22, vy: (Math.random() - 0.4) * 14 + 2, life: 0.25 + Math.random() * 0.3, t: 0, s: 0.18 + Math.random() * 0.16, c: i % 2 ? '#c9ced4' : '#3f72b8' });   // 작은 티끌
   if (p.hp <= 0) crash(why || 'Shot down.');
@@ -2930,7 +2931,25 @@ function drawScene() {
 // ───────── 동료기: 항모에서 스스로 이륙·공격·착함·재무장을 되풀이한다 (단순화한 비행, 맞아도 격추되지 않는다) ─────────
 let WG = null;
 const W_CRUISE = 135, W_PARK_XR = 440;
-function newWing() { return { m: G.m, st: 'park', t: 1.5, xr: W_PARK_XR, vrel: 0, x: ship.x + W_PARK_XR, y: DECK_Y + WH, h: 0, v: ship.v, fl: 1, ammo: { gun: 1500, rk: 8, tp: 2 }, fuel: 100, tg: null, ph: 'ing', gT: 0, rT: 0, tT: 0, idle: 0 }; }
+const WP = { mode: 'air', turn: 0, off: false, gear: false, s: 1, th: 0, hp: 100, x: 0, y: 0, vx: 0, vy: 0, tookOff: true, stalled: false };   // 적 화기가 쏘는 대상으로 쓰는 동료기 대역
+const WING_HP = 150;
+const wingAir = () => WG && WG.hp > 0 && (WG.st === 'hunt' || WG.st === 'app' || WG.st === 'final');
+function foePick() {   // 적 화기·적기가 이번 순간 노리는 쪽: 위협이 가까운 쪽, 둘 다면 번갈아
+  if (!wingAir()) return p;
+  const w = WG, near = x => ENE.some(e => !e.dead && Math.abs(e.x - x) < 900) || TARGETS.some(t => t.alive && AA_N[t.type] && Math.abs(t.x - x) < 700);
+  const nw = near(w.x), np = p.mode === 'air' && near(p.x);
+  if (!nw) return p;   // 위협이 없거나 내 쪽에만 있다
+  if (np && Math.floor(G.t / 2.5) % 2 === 0) return p;   // 둘 다 위협 가까이면 번갈아 노린다
+  wingSync(); return WP;
+}
+function wingSync() { const w = WG; WP.x = w.x; WP.y = w.y; WP.vx = w.turn > 0 ? w.vx : Math.cos(w.h) * w.v; WP.vy = w.turn > 0 ? w.vy : Math.sin(w.h) * w.v; WP.th = w.h; WP.s = w.s || 1; WP.hp = w.hp; }
+function wingHurt(d) {
+  const w = WG; if (!w || w.hp <= 0) return;
+  w.hp -= d; w.smokeT = G.t + 1.4; if (Math.abs(w.x - p.x) < 1200) sfx('hit');
+  for (let i = 0, n = 3 + Math.min(4, Math.round(d)); i < n; i++) FX.push({ k: 'dirt', x: w.x + (Math.random() - 0.5) * 7, y: w.y + (Math.random() - 0.5) * 2.5, vx: (Math.random() - 0.5) * 22, vy: (Math.random() - 0.4) * 14 + 2, life: 0.25 + Math.random() * 0.3, t: 0, s: 0.18 + Math.random() * 0.16, c: i % 2 ? '#c9ced4' : '#3f72b8' });
+  if (w.hp <= 0) { w.st = 'wreck'; w.vx = Math.cos(w.h) * w.v; w.vy = Math.sin(w.h) * w.v * 0.5; w.turn = 0; G.toast = { text: 'Your wingman was shot down! A replacement is being readied', grade: 'brown', until: G.t + 3.5 }; }
+}
+function newWing() { return { hp: WING_HP, m: G.m, st: 'park', t: 1.5, xr: W_PARK_XR, vrel: 0, x: ship.x + W_PARK_XR, y: DECK_Y + WH, h: 0, v: ship.v, fl: 1, ammo: { gun: 1500, rk: 8, tp: 2 }, fuel: 100, tg: null, ph: 'ing', gT: 0, rT: 0, tT: 0, idle: 0 }; }
 function wingGun(t, w) {   // 배에서 아직 살아 있는 포 중 하나 (선수·선미 기관포를 먼저)
   const dr = t.dir < 0 ? -1 : 1; let b = null, bs = 1e9;
   for (const g of t.guns || []) { if (!g.alive) continue; const s = Math.abs(t.x + g.lx * SK[t.type] * dr - w.x) + (g.end ? 0 : 2000); if (s < bs) { bs = s; b = { x: t.x + g.lx * SK[t.type] * dr, y: t.y + HULL_H[t.type] + 3 }; } }
@@ -2952,6 +2971,16 @@ function wingPick(w) {   // 다음 공격 목표: 적기 > 지상 시설 > 병�
 function wingStep(dt) {
   if (G.scene !== 'play') { WG = null; return; }
   if (!WG || WG.m !== G.m) WG = newWing();
+  if (WG.st === 'wreck') {   // 격추: 불타며 떨어진다
+    const w = WG; w.vy -= GRAV * dt; w.vx *= 1 - 0.15 * dt; w.x += w.vx * dt; w.y += w.vy * dt; w.h = Math.atan2(w.vy, w.vx); w.s = w.vx >= 0 ? 1 : -1;
+    if (Math.random() < dt * 25) FX.push({ k: Math.random() < 0.5 ? 'fire' : 'smoke', x: w.x - w.vx * 0.03, y: w.y + 0.5, vx: 0, vy: 2, life: 0.9, t: 0, s: 1.8 });
+    let g = Math.max(0, gh(w.x)); const xr = w.x - ship.x;
+    if (xr > -4 && xr < DECK_L + 4 && w.y <= DECK_Y + WH) w.y = g = DECK_Y + WH - 0.01;
+    if (w.y <= g + 1) { explode(w.x, Math.max(w.y, 0.5), 18, 'none', g <= 0 && !(xr > -4 && xr < DECK_L + 4)); w.st = 'gone'; w.t = 30; }
+    return;
+  }
+  if (WG.st === 'gone') { WG.t -= dt; if (WG.t <= 0) WG = newWing(); return; }
+  if (G.t < (WG.smokeT || 0) || WG.hp < 50) { const w = WG; if ((w.st === 'hunt' || w.st === 'app' || w.st === 'final') && Math.random() < dt * (w.hp < 50 ? 14 : 8)) FX.push({ k: 'smoke', x: w.x - Math.cos(w.h) * 5, y: w.y - Math.sin(w.h) * 5, vx: 0, vy: 2, life: 0.9, t: 0, s: 1.4 }); }
   const w = WG, deck = DECK_Y + WH, sgn = Math.cos(w.h) >= 0 ? 1 : -1;
   if (w.st === 'park') {   // 갑판 위: 정비 후 대기
     w.x = ship.x + w.xr; w.y = deck; w.v = ship.v; w.h = 0.2; w.vrel = 0;
@@ -2971,7 +3000,7 @@ function wingStep(dt) {
   }
   if (w.st === 'taxi') {
     w.xr = Math.min(W_PARK_XR, w.xr + 12 * dt); w.x = ship.x + w.xr; w.y = deck; w.v = ship.v; w.h = 0.2;
-    if (w.xr >= W_PARK_XR - 0.01) { w.st = 'park'; w.t = 6; w.ammo = { gun: 1500, rk: 8, tp: 2 }; w.fuel = 100; w.tg = null; }
+    if (w.xr >= W_PARK_XR - 0.01) { w.st = 'park'; w.t = 6; w.ammo = { gun: 1500, rk: 8, tp: 2 }; w.fuel = 100; w.hp = WING_HP; w.tg = null; }
     return;
   }
   // ── 공중 ──
@@ -2980,9 +3009,9 @@ function wingStep(dt) {
   const hxx = Math.cos(w.h);
   let vt = W_CRUISE, hd = w.h, rate = 1.8, g0 = 0;
   for (let k = 1; k <= 5; k++) g0 = Math.max(g0, gh(w.x + hxx * w.v * 0.35 * k));
-  const spent = w.ammo.gun <= 0 && w.ammo.rk <= 0 && w.ammo.tp <= 0, carrierOk = !G.sink && G.carrierHp > 0;
+  const spent = w.ammo.rk <= 0 && (w.ammo.tp <= 0 || !TARGETS.some(t => t.alive && SHIPS[t.type])), carrierOk = !G.sink && G.carrierHp > 0;
   if (w.st === 'hunt') {
-    if (carrierOk && (w.fuel < 28 || spent)) { w.st = 'app'; w.tg = null; w.lap = null; }
+    if (carrierOk && (w.fuel < 28 || spent || w.hp < 60)) { w.st = 'app'; w.tg = null; w.lap = null; }
     else {
       if (w.tg) { const o = w.tg.o, k = w.tg.k; if (o.dead || o.alive === false || (k === 'ts' && w.ammo.tp <= 0) || (k === 'e' && w.ammo.gun <= 0) || (k === 'g' && SHIPS[o.type] && w.ammo.rk <= 0 && w.ammo.gun <= 0) || (k === 'ts' && o.guns && o.guns.some(g => g.alive && g.end))) w.tg = null; }
       if (!w.tg) { w.tg = wingPick(w); w.ph = 'ing'; }
@@ -3070,7 +3099,7 @@ function wingStep(dt) {
   if (w.y < 1) w.y = 1;
 }
 function drawWing(c) {
-  const w = WG; if (!w || G.scene !== 'play') return;
+  const w = WG; if (!w || G.scene !== 'play' || w.st === 'gone') return;
   const onDeck = w.st === 'park' || w.st === 'roll' || w.st === 'rollout' || w.st === 'taxi', low = w.st === 'final' || w.st === 'app' || onDeck;
   world(w.x, w.y, () => { if (w.turn > 0) { const f = clamp(1 - w.turn / TURN_T, 0, 1), ph = (w.s0 > 0 ? 0 : Math.PI) + Math.PI * f; c.rotate((w.tp || 0) * Math.cos(ph)); drawPlane3D(ph, Math.sin(Math.PI * f), false); return; } c.rotate(w.h); c.scale(1, w.s >= 0 ? 1 : -1); drawPlane({ gear: low && (onDeck || w.st === 'final'), flaps: w.st === 'final' || onDeck, hook: w.st === 'final' || w.st === 'rollout', thr: onDeck && w.st === 'park' ? 0 : 1 }); });
   const X = sx(w.x), Y = sy(w.y) - 30;
@@ -3092,7 +3121,9 @@ function update(dt) {
   else if (p.mode === 'down') { p.y = Math.max(1, p.y - 6 * dt); p.x += p.vx * dt; p.vx *= 1 - Math.min(1, 2 * dt); }
   if (p.mode === 'deck' || p.mode === 'taxi' || p.mode === 'dslide') { const xr = p.x - ship.x; if (xr > -4 && xr < DECK_L + 4) p.y = Math.max(p.y, DECK_Y + WH - (p.mode === 'dslide' ? 0.4 : 0)); }   // 바퀴가 갑판에 닿아 있으면 출렁이는 갑판 높이에 맞춰 갑판 밑으로 내려가지 않는다
   if (p.mode === 'air' || (p.mode === 'deck' && !p.held)) p.fuel = Math.max(0, p.fuel - (0.03 + 0.25 * p.thr) * dt);
-  G.lso = lsoSignal(); fireStep(dt); stepProj(dt); missionStep(dt); wingStep(dt); enemyStep(dt); ebStep(dt); flakStep(dt); shellStep(dt); quadStep(dt); towerStep(dt); shipMgStep(dt); stepFx(dt);
+  G.lso = lsoSignal(); fireStep(dt); stepProj(dt); missionStep(dt); wingStep(dt);
+  { const rp = p; p = foePick(); try { enemyStep(dt); ebStep(dt); flakStep(dt); shellStep(dt); quadStep(dt); towerStep(dt); shipMgStep(dt); } finally { p = rp; } }
+  stepFx(dt);
 }
 
 // ───────── 입력: 방향키 네 개 ─────────

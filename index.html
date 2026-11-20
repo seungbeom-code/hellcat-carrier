@@ -3026,7 +3026,7 @@ function wingStep(dt) {
     return;
   }
   if (w.st === 'taxi') {   // 갑판 위 이동: 엘리베이터 ↔ 발진선
-    w.ey = 0; const d = w.goal - w.xr; w.xr += clamp(d, -13 * dt, 13 * dt); w.x = ship.x + w.xr; w.y = deck; w.v = ship.v; w.h = 0.2;
+    w.ey = 0; const d = w.goal - w.xr; w.xr += clamp(d, -26 * dt, 26 * dt); w.x = ship.x + w.xr; w.y = deck; w.v = ship.v; w.h = 0.2;
     if (Math.abs(d) < 0.05) { if (w.goal === LAUNCH_XR) { w.st = 'roll'; w.vrel = 0; w.h = 0; } else if (elevFree() || (w.wait = (w.wait || 0) + dt) > 12) { w.wait = 0; w.st = 'edown'; w.t2 = 0; sfx('lift', { x: w.x }); } }
     return;
   }
@@ -3131,7 +3131,7 @@ function wingStep(dt) {
     }
     if (w.st === 'final') {
       const lead = 120, yt = ys(xr + lead);
-      hd = Math.atan2(yt - w.y, lead); rate = 1.2; vt = lerp(100, 62, clamp((xr + 950) / 600, 0, 1));
+      hd = Math.atan2(yt - w.y, lead); rate = 1.2; vt = lerp(120, 72, clamp((xr + 950) / 600, 0, 1));
       if (xr > 150 && w.y > deck + 30) { w.st = 'app'; w.lap = 'out'; }   // 너무 높으면 다시
       if (w.y <= deck + 0.25 && xr > 60 && xr < DECK_L - 40) {   // 접함
         w.st = 'rollout'; w.xr = xr; w.vrel = Math.max(10, w.v - ship.v); w.y = deck; w.h = 0.1; sfx('thump', { x: w.x }); return;

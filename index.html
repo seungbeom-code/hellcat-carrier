@@ -2979,7 +2979,8 @@ function wingGun(t, w) {   // 배에서 아직 살아 있는 포 중 하나 (선
   return b;
 }
 function wingPick(w) {   // 다음 공격 목표: 적기 > 지상 시설 > 병사 > 함정 (무기가 맞는 것만)
-  let best = null, bs = 1e9; const add = (o, kind, base) => { if (w.bl && w.bl.o === o && G.t < w.bl.until) return; const behind = Math.cos(w.h) * (o.x - w.x) < 0; const s = base + Math.abs(o.x - w.x) + (behind ? 700 : 0); if (s < bs) { bs = s; best = { k: kind, o }; } };
+  let best = null, bs = 1e9; const add = (o, kind, base) => { if (w.bl && w.bl.o === o && G.t < w.bl.until) return; const behind = Math.cos(w.h) * (o.x - w.x) < 0; const s = base + Math.abs(o.x - w.x) + (behind ? (kind === 'e' ? 700 : 4000) : 0);   // 지상 목표는 가는 방향 앞쪽 것을 모두 훑은 뒤에야 돌아선다 (섬을 쭉 지나가며 공격)
+    if (s < bs) { bs = s; best = { k: kind, o }; } };
   const dang = wingDang, weak = w.hp < WING_HP * 0.7;   // 대공 화력이 센 곳은 피한다 (다쳤으면 더)
   for (const e of ENE) if (!e.dead && Math.abs(e.x - w.x) < 1500 && w.ammo.gun > 0) add(e, 'e', -600 - (p.mode === 'air' && Math.abs(e.x - p.x) < 800 ? 1200 : 0));   // 내 비행기를 노리는 적기를 먼저 쫓아낸다
   for (const t of TARGETS) {
@@ -3071,6 +3072,7 @@ function wingStep(dt) {
         if (w.ph === 'egr' && w.clb && (w.y - ty > 200 || Math.abs(dx) > 1800)) { w.ph = 'ing'; w.clb = false; }
         if (w.ph === 'ing' && hi && Math.sin(w.h) < 0 && w.y - g0 < 90) w.ph = 'egr';   // 내리꽂다가 땅이 가까워지면 즉시 급상승
         if (w.ph === 'egr' && !w.clb && Math.abs(dx) > (hi ? 900 : 600) && (!hi || w.y - ty > 200)) w.ph = 'ing';   // 빠져나간 뒤 바로 돌아서 다시 들어간다 (멀리 가지 않는다)   // 로켓 공격은 충분히 올라간 뒤에야 다시 들어간다
+        if (w.ph === 'egr' && !w.clb && k === 'g' && passed && Math.abs(dx) > 60) { w.tg = null; w.fp = 0; }   // 지나친 목표는 놔두고, 진행 방향의 다음 목표로 바로 넘어간다
         if (w.ph === 'egr') w.fp = 0;
         if (w.ph === 'egr' && w.clb) { const ee = clamp((A - w.y) * 0.01, -0.1, 0.2); hd = dx > 0 ? Math.PI - ee : ee; }
         else if (w.ph === 'egr') { const ee = clamp((A - w.y) * 0.01, -0.25, hi ? 0.5 : 0.2) + (G.t < (w.smokeT || 0) + 2 ? 0.3 * Math.sin(G.t * 5) : 0); hd = sgn > 0 ? ee : Math.PI - ee; }   // 맞은 직후에는 위아래로 흔들며 빠져나간다

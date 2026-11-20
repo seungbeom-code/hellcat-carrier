@@ -3759,8 +3759,10 @@ function drawHudFaded() {   // HUD를 따로 그린 뒤 3분의 1 불투명도�
 function drawHUD() {
   const c = ctx, kt = p.turn > 0 ? Math.abs(p.v0) * KT : kts(), xr = p.x - ship.x;
   if (G.dark > 0) { c.fillStyle = 'rgba(3,7,18,' + G.dark + ')'; c.fillRect(0, 0, W, H); }
-  drawEnemyMarks(c);
+  const wv = G.camWing && WG && G.scene === 'play';   // 동료기 화면: 미니맵만 보여준다 (조작 버튼 자리는 그대로 눌리지만 그림은 없다)
+  if (!wv) drawEnemyMarks(c);
   drawMiniMap(c);
+  if (!wv) {
   c.save(); c.translate(0, 24);   // 위쪽 표시판은 지도 아래로
   // 속도, 고도
   c.fillStyle = '#fff'; c.textAlign = 'center'; c.font = '800 20px system-ui,sans-serif';
@@ -3815,7 +3817,8 @@ function drawHUD() {
     c.textAlign = 'left'; c.font = fs19; c.fillText(T.text, bx + 96, by + 27);
     c.fillStyle = 'rgba(255,255,255,0.25)'; c.fillRect(bx, by + 38, bw, 2); c.globalAlpha = 1;
   }
-  if (hangarOpen()) drawPick(c);
+  }   // !wv
+  if (hangarOpen() && !wv) drawPick(c);
   if (G.paused && G.scene === 'play' && !G.quiet) {   // 일시정지 화면 (G.quiet: 시험용으로 화면 표시 없이 멈춤)
     c.fillStyle = 'rgba(6,14,26,0.55)'; c.fillRect(-10, -40, W + 20, H + 60);
     c.textAlign = 'center'; c.fillStyle = '#fff'; c.font = '900 40px system-ui,sans-serif'; c.fillText(G.askQuit ? 'Leave this operation?' : 'Paused', 480, 250);
@@ -3823,7 +3826,7 @@ function drawHUD() {
     if (G.askQuit) { const b = BTN[0]; c.strokeStyle = '#ffd23f'; c.lineWidth = 3; c.beginPath(); c.roundRect(b.x - 3, b.y - 3, b.w + 6, b.h + 6, 11); c.stroke(); }
     c.textAlign = 'left';
   }
-  const hm = G.paused ? '' : hint();
+  const hm = G.paused || wv ? '' : hint();
   if (hm) { const tw = fitFont(c, hm, 16, '700', MSG_W - 30); panel(MSG_CX - tw / 2 - 14, 96, tw + 28, 34, 0.7); c.fillStyle = '#fff'; c.textAlign = 'center'; c.fillText(hm, MSG_CX, 119); }
   // 결과
   if (G.result && ((G.result.kind !== 'crash' && G.result.kind !== 'wreck') || G.t - G.result.at > 2.6)) {

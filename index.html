@@ -3047,7 +3047,7 @@ function wingStep(dt) {
   for (let k = 1; k <= 5; k++) g0 = Math.max(g0, gh(w.x + hxx * w.v * 0.35 * k));
   const spent = w.ammo.rk <= 0 && w.ammo.bm <= 0 && (w.ammo.tp <= 0 || !TARGETS.some(t => t.alive && SHIPS[t.type])), carrierOk = !G.sink && G.carrierHp > 0;
   if (w.st === 'hunt') {
-    if (carrierOk && (w.fuel < 14 + Math.abs(w.x - ship.x) * 0.003 || spent || (w.ammo.gun < 150 && w.ammo.rk <= 0 && w.ammo.bm <= 0) || w.hp < 40 || (w.hp < 60 && !ENE.some(e => !e.dead && Math.hypot(e.x - w.x, e.y - w.y) < 700)))) { w.st = 'app'; w.tg = null; w.lap = null; }
+    if (carrierOk && (w.fuel < 14 + Math.abs(w.x - ship.x) * 0.003 || spent || (w.ammo.gun < 150 && w.ammo.rk <= 0 && w.ammo.bm <= 0) || w.hp < 55 || (w.hp < 75 && !ENE.some(e => !e.dead && Math.hypot(e.x - w.x, e.y - w.y) < 700)))) { w.st = 'app'; w.tg = null; w.lap = null; }
     else {
       if (w.tg) { const o = w.tg.o, k = w.tg.k; if (o.dead || o.alive === false || (k === 'ts' && w.ammo.tp <= 0) || (k === 'e' && w.ammo.gun <= 0) || (k === 'g' && SHIPS[o.type] && w.ammo.rk <= 0 && w.ammo.gun <= 0) || (k === 'ts' && o.guns && o.guns.some(g => g.alive && g.end))) w.tg = null; }
       if (w.tg && w.tg.k !== 'e' && w.ammo.gun > 0 && G.t > (w.rpT || 0)) {   // 적기가 가까이 붙으면 하던 일을 접고 맞서 싸운다
@@ -3158,7 +3158,7 @@ function wingStep(dt) {
     if (Math.abs(w.pitch) < 0.5 && w.v * KT >= TURN_KT + 20 && w.y - g0 > 30 && w.st !== 'final') { w.turn = TURN_T; w.s0 = w.s; w.v0 = w.v; w.flipped = false; w.tp = w.pitch; w.vy = Math.sin(w.h) * w.v; return; }
     wp = 0; wantDir = w.s;
   }
-  w.pitch += clamp(clamp(wp, -0.62, 0.62) - w.pitch, -1.1 * dt, 1.1 * dt);
+  w.pitch += clamp(clamp(wp, -0.62, 0.62) - w.pitch, -1.5 * dt, 1.5 * dt);
   w.h = w.s > 0 ? w.pitch : Math.PI - w.pitch;
   w.v += (vt - w.v) * Math.min(1, dt * 0.8);
   w.x += Math.cos(w.h) * w.v * dt; w.y += Math.sin(w.h) * w.v * dt;

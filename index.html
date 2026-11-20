@@ -54,8 +54,8 @@ const cv = document.getElementById('c'), ctx0 = cv.getContext('2d'); let ctx = c
 const LANG = (() => { try { const q = /[?&]lang=([a-z]+)/.exec(location.search); if (q) return q[1].toLowerCase().slice(0, 2); } catch (e) {} const nv = typeof navigator === 'undefined' ? {} : navigator; return ((nv.languages && nv.languages[0]) || nv.language || 'en').toLowerCase().slice(0, 2); })() === 'ko' ? 'ko' : 'en';
 const KO = {"Rockets":"로켓","15 heavy rockets":"로켓 15발","Bunkers, AA guns, ship guns":"벙커, 대공포, 군함의 포","Bombs":"폭탄","30 small bombs (250 kg)":"폭탄 30발","Buildings, barracks, parked aircraft":"건물, 막사, 지상의 적기","Torpedoes":"어뢰","3 torpedoes":"어뢰 3발","Sinking ships":"군함 격침","Stalled by turning too slowly! Falling until you gain speed":"너무 느리게 돌아 실속! 속도를 되찾을 때까지 추락합니다","Climbed too steeply and stalled! The nose drops":"너무 가파르게 올라 실속! 기수가 떨어집니다","Speed regained, out of the stall":"속도를 되찾아 실속에서 벗어났습니다","Maximum altitude ":"최대 고도 ","Air too thin, stalling! Lower the nose and build speed":"공기가 희박해 실속합니다! 기수를 내려 속도를 붙이세요","Stalling! Lower the nose and build speed":"실속 중! 기수를 내려 속도를 붙이세요","Overshot the wires and rolled off the deck. Touch down at the front of the yellow striped zone.":"와이어를 지나쳐 갑판 밖으로 굴러 나갔습니다. 노란 줄무늬 구역 앞쪽에 내리세요.","Ran out of deck and fell into the sea. Touch down near the middle of the deck.":"갑판이 모자라 바다로 떨어졌습니다. 갑판 가운데 쪽에 내리세요.","Not enough takeoff speed, dropped off the end of the deck.":"이륙 속도가 모자라 갑판 끝에서 떨어졌습니다.","UNDER":"속도 부족","FAST":"너무 빠름","LOW":"너무 낮음","HIGH":"너무 높음","ROGER":"양호","Crashed.":"추락했습니다.","Flew into an enemy ship.":"적 군함에 충돌했습니다.","The crash knocked out ":"추락으로 "," ship guns":"문의 함포가 파괴되었습니다","a ship gun":"함포 하나가 파괴되었습니다","Crashed onto an enemy ship":"적 군함 위로 추락했습니다","Flew into the island hills.":"섬의 언덕에 충돌했습니다.","Flew too low, clipped a tree and crashed.":"너무 낮게 날다 나무에 걸려 추락했습니다.","Ditched in the sea. A destroyer rescued the pilot.":"바다에 불시착했습니다. 구축함이 조종사를 구조했습니다.","Crashed into the sea.":"바다로 추락했습니다.","Hit the hull. Too low.":"선체에 부딪혔습니다. 너무 낮았습니다.","A wing hit the deck mid-turn. You cannot land while turning.":"선회 중 날개가 갑판에 닿았습니다. 선회하면서는 착함할 수 없습니다.","Touched down on something other than the wheels.":"바퀴가 아닌 곳으로 닿았습니다.","Landed too hard. Come down gently.":"너무 세게 착함했습니다. 부드럽게 내리세요.","Not level. Nose too ":"수평이 아닙니다. 기수가 너무 ","high.":"높습니다.","low.":"낮습니다.","Stopped on wheel brakes alone, no wire.":"와이어 없이 바퀴 브레이크만으로 멈췄습니다.","-wire. Smooth and level. Perfect!":"번 와이어. 부드럽고 수평입니다. 완벽!","A little fast.":"조금 빨랐습니다.","A little tilted.":"조금 기울었습니다.","A little hard.":"조금 세게 닿았습니다.","-wire. Thump! But down safely.":"번 와이어. 쿵! 하지만 무사히 착함했습니다.","CUT":"엔진 끄기","WAVEOFF":"착함 취소","Refueled, repaired, loaded: ":"급유·수리·적재 완료: ","Wait until the work is done":"작업이 끝날 때까지 기다리세요","Hangar — choose your load":"격납고 — 무장을 고르세요","Refueled and repaired · every load carries 2,400 gun rounds · ships sink only to torpedoes":"급유·수리 완료 · 모든 무장에 기관총탄 2,400발 · 군함은 어뢰로만 가라앉습니다"," + 2,400 rds":" + 기총 2,400발","Tap a card · or press 1 / 2 / 3 · ◀ ▶ then Space":"카드를 누르거나 1 / 2 / 3 · ◀ ▶ 후 Space","Hangar — repair and rearm":"격납고 — 수리와 재무장","Goes back up once refuel, rearm and repair are done":"급유·재무장·수리가 끝나면 올라갑니다","Refuel":"급유","Fuel ":"연료 ","%  (tank ":"%  (탱크 ","Rearm":"재무장","Repair":"수리","Airframe ":"기체 ","Go up (Space)":"올라가기 (Space)","Working…":"작업 중…","Gooney Bird Island":"알바트로스 섬","Jan 1944":"1944년 1월","Midway Atoll":"미드웨이 환초","Training":"훈련","Take off, hit 3 targets and land on the carrier once":"이륙해서 표적 3개를 맞히고 항모에 한 번 착함하세요","First Flag":"첫 깃발","Jan 31":"1월 31일","Majuro Atoll":"마주로 환초","Island assault":"섬 공략","Destroy every building and soldier on each island to force a surrender":"섬마다 건물과 병사를 모두 없애 항복을 받아 내세요","Two Islands, One Runway":"두 섬, 하나의 활주로","Feb 1":"2월 1일","Kwajalein, Roi-Namur":"콰잘렌, 로이나무르","Destroy every building and soldier on both islands. Keep troops out of wrecked AA guns":"두 섬의 건물과 병사를 모두 없애세요. 병사가 부서진 대공포에 들어가지 못하게 하세요","Cats at Dawn":"새벽의 고양이들","Feb 17":"2월 17일","Truk Atoll":"트럭 환초","Airbase strike":"비행장 공습","Shoot down 12 Zeros and destroy the airfields on both large islands":"제로센 12기를 격추하고 두 큰 섬의 비행장을 파괴하세요","Big Island, Long Day":"큰 섬, 긴 하루","Jun 15":"6월 15일","Saipan":"사이판","Destroy every building, tank and soldier on the big island":"큰 섬의 건물, 전차, 병사를 모두 없애세요","Turkey Shoot":"칠면조 사냥","Jun 19":"6월 19일","Philippine Sea":"필리핀 해","Fleet defense":"함대 방어","Stop the incoming dive bombers and torpedo bombers and protect the carrier":"날아오는 급강하 폭격기와 뇌격기를 막아 항모를 지키세요","Return in the Dark":"어둠 속의 귀환","Jun 20":"6월 20일","Carrier strike":"항모 공격","Sink the enemy carrier and fly home in the dark":"적 항모를 가라앉히고 어둠 속에서 귀환하세요","Orote Cliffs":"오로트 절벽","Jul 21":"7월 21일","Guam":"괌","Rocket the cliff cave guns and clear the island":"절벽 동굴의 포를 로켓으로 부수고 섬을 소탕하세요","Coral Ridge":"산호 능선","Sep 15":"9월 15일","Peleliu":"펠렐리우","Destroy the cave guns (hittable only when the doors open) and clear the island":"동굴 포(문이 열릴 때만 맞힐 수 있음)를 부수고 섬을 소탕하세요","Battle of Leyte Gulf":"레이테 만 해전","Oct 24–25":"10월 24~25일","Sibuyan Sea, Cape Engaño":"시부얀 해, 엔가뇨 곶","Naval battle":"해전","Sink the battleship and all 4 carriers, then return":"전함과 항모 4척을 모두 가라앉히고 귀환하세요","one perfect (green) landing":"완벽한(초록) 착함 한 번","no wrecked bunker or AA gun gets restored":"부서진 벙커나 대공포가 복구되지 않을 것","shoot down the ace":"에이스 격추","carrier above 80%":"항모 체력 80% 이상","return with over 10% fuel":"연료 10% 이상 남기고 귀환","carrier above 60%":"항모 체력 60% 이상","carrier above 70%":"항모 체력 70% 이상","Majuro":"마주로","Kwajalein":"콰잘렌","Eniwetok":"에니웨톡","Truk":"트럭","Tinian":"티니안","Angaur":"앙가우르","Iwo":"이오","Bougainville":"부건빌","Tarawa":"타라와","Makin":"마킨","Rabaul":"라바울","Palau":"팔라우","Yap":"얍","Wake":"웨이크","Midway":"미드웨이","Solomon":"솔로몬","Gilbert":"길버트","Marshall":"마셜","Caroline":"캐롤라인","Mariana":"마리아나","Bonin":"보닌","Rota":"로타","Ulithi":"울리티","Storm":"폭풍","Lightning":"번개","Hammer":"망치","Spear":"창","Wave":"파도","Eagle":"독수리","Hawk":"매","Flame":"불꽃","Dawn":"새벽","Thunder":"천둥","Shield":"방패","Arrow":"화살","Wind":"바람","Star":"별","Anchor":"닻","Gull":"갈매기","Coral":"산호","Typhoon":"태풍","Day":"낮","Dusk":"해질녘","Night":"밤","Skirmish Lv ":"스커미시 Lv ","Operation ":"작전 ","large battleship":"대형 전함","small battleship":"소형 전함"," small island":"개 작은 섬"," large island":"개 큰 섬","Air raids ":"공습 ","Island + fleet":"섬 + 함대","Clear both islands":"두 섬의","Clear all ":"모든 "," islands":"개 섬의","Clear the island":"섬의"," of every building and soldier":" 건물과 병사를 모두 없애세요"," and sink ":" 그리고 "," with torpedoes":"을(를) 어뢰로 격침하세요"," (strip a battleship of every AA gun and machine gun first)":" (전함은 대공포와 기관총을 먼저 모두 부수세요)"," to force a surrender":"을(를) 없애 항복을 받아 내세요","Shoot down ":"제로센 "," Zeros and destroy every enemy aircraft parked on the airfields":"기를 격추하고 비행장에 세워 둔 적기를 모두 파괴하세요","Fleet strike":"함대 공격","Sink ":"","Stop the incoming bombers and torpedo planes to protect the carrier":"날아오는 폭격기와 뇌격기를 막아 항모를 지키세요","Ensign":"소위","Lieutenant":"대위","Lt Cmdr":"소령","Commander":"중령","Captain":"대령","Admiral":"제독","Finish the previous operation first":"먼저 앞 작전을 끝내세요","All aircraft lost":"모든 항공기를 잃었습니다","Landing begins! Marines head for the beach":"상륙 시작! 해병대가 해변으로 향합니다","Enemy tanks counterattack!":"적 전차가 반격합니다!","The flag is up on the summit!":"정상에 깃발이 올랐습니다!","Landing failed. Destroy more defenses and try again":"상륙 실패. 방어 시설을 더 부수고 다시 시도하세요","Enemy aircraft destroyed on the ground!":"지상의 적기를 파괴했습니다!","The carrier is hit!":"항모가 피격되었습니다!","Shot down.":"격추되었습니다.","Japanese troops repaired a wrecked bunker and it is firing again!":"일본군이 부서진 벙커를 고쳐 다시 사격합니다!","Japanese troops restored a wrecked ":"일본군이 부서진 ","AA gun":"대공포","concrete bunker":"콘크리트 벙커","Shot down by infantry rifle fire.":"보병의 소총 사격에 격추되었습니다."," island":" 섬"," retaken — the Japanese surrender and raise a white flag":" 탈환 — 일본군이 항복하고 백기를 올렸습니다","bunker":"벙커","Zeros taking off from the enemy airfield!":"적 비행장에서 제로센이 이륙합니다!","Enemy floatplane catapulted from a battleship!":"전함에서 적 수상기가 사출되었습니다!","Mission complete! Return, land on the carrier and take the elevator down":"임무 완료! 귀환해서 항모에 착함하고 엘리베이터로 내려가세요","The carrier is sinking!":"항모가 가라앉고 있습니다!","The carrier sank":"항모가 침몰했습니다","Shot down by enemy fighters.":"적 전투기에 격추되었습니다.","Shot down by ship machine-gun fire.":"군함의 기관총에 격추되었습니다.","Shot down by a guard-tower machine gun.":"보초 타워의 기관총에 격추되었습니다.","Shot down by bunker cannon fire.":"벙커의 포 사격에 격추되었습니다.","Shot down by a howitzer shell.":"곡사포탄에 격추되었습니다.","Shot down by flak.":"대공포 파편에 격추되었습니다.","Enemy carrier":"적 항모","Enemy battleship":"적 전함"," sunk!":" 격침!","Ships sink only to torpedoes · rockets knock out their guns":"군함은 어뢰로만 가라앉습니다 · 로켓은 포를 부숩니다","Concrete bunker: it takes 2 rocket hits":"콘크리트 벙커: 로켓 2발이 필요합니다","Bombs do not hurt concrete bunkers — use rockets!":"폭탄은 콘크리트 벙커에 듣지 않습니다 — 로켓을 쓰세요!","Out of ":""," loaded":" 다 떨어졌습니다"," — land and take the elevator to rearm":" — 착함해서 엘리베이터로 재무장하세요","Last ":"마지막 "," away — land and take the elevator to rearm (the gun still works)":" 발사 — 착함해서 엘리베이터로 재무장하세요 (기관총은 아직 됩니다)","too high":"너무 높음","not level":"수평이 아님","Near miss! A bomb only damages what it hits directly":"빗나갔습니다! 폭탄은 직격한 것만 부숩니다","The torpedo broke on the water (":"어뢰가 물에 부딪혀 부서졌습니다(","too fast":"너무 빠름",") — fly level, below ":") — 수평으로, 높이 ","The battleship shrugs it off — knock out every AA gun and machine gun first":"전함은 끄떡없습니다 — 대공포와 기관총을 먼저 모두 부수세요","Dud! The torpedo hit the bow head-on and failed to explode — hit the stern instead":"불발! 어뢰가 뱃머리에 정면으로 맞아 터지지 않았습니다 — 고물 쪽을 노리세요","Landings ":"착함 ","/1 · Targets ":"/1 · 표적 ","Ships sunk ":"격침한 군함 ","Retaken ":"탈환 "," islands · Troops ":"개 섬 · 병사 "," · Buildings ":" · 건물 ","Kills ":"격추 "," · Parked aircraft left ":" · 남은 지상 적기 "," · Carrier ":" · 항모 ","Capital ships ":"주력함 ","Mission complete — return to the carrier and take the elevator down":"임무 완료 — 항모로 귀환해 엘리베이터로 내려가세요","Carrier hull ":"항모 선체 ","AA guns ":"대공포 ","Gun":"기관총","Space":"Space","Rocket":"로켓","Bomb":"폭탄","Torpedo":"어뢰","Blue Wings of the Pacific":"태평양의 푸른 날개","An island in the Pacific, 1942":"태평양의 섬, 1942","Fly from the carrier and retake the islands one by one":"항모에서 출격해 섬을 하나씩 되찾으세요","Tap the screen or press any key to start":"화면을 누르거나 아무 키나 눌러 시작","Demo flight":"데모 비행","FLY":"비행","▲ ▼ nose up / down · the arrow in your flight direction = full power · the opposite arrow = U-turn":"▲ ▼ 기수 위/아래 · 날아가는 방향의 화살표 = 최대 출력 · 반대 화살표 = 유턴","Hands off and the plane holds its path. Too slow, too steep (over 60°) or too high and it stalls: let it dive to recover.":"손을 떼면 비행기가 진로를 유지합니다. 너무 느리거나, 너무 가파르거나(60° 초과), 너무 높으면 실속합니다. 기수를 내려 회복하세요.","DECK":"갑판","Hold ◀ or ▶ to roll and take off. The opposite arrow brakes, then turns the plane around.":"◀ 또는 ▶ 를 누른 채 활주해 이륙합니다. 반대 화살표는 브레이크이고 이어서 기체를 돌립니다.","Stop on the elevator and press Space (or the button): refuel, repair and choose one weapon load.":"엘리베이터 위에 멈추고 Space(또는 버튼)를 누르면 급유·수리하고 무장을 하나 고릅니다.","LAND":"착함","Come in low, slow and level and touch down on the yellow zone. The hook catches a wire.":"낮고 느리고 수평으로 들어와 노란 구역에 닿으세요. 후크가 와이어를 겁니다.","GUN":"기관총","Space — machine gun: hurts planes, soldiers, buildings, trees and ship AA guns (rockets and bombs hit far harder)":"Space — 기관총: 비행기, 병사, 건물, 나무, 군함의 대공포에 피해 (로켓과 폭탄이 훨씬 강함)","WEAPON":"무기","C — fires the one weapon you loaded in the hangar":"C — 격납고에서 실은 무기 하나를 발사합니다","ROCKETS":"로켓","15 heavy rockets: one direct hit wrecks almost any building, AA gun or ship gun, and only rockets break concrete bunkers. Range 2,000 m, then the motor cuts out":"대형 로켓 15발: 직격 한 발이면 거의 모든 건물, 대공포, 군함의 포가 부서지고, 콘크리트 벙커는 로켓만 부숩니다. 사거리 2,000m","BOMBS":"폭탄","30 small 250 kg bombs: direct hits only (a near miss just throws up debris), a few per building. No effect on concrete bunkers or ships":"250kg 소형 폭탄 30발: 직격만 유효(빗나가면 파편만 튐), 건물마다 몇 발 필요. 콘크리트 벙커와 군함에는 듣지 않습니다","TORPEDOES":"어뢰","The only way to sink a ship. Release fairly level, below 60 m. Range 1,500 m":"군함을 가라앉히는 유일한 방법. 수평에 가깝게, 60m 아래에서 투하. 사거리 1,500m","ISLANDS":"섬","An island surrenders when every building and soldier is gone.":"건물과 병사가 모두 없어지면 섬이 항복합니다.","A destroyed barracks releases soldiers who repair wrecked bunkers and guns. Shoot them first.":"부서진 막사에서 병사가 뛰쳐나와 부서진 벙커와 포를 고칩니다. 먼저 쏘세요.","Large islands have an airfield that launches Zeros.":"큰 섬에는 제로센이 이륙하는 비행장이 있습니다.","FINISH":"끝내기","After \"Mission complete\", land and ride the elevator down. You get 3 aircraft per operation.":"\"임무 완료\" 뒤에 착함해서 엘리베이터로 내려가세요. 작전마다 항공기가 3대 주어집니다.","KEYS":"키","P pause · M sound · Esc leave the operation (press twice)":"P 일시정지 · M 소리 · Esc 작전 나가기(두 번)","How to play":"조작법","Tap or press any key to close":"누르거나 아무 키나 눌러 닫기","BLUE WINGS":"푸른 날개","OF THE PACIFIC":"태평양의","DISTINGUISHED FLYING CROSS":"수훈 비행 십자훈장","Awarded to the pilot who freed every island of the Pacific":"태평양의 모든 섬을 해방한 조종사에게 수여합니다","THE END":"끝","Thank you for flying · Stars ":"비행해 주셔서 감사합니다 · 별 "," · Press any key":" · 아무 키나 누르세요","◀ ▶ difficulty · R random mission · M campaign · Enter launch · H how to play · Esc title":"◀ ▶ 난이도 · R 무작위 임무 · M 캠페인 · Enter 출격 · H 조작법 · Esc 처음으로","◀ ▶ pick any operation you have unlocked · Enter launch · R new map · M skirmish · H how to play · Esc title":"◀ ▶ 열린 작전 고르기 · Enter 출격 · R 새 지도 · M 스커미시 · H 조작법 · Esc 처음으로","Blue Wings of the Pacific 1942":"태평양의 푸른 날개 1942","Rank ":"계급 "," · Best: Op ":" · 최고: 작전 "," · Stars ":" · 별 ","Campaign":"캠페인","Skirmish":"스커미시","Skirmish · Level ":"스커미시 · 레벨 ","Free play · random level and map · no campaign progress saved":"자유 대전 · 무작위 레벨과 지도 · 캠페인 기록은 저장되지 않음","  cleared":"  클리어","New operation":"새 작전","Not cleared yet":"아직 클리어하지 못함"," · Enemy planes ":" · 적기 ","★3: lose no aircraft and ":"★3: 항공기를 잃지 않고 ","R rolls a new random mission · ◀ ▶ sets the difficulty (1-20)":"R 새 무작위 임무 · ◀ ▶ 난이도(1-20)","Campaign: levels 1-20 get harder in order · clear Level 20 for the medal ceremony":"캠페인: 1~20레벨이 차례로 어려워집니다 · 20레벨을 깨면 훈장 수여식","Launch (Enter)":"출격 (Enter)","New map (R)":"새 지도 (R)","How to play (H)":"조작법 (H)","Mission Success":"임무 성공","Mission Failed":"임무 실패"," · Targets ":" · 표적 "," · Landings ":" · 착함 "," · Aircraft lost ":" · 잃은 항공기 ","★1: complete · ★2: lose at most 1 aircraft · ★3: lose none and ":"★1: 완료 · ★2: 항공기를 1대까지만 잃음 · ★3: 잃지 않고 ","Next: Op ":"다음: 작전 ","Retry (new map)":"다시 도전 (새 지도)","Operations (Enter)":"작전 목록 (Enter)","Leveling out before the turn":"선회 전에 수평을 잡습니다","Ops":"작전","Sound":"소리","Pause":"일시정지","Arresting zone":"어레스팅 구역","Elevator":"엘리베이터","Space — take the elevator down to finish":"Space — 엘리베이터로 내려가 끝내기","Taxi to the elevator with ◀▶ and press Space":"◀▶ 로 엘리베이터까지 가서 Space를 누르세요","Space: elevator down — refuel, repair and choose your weapons":"Space: 엘리베이터 내리기 — 급유·수리하고 무장 고르기","Hold ◀ or ▶ to speed up and take off · Space on elevator: service · Air: Space gun, C weapon":"◀ 또는 ▶ 를 누르고 가속해 이륙 · 엘리베이터에서 Space: 정비 · 공중: Space 기관총, C 무기","Elevator moving":"엘리베이터 이동 중","Good! Lifting off at the deck end":"좋아요! 갑판 끝에서 떠오릅니다","Rolling… reach ":"활주 중… 갑판 끝 전에 "," kt before the deck end to lift off":"kt에 도달해야 이륙합니다","Turning — you lose a little speed and height":"선회 중 — 속도와 고도를 조금 잃습니다","Climbing gently — ▲ to climb more":"완만하게 상승 중 — ▲ 로 더 오르기","Fuel is low":"연료가 부족합니다","Out of ammo":"탄약이 없습니다",". Return to the carrier and resupply on the elevator":". 항모로 돌아와 엘리베이터에서 보급하세요","Press the opposite arrow to turn back to the carrier":"반대쪽 화살표로 항모 쪽으로 돌아가세요","STALL!":"실속!","◀ Target ":"◀ 표적 ","Target ▶ ":"표적 ▶ ","Fuel":"연료","Carrier ":"항모 ","Sound off":"소리 끔","Sound on":"소리 켬","Elevator down (Space)":"엘리베이터 내리기 (Space)","Start landing (V)":"상륙 시작 (V)","NEWS":"속보","Leave this operation?":"이 작전을 나갈까요?","Paused":"일시정지","Tap Ops again (or press Esc) to leave · tap anywhere else to keep flying":"나가려면 작전 버튼을 다시 누르세요(또는 Esc) · 다른 곳을 누르면 계속 비행","Tap the screen or press any key to continue":"화면을 누르거나 아무 키나 눌러 계속","Perfect":"완벽","Good":"좋음","Fair":"보통","Danger":"위험","Barrier":"방벽","Touchdown ":"착함 ","Ditched":"불시착","Crashed":"추락","Tap here to fly again (Enter) · Planes left ":"여기를 눌러 다시 비행 (Enter) · 남은 항공기 ","All aircraft lost (Enter)":"모든 항공기를 잃었습니다 (Enter)","Destroy every building and soldier ":"건물과 병사를 모두 없애세요 ","Dud!":"불발!"};
 const trCache = new Map(); let trRe = null;
-const KO_SHIP = { 'large battleship': '대형 전함', 'small battleship': '소형 전함', 'carrier': '항공모함', 'transport': '수송선', 'destroyer': '구축함' };
-const koShips = x => x.replace(/(\d+) (large battleship|small battleship|carrier|transport|destroyer)s?/g, (m, n, k) => KO_SHIP[k] + ' ' + n + '척');
+const KO_SHIP = { 'large battleship': '대형 전함', 'small battleship': '소형 전함', 'battleship': '전함', 'carrier': '항공모함', 'transport': '수송선', 'destroyer': '구축함' };
+const koShips = x => x.replace(/(\d+) (large battleship|small battleship|battleship|carrier|transport|destroyer)s?/g, (m, n, k) => KO_SHIP[k] + ' ' + n + '척');
 const KO_RULES = [   // 문장 전체를 한국어 어순으로 바꾸는 규칙
   [/^Clear (both islands|all (\d+) islands|the island) of every building and soldier(?: and sink (.+?) with torpedoes( \(strip.*\))?| to force a surrender)$/, (m, sc, n, sh, st) => (sc[0] === 'b' ? '두 섬의' : sc[0] === 'a' ? '섬 ' + n + '개의' : '섬의') + ' 건물과 병사를 모두 없애' + (sh ? '고 ' + koShips(sh) + '을 어뢰로 격침하세요' + (st ? ' (전함은 대공포와 기관총을 먼저 모두 부수세요)' : '') : ' 항복을 받아 내세요')],
   [/^Sink (.+) with torpedoes$/, (m, sh) => koShips(sh) + '을 어뢰로 격침하세요'],
@@ -64,7 +64,7 @@ const KO_RULES = [   // 문장 전체를 한국어 어순으로 바꾸는 규칙
   [/^Japanese troops restored a wrecked (.+)!$/, (m, x) => '일본군이 ' + tr(x) + ' 복구!'],
   [/^(?:Op \d+|Skirmish Lv \d+|\d+\.) — .+$/, m => m.split(' — ').map(tr).join(' — ')],   // 여러 문장을 ' — ' 로 이은 줄은 토막마다 따로 옮긴다
 ];
-const KO_SUBS = [[/(\d+) small islands?/g, '작은 섬 $1개'], [/(\d+) large islands?/g, '큰 섬 $1개'], [/(\d+) (large battleship|small battleship|carrier|transport|destroyer)s?/g, (m, n, k) => KO_SHIP[k] + ' ' + n + '척']];
+const KO_SUBS = [[/(\d+) small islands?/g, '작은 섬 $1개'], [/(\d+) large islands?/g, '큰 섬 $1개'], [/(\d+) (large battleship|small battleship|battleship|carrier|transport|destroyer)s?/g, (m, n, k) => KO_SHIP[k] + ' ' + n + '척']];
 function tr(t) {
   if (LANG !== 'ko' || typeof t !== 'string' || !t) return t;
   let r = trCache.get(t); if (r !== undefined) return r;
@@ -768,6 +768,61 @@ const JP = { pill: 1, aa: 1, bunker: 1, cave: 1, radar: 1, barracks: 1, tank: 1 
 const SHIPS = { boat: 1, dd: 1, tr: 1, bm: 1, bb: 1, cv: 1 }, DEF_W = { pill: 2, aa: 1, bunker: 1.5, cave: 2, radar: 1 }, AA_N = { pill: 1, aa: 1, dd: 2, bm: 3, bb: 5, cv: 3, tr: 1, cave: 1 }, AA_R = { pill: 500, aa: 500, cave: 500, dd: 500, bm: 500, bb: 500, cv: 500, tr: 500 };
 const HULL_H = { boat: 4.5, dd: 6.5, tr: 16, bm: 7.8, bb: 7.8, cv: 14.5 };   // 적 함정 선체(갑판) 높이(m)
 const SHIP_GUNS = { dd: { gy: 3.2, xs: [-12, 8] }, bm: { gy: 4.3, xs: [-30, 36], mg: [1] }, bb: { gy: 4.3, xs: [-52, -44, 52, 62], mg: [1, 3] }, cv: { gy: 8.2, xs: [-36, 28, 44] }, tr: { gy: 5.2, xs: [8] } };   // 함정의 대공포 자리 (예전의 절반)   // 함정의 대공포 자리
+// ───── 함정은 전함·항공모함·구축함 3종류. 거기에 shipyard.html 에서 직접 설계한 배(u_...)를 더할 수 있다 ─────
+const SHIP_KEY = 'hellcat-ships', SHIP_CLS = {}, USHIP = {}, SHIP_NAME = { dd: 'destroyer', bb: 'battleship', cv: 'carrier' };
+const CLS = ty => SHIP_CLS[ty] || ty, normShip = t => t === 'tr' || t === 'boat' ? 'dd' : t === 'bm' ? 'bb' : t;   // 수송선·작은 배는 구축함, 소형 전함은 전함으로
+function registerShips() {
+  let v = null; try { v = JSON.parse(localStorage.getItem(SHIP_KEY)); } catch (_) {}
+  for (const k of Object.keys(USHIP)) delete USHIP[k];
+  const num = (x, lo, hi, d) => isFinite(x) ? Math.max(lo, Math.min(hi, +x)) : d, col = (s, d) => /^#[0-9a-f]{3,8}$/i.test(s) ? s : d;
+  ((v && Array.isArray(v.ships)) ? v.ships : []).slice(0, 24).forEach(d => {
+    if (!d || !d.id) return;
+    const cls = ['dd', 'bb', 'cv'].includes(d.cls) ? d.cls : 'dd', key = 'u_' + String(d.id).replace(/[^\w]/g, '').slice(0, 12);
+    let hull = (Array.isArray(d.hull) ? d.hull : []).filter(q => Array.isArray(q) && isFinite(q[0]) && isFinite(q[1])).slice(0, 60).map(q => [num(q[0], -400, 400, 0), num(q[1], -6, 80, 0)]);
+    if (hull.length < 3) return;
+    const x0 = Math.min(...hull.map(q => q[0])), x1 = Math.max(...hull.map(q => q[0])), cx = (x0 + x1) / 2, len = Math.max(40, x1 - x0);
+    hull = hull.map(q => [q[0] - cx, q[1]]);
+    const top = Math.max(...hull.map(q => q[1])), parts = (Array.isArray(d.parts) ? d.parts : []).slice(0, 48).filter(q => q && ['box', 'funnel', 'mast', 'turret'].includes(q.k)).map(q => ({ k: q.k, x: num(q.x, -400, 400, 0) - cx, y: num(q.y, -6, 120, 0), w: num(q.w, 1, 200, 8), h: num(q.h, 1, 120, 6), n: Math.round(num(q.n, 1, 4, 2)), c: col(q.c, '#7b8895') }));
+    const aa = (Array.isArray(d.aa) ? d.aa : []).slice(0, 8).map(q => ({ x: num(q.x, -400, 400, 0) - cx, y: num(q.y, 0, 120, top), mg: q.mg ? 1 : 0 }));
+    let hi = top; parts.forEach(q => { hi = Math.max(hi, q.k === 'mast' ? q.y + q.h : q.k === 'turret' ? q.y + q.w * 0.7 : q.y + q.h); });
+    const SKu = 2.6, name = String(d.name || 'Ship').replace(/[<>]/g, '').slice(0, 24) || 'Ship';
+    USHIP[key] = { d, cls, len, hull, parts, aa, top, col: { hull: col(d.hullCol, '#5d6b78'), deck: col(d.deckCol, '#3a4350'), water: col(d.waterCol, '#6b2a22') } };
+    SHIP_CLS[key] = cls; SHIP_NAME[key] = name; SHIPS[key] = 1; HP[key] = HP[cls]; SK[key] = SKu; SP[key] = SP[cls]; HULL_H[key] = Math.max(2, top);
+    BOX[key] = { w: len, h: Math.max(10, hi) }; AA_N[key] = AA_N[cls]; AA_R[key] = AA_R[cls];
+    for (const tb of Object.values(DMG)) tb[key] = tb[cls];
+    SHIP_GUNS[key] = { gy: aa.length ? aa.reduce((s, q) => s + q.y, 0) / aa.length / SKu + 0.9 : 3, gys: aa.map(q => q.y / SKu + 0.9), xs: aa.map(q => q.x / SKu), mg: aa.map((q, i) => q.mg ? i : -1).filter(i => i >= 0) };
+  });
+}
+const userShipKeys = () => Object.keys(USHIP);
+function injectShips(list, seed) {   // 내가 만든 배를 지도에 무작위로 섞는다 (같은 종류의 배 자리에만)
+  const rr = rngOf((seed ^ 0x5bd1e995) >>> 0), pool = userShipKeys().filter(k => USHIP[k].d.inject !== false);
+  return list.map(t => { const c = pool.filter(k => USHIP[k].cls === CLS(t)); return c.length && rr() < 0.5 ? c[Math.floor(rr() * c.length)] : t; });
+}
+function drawCustomShip(c, t, U) {
+  const k = 1 / SK[t.type]; c.save(); c.scale(k, k); c.lineJoin = 'round';
+  const path = pts => { c.beginPath(); pts.forEach((q, i) => i ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1])); c.closePath(); };
+  path(U.hull); c.fillStyle = U.col.hull; c.fill();
+  c.save(); path(U.hull); c.clip(); c.fillStyle = U.col.water; c.fillRect(-U.len, -8, U.len * 2, 9.5); c.fillStyle = U.col.deck; c.fillRect(-U.len, U.top - 1.6, U.len * 2, 1.8); c.restore();
+  path(U.hull); c.strokeStyle = 'rgba(10,14,18,0.75)'; c.lineWidth = 0.5; c.stroke();
+  let flag = null;
+  for (const q of U.parts) {
+    if (q.k === 'box') {
+      c.fillStyle = q.c; c.fillRect(q.x - q.w / 2, q.y, q.w, q.h); c.fillStyle = 'rgba(255,255,255,0.18)'; c.fillRect(q.x - q.w / 2, q.y + q.h - 0.6, q.w, 0.6); c.fillStyle = 'rgba(0,0,0,0.25)'; c.fillRect(q.x - q.w / 2, q.y, q.w, 0.6);
+      if (q.w > 6 && q.h > 5) { c.fillStyle = 'rgba(20,26,32,0.6)'; for (let yy = q.y + q.h * 0.3; yy < q.y + q.h - 1.6; yy += 2.8) for (let xx = q.x - q.w / 2 + 1.6; xx < q.x + q.w / 2 - 1.8; xx += 3.2) c.fillRect(xx, yy, 1.5, 1); }
+    } else if (q.k === 'funnel') {
+      c.fillStyle = q.c; c.beginPath(); c.moveTo(q.x - q.w / 2, q.y); c.lineTo(q.x + q.w / 2, q.y); c.lineTo(q.x + q.w * 0.4, q.y + q.h); c.lineTo(q.x - q.w * 0.4, q.y + q.h); c.closePath(); c.fill(); c.fillStyle = '#16191c'; c.fillRect(q.x - q.w * 0.42, q.y + q.h - 1.6, q.w * 0.84, 1.6);
+    } else if (q.k === 'mast') {
+      c.strokeStyle = '#3d474f'; c.lineWidth = 0.7; c.beginPath(); c.moveTo(q.x, q.y); c.lineTo(q.x, q.y + q.h); c.moveTo(q.x - 3.2, q.y + q.h * 0.7); c.lineTo(q.x + 3.2, q.y + q.h * 0.7); c.stroke();
+      if (!flag || q.y + q.h > flag[1]) flag = [q.x, q.y + q.h];
+    } else {   // 주포탑: 둥근 포탑과 앞으로 뻗은 포신
+      const s = q.w, n = q.n;
+      c.fillStyle = q.c; c.beginPath(); c.moveTo(q.x - s * 0.5, q.y); c.lineTo(q.x - s * 0.38, q.y + s * 0.55); c.lineTo(q.x + s * 0.25, q.y + s * 0.6); c.lineTo(q.x + s * 0.5, q.y + s * 0.2); c.lineTo(q.x + s * 0.5, q.y); c.closePath(); c.fill();
+      c.strokeStyle = '#20262c'; c.lineWidth = 0.6; c.lineCap = 'round'; for (let i = 0; i < n; i++) { const yy = q.y + s * (0.3 + 0.1 * (i - (n - 1) / 2) * 2.2); c.beginPath(); c.moveTo(q.x + s * 0.3, yy); c.lineTo(q.x + s * 1.25, yy + s * 0.06); c.stroke(); }
+    }
+  }
+  if (flag) drawFlagJP(c, flag[0] + 0.3, flag[1], 8.8, 5.5);
+  c.restore();
+}
 const BUSH = [];   // 덤불: 숲 바닥을 채우는 장식 (부딪히지 않는다)
 const TARGETS = [], PROJ = [], TREES = [], ENE = [], EB = [], FLAK = [], SOLD = [];
 const ES = { zero: { v: 149, n: 6.5, hp: 4 }, ace: { v: 162, n: 7.5, hp: 8 }, n1k: { v: 167, n: 7.0, hp: 9 }, d4y: { v: 105, n: 2.6, hp: 6 }, b6n: { v: 100, n: 2.2, hp: 7 } };   // 속도(m/s), 견딜 수 있는 선회 g, 체력
@@ -848,7 +903,7 @@ function genMission(L, seed, rnd) {   // rnd: 정해진 레벨 계획 대신 무
   if (!spec) {   // 11레벨부터: 섬 수·크기, 함정, 작전 종류를 무작위로, 레벨이 오를수록 많이
     const r = L < 3 ? 0.9 : R(), pBig = clamp(0.3 + L * 0.02, 0.3, 0.7), nI = ri(1, Math.min(4, 1 + Math.floor(L / 4))), isl = [];
     for (let k = 0; k < nI; k++) isl.push(R() < pBig ? 'b' : 's');
-    const ships = []; if (R() < 0.55) for (let k = 0, n = ri(1, Math.min(5, 1 + Math.floor(L / 5))); k < n; k++) ships.push(pick(L >= 12 ? ['dd', 'dd', 'tr', 'bb', 'bm', 'cv'] : L >= 6 ? ['dd', 'dd', 'tr', 'bb', 'bm'] : ['dd', 'dd', 'tr']));
+    const ships = []; if (R() < 0.55) for (let k = 0, n = ri(1, Math.min(5, 1 + Math.floor(L / 5))); k < n; k++) ships.push(pick(L >= 12 ? ['dd', 'dd', 'bb', 'cv'] : L >= 6 ? ['dd', 'dd', 'bb'] : ['dd', 'dd']));
     if (r < 0.1) spec = { isl: [], ships: [], goal: 'defend', waves: Math.min(6, 2 + Math.floor(L / 4)) };
     else if (r < 0.2 && L >= 6) spec = { isl: ['b', 's', 'b'].slice(0, Math.max(2, nI)), ships: [], goal: 'air', waves: Math.min(6, Math.floor(L / 2)) };
     else if (r < 0.32) spec = { isl: [], ships: ships.length ? ships.concat(['dd']) : ['cv', 'dd', 'bb'], goal: 'fleet', waves: Math.min(6, Math.floor(L / 2)) };
@@ -874,22 +929,22 @@ function genMission(L, seed, rnd) {   // rnd: 정해진 레벨 계획 대신 무
   });
   const boats = [];   // 작은 배는 쓰지 않는다
   // 함정: 섬이 있으면 섬 앞바다에, 바다 작전이면 멀리 함대로
-  const ships = spec.ships.map((t, j) => [t, M.islands.length ? 4700 - j * 650 : 6900 + j * 700]);
+  const ships = injectShips(spec.ships.map(normShip), seed).map((t, j) => [t, M.islands.length ? 4700 - j * 650 : 6900 + j * 700]);
   M.build = (add, P) => { extra.forEach(([ty, k, f]) => add(ty, P(k, f))); boats.forEach(bx => add('boat', bx)); ships.forEach(([ty, sx]) => add(ty, sx)); };
-  const nBig = spec.isl.filter(t => t === 'b').length, nSm = spec.isl.length - nBig, SN = { cv: 'carrier', bb: 'large battleship', bm: 'small battleship', tr: 'transport', dd: 'destroyer' };
+  const nBig = spec.isl.filter(t => t === 'b').length, nSm = spec.isl.length - nBig, SN = SHIP_NAME;
   const shipTxt = ships.length ? Object.entries(ships.reduce((o, [t]) => (o[t] = (o[t] || 0) + 1, o), {})).map(([t, n]) => n + ' ' + SN[t] + (n > 1 ? 's' : '')).join(', ') : '';
   M.isl = [nSm ? nSm + ' small island' + (nSm > 1 ? 's' : '') : '', nBig ? nBig + ' large island' + (nBig > 1 ? 's' : '') : '', shipTxt].filter(Boolean).join(' · ') || ('Air raids ' + spec.waves);
   const fleetT = [...new Set(ships.map(q => q[0]))];
   if (goal === 'capture') {
     M.kind = ships.length ? 'Island + fleet' : 'Island assault';
     if (ships.length) { M.fleet = fleetT; M.landAfter = true; }
-    M.brief = (spec.isl.length === 2 ? 'Clear both islands' : spec.isl.length > 2 ? 'Clear all ' + spec.isl.length + ' islands' : 'Clear the island') + ' of every building and soldier' + (ships.length ? ' and sink ' + shipTxt + ' with torpedoes' + (fleetT.includes('bb') || fleetT.includes('bm') ? ' (strip a battleship of every AA gun and machine gun first)' : '') : ' to force a surrender');
+    M.brief = (spec.isl.length === 2 ? 'Clear both islands' : spec.isl.length > 2 ? 'Clear all ' + spec.isl.length + ' islands' : 'Clear the island') + ' of every building and soldier' + (ships.length ? ' and sink ' + shipTxt + ' with torpedoes' + (fleetT.some(q => CLS(q) === 'bb') ?' (strip a battleship of every AA gun and machine gun first)' : '') : ' to force a surrender');
     M.bonus = m => !m.revived; M.bonusTxt = 'no wrecked bunker or AA gun gets restored';
   } else if (goal === 'air') {
     M.kind = 'Airbase strike'; M.zeroN = 5 + L; M.brief = 'Shoot down ' + M.zeroN + ' Zeros and destroy every enemy aircraft parked on the airfields';
     M.bonus = m => !m.revived; M.bonusTxt = 'no wrecked bunker or AA gun gets restored';
   } else if (goal === 'fleet') {
-    M.fleet = fleetT.filter(t => t !== 'dd').length ? fleetT.filter(t => t !== 'dd') : fleetT; M.landAfter = true;
+    M.fleet = fleetT.filter(t => CLS(t) !== 'dd').length ? fleetT.filter(t => CLS(t) !== 'dd') : fleetT; M.landAfter = true;
     M.kind = 'Fleet strike'; M.brief = 'Sink ' + shipTxt + ' with torpedoes';
     M.bonus = () => p.fuel >= 10; M.bonusTxt = 'return with over 10% fuel';
   } else {
@@ -900,15 +955,18 @@ function genMission(L, seed, rnd) {   // rnd: 정해진 레벨 계획 대신 무
 }
 
 // ───────── 사용자 캠페인 (editor.html 에서 만든 작전) ─────────
-const CUS_KEY = 'hellcat-custom', CUS_ITEMS = ['bunker', 'pill', 'barracks', 'aa', 'radar', 'fuel', 'tank', 'cave', 'tower', 'runway'], CUS_SHIPS = ['dd', 'tr', 'bm', 'bb', 'cv'];
+const CUS_KEY = 'hellcat-custom', CUS_ITEMS = ['bunker', 'pill', 'barracks', 'aa', 'radar', 'fuel', 'tank', 'cave', 'tower', 'runway'], CUS_SHIPS = ['dd', 'bb', 'cv'];
 function loadCustom() { try { const v = JSON.parse(localStorage.getItem(CUS_KEY)); if (v && Array.isArray(v.missions)) return v; } catch (_) {} return { name: 'My Campaign', missions: [] }; }
 function importCustomFromUrl() {   // index.html?cmp=<base64 JSON> 로 열면 사용자 캠페인을 이 기기에 저장한다
-  try { const q = new URLSearchParams(location.search).get('cmp'); if (!q) return; const v = JSON.parse(decodeURIComponent(escape(atob(q.replace(/-/g, '+').replace(/_/g, '/'))))); if (v && Array.isArray(v.missions)) { localStorage.setItem(CUS_KEY, JSON.stringify(v)); G.cus = v; G.mode = 'custom'; } history.replaceState(null, '', location.pathname); } catch (_) {}
+  const dec = q => JSON.parse(decodeURIComponent(escape(atob(q.replace(/-/g, '+').replace(/_/g, '/')))));
+  try { const sp = new URLSearchParams(location.search), q = sp.get('cmp'), sq = sp.get('ships'); if (sq) { const sv = dec(sq); if (sv && Array.isArray(sv.ships)) localStorage.setItem(SHIP_KEY, JSON.stringify(sv)); } if (!q && !sq) return; if (q) { const v = dec(q); if (v && Array.isArray(v.missions)) { localStorage.setItem(CUS_KEY, JSON.stringify(v)); G.cus = v; G.mode = 'custom'; } } history.replaceState(null, '', location.pathname); } catch (_) {}
 }
 const customList = () => (G.cus || (G.cus = loadCustom())).missions;
 function customMission(def, i) {
   const L = clamp(Math.round(def.lvl || 1), 1, MAX_LVL), isl = (def.islands || []).slice(0, 5).map(q => ({ size: q.size === 'b' ? 'b' : 's', items: (q.items || []).filter(it => CUS_ITEMS.includes(it.t) && isFinite(it.u)).slice(0, 80) }));
-  let ships = (def.ships || []).filter(t => CUS_SHIPS.includes(t)).slice(0, 8), goal = ['capture', 'air', 'fleet', 'defend'].includes(def.goal) ? def.goal : 'capture';
+  let seed0 = 7; for (const ch of (def.name || '') + i) seed0 = (seed0 * 31 + ch.charCodeAt(0)) >>> 0;
+  const rs = rngOf(seed0 ^ 0x2545f491), uk = userShipKeys();   // 'ur' = 내가 만든 배 중 무작위
+  let ships = (def.ships || []).map(normShip).map(t => t === 'ur' ? (uk.length ? uk[Math.floor(rs() * uk.length)] : null) : t).filter(t => t && (CUS_SHIPS.includes(t) || USHIP[t])).slice(0, 8), goal = ['capture', 'air', 'fleet', 'defend'].includes(def.goal) ? def.goal : 'capture';
   if (goal === 'capture' && !isl.length) goal = ships.length ? 'fleet' : 'defend';
   if (goal === 'air' && !isl.some(q => q.items.some(it => it.t === 'runway'))) goal = isl.length ? 'capture' : ships.length ? 'fleet' : 'defend';
   if (goal === 'fleet' && !ships.length) ships = ['bb'];
@@ -921,13 +979,13 @@ function customMission(def, i) {
   M.waves.sort((a, b) => a.t - b.t);
   const sh = ships.map((t, j) => [t, isl.length ? 4700 - j * 650 : 6900 + j * 700]);
   M.build = (add, P) => { isl.forEach((q, k) => q.items.forEach(it => add(it.t, P(k, clamp(it.u, 0.04, 0.96))))); sh.forEach(([ty, sx]) => add(ty, sx)); };
-  const SN = { cv: 'carrier', bb: 'large battleship', bm: 'small battleship', tr: 'transport', dd: 'destroyer' }, nBig = isl.filter(q => q.size === 'b').length, nSm = isl.length - nBig;
+  const SN = SHIP_NAME, nBig = isl.filter(q => q.size === 'b').length, nSm = isl.length - nBig;
   const shipTxt = Object.entries(ships.reduce((o, t) => (o[t] = (o[t] || 0) + 1, o), {})).map(([t, n]) => n + ' ' + SN[t] + (n > 1 ? 's' : '')).join(', ');
   M.isl = [nSm ? nSm + ' small island' + (nSm > 1 ? 's' : '') : '', nBig ? nBig + ' large island' + (nBig > 1 ? 's' : '') : '', shipTxt].filter(Boolean).join(' · ') || ('Air raids ' + M.waves.length);
   const fleetT = [...new Set(ships)];
   if (goal === 'capture') { M.kind = ships.length ? 'Island + fleet' : 'Island assault'; if (ships.length) { M.fleet = fleetT; M.landAfter = true; } M.brief = def.brief || 'Clear every island of buildings and soldiers' + (ships.length ? ' and sink ' + shipTxt : ''); M.bonus = m => !m.revived; M.bonusTxt = 'no wrecked bunker or AA gun gets restored'; }
   else if (goal === 'air') { M.kind = 'Airbase strike'; M.zeroN = clamp(Math.round(def.zeroN || 5 + L), 1, 40); M.brief = def.brief || 'Shoot down ' + M.zeroN + ' Zeros and destroy every enemy aircraft parked on the airfields'; M.bonus = m => !m.revived; M.bonusTxt = 'no wrecked bunker or AA gun gets restored'; }
-  else if (goal === 'fleet') { M.fleet = fleetT.filter(t => t !== 'dd').length ? fleetT.filter(t => t !== 'dd') : fleetT; M.landAfter = true; M.kind = 'Fleet strike'; M.brief = def.brief || 'Sink ' + shipTxt + ' with torpedoes'; M.bonus = () => p.fuel >= 10; M.bonusTxt = 'return with over 10% fuel'; }
+  else if (goal === 'fleet') { M.fleet = fleetT.filter(t => CLS(t) !== 'dd').length ? fleetT.filter(t => CLS(t) !== 'dd') : fleetT; M.landAfter = true; M.kind = 'Fleet strike'; M.brief = def.brief || 'Sink ' + shipTxt + ' with torpedoes'; M.bonus = () => p.fuel >= 10; M.bonusTxt = 'return with over 10% fuel'; }
   else { M.kind = 'Fleet defense'; M.brief = def.brief || 'Stop the incoming bombers and torpedo planes to protect the carrier'; M.bonus = () => G.carrierHp >= 70; M.bonusTxt = 'carrier above 70%'; }
   return M;
 }
@@ -972,7 +1030,7 @@ function startMission(i) {
   // 항모를 가운데 두고 섬부터 가까운 곳에 번갈아 양옆으로 놓은 뒤 함정을 이어서 놓는다. 항모와 가장 가까운 것까지, 그리고 서로의 간격은 최소 1500m (군함이 90m쯤 순찰하므로 100m 여유)
   G.HC = null; G.shipN = 0; G.shipX = []; G.boatN = {};
   {
-    const shipTypes = []; M.build((type, x0) => { if (SHIPS[type] && type !== 'boat') shipTypes.push(type); return null; }, (k, f) => 0);
+    const shipTypes = []; M.build((type, x0) => { type = normShip(type); if (SHIPS[type]) shipTypes.push(type); return null; }, (k, f) => 0);
     const items = ISLANDS.map((q, k) => ({ k, w: q.b - q.a })).concat(shipTypes.map((ty, j) => ({ j, w: BOX[ty].w })));
     if (items.length) {
       G.HC = 4400; const edge = { r: G.HC + CARRIER_MIN + 100, l: G.HC - CARRIER_MIN - 100 }, sx = [];
@@ -1010,7 +1068,7 @@ function endMission(win, why) {
 function makeTargets(M) {
   TARGETS.length = 0; TREES.length = 0; BUSH.length = 0;
   const P = (k, f) => ISLANDS[k].a + (ISLANDS[k].b - ISLANDS[k].a) * f + OFF;
-  const add = (type, x0, raw) => { if (type === 'pill' && !M.custom && ((G.cur && G.cur.lvl) || 1) < 4) type = 'bunker';   // 콘크리트 벙커는 레벨 4부터
+  const add = (type, x0, raw) => { type = normShip(type); if (type === 'pill' && !M.custom && ((G.cur && G.cur.lvl) || 1) < 4) type = 'bunker';   // 콘크리트 벙커는 레벨 4부터
     let x = (SHIPS[type] && !raw ? G.isx(x0) : x0) - OFF;
     if (SHIPS[type] && type !== 'boat' && G.HC !== null) x = G.shipX[G.shipN++];   // 함정 자리는 위에서 정해 둔 순서대로
     else if (type === 'boat' && !raw && G.HC !== null && ISLANDS.length) { const k = (G.boatK = (G.boatK || 0) + 1) % ISLANDS.length, q = ISLANDS[k], out = (q.a + q.b) / 2 > G.HC ? 1 : -1, n = G.boatN[k] = (G.boatN[k] || 0) + 1; x = (out > 0 ? q.b + 90 + 70 * n : q.a - 90 - 70 * n); }   // 작은 배는 섬 바깥쪽 바다에
@@ -1272,7 +1330,7 @@ function missionStep(dt) {
       }
     }
   }
-  for (const t of TARGETS) if (t.type === 'cv' && t.alive) { t.launch -= dt; if (t.launch <= 0) { t.launch = 22 + Math.random() * 10; if (ENE.filter(e => !e.dead).length < 4) spawnEnemy(ZR, t.x, 22); } }   // 적 항모가 전투기를 발진
+  for (const t of TARGETS) if (CLS(t.type) === 'cv' && t.alive) { t.launch -= dt; if (t.launch <= 0) { t.launch = 22 + Math.random() * 10; if (ENE.filter(e => !e.dead).length < 4) spawnEnemy(ZR, t.x, 22); } }   // 적 항모가 전투기를 발진
   G.dark = M.tint === 'night' ? clamp((m.t - 40) / 160, 0, 0.5) : M.tint === 'dusk' ? 0.1 + clamp(m.t / 600, 0, 0.2) : 0;
   if (G.land) landStep(dt, M);
   soldierStep(dt); islandStep();
@@ -1537,7 +1595,7 @@ function applyDmg(t, d) {
     const dcols = ['#8a5a32', '#7d5230', '#946238', '#855630', '#8f5c34'];
     for (let i = 0; i < 12; i++) FX.push({ k: 'drum', x: t.x + (Math.random() - 0.5) * 7, y: t.y + 2 + Math.random() * 5, vx: (Math.random() - 0.5) * 46, vy: 16 + Math.random() * 30, vr: (Math.random() - 0.5) * 16, r: Math.random() * 6, c: dcols[i % 5], life: 5, t: 0, bn: 0 });
   }
-  if (t.type === 'bb' || t.type === 'bm' || t.type === 'cv') G.toast = { text: (t.type === 'cv' ? 'Enemy carrier' : 'Enemy battleship') + ' sunk!', grade: 'green', until: G.t + 3.5 };
+  if (CLS(t.type) !== 'dd') G.toast = { text: (USHIP[t.type] ? SHIP_NAME[t.type] : CLS(t.type) === 'cv' ? 'Enemy carrier' : 'Enemy battleship') + ' sunk!', grade: 'green', until: G.t + 3.5 };
 }
 function damageAt(x, y, r, kind) {
   if (kind === 'none') return;
@@ -1682,8 +1740,8 @@ function stepProj(dt) {
       if (Math.abs(q.x - q.sx) > TORP_RANGE) { FX.push({ k: 'splash', x: q.x, y: 0, vx: 0, vy: 0, life: 0.6, t: 0 }); PROJ.splice(i, 1); continue; }   // 사거리 끝: 가라앉는다
       if (gh(q.x) > 0) { explode(q.x, 0.5, 10, 'none', true); PROJ.splice(i, 1); continue; }
       const sh = TARGETS.find(t => t.alive && SHIPS[t.type] && Math.abs(q.x - t.x) < BOX[t.type].w / 2);
-      if (sh && (sh.type === 'bb' || sh.type === 'bm') && sh.guns.some(g => g.alive)) { sh.hitAt = G.t; explode(q.x, 0, 10, 'none', true); G.toast = { text: 'The battleship shrugs it off — knock out every AA gun and machine gun first', grade: 'yellow', until: G.t + 3.5 }; PROJ.splice(i, 1); continue; }
-      if (sh) { if (sh.type === 'bb' || sh.type === 'bm') (sh.hits = sh.hits || []).push(q.x - sh.x); applyDmg(sh, 22); explode(q.x, 0, 18, 'none', true); FX.push({ k: 'flash', x: q.x, y: 3, vx: 0, vy: 0, life: 0.3, t: 0 }); sfx('boom', { k: 'torp' }); PROJ.splice(i, 1); continue; }
+      if (sh && CLS(sh.type) === 'bb' && sh.guns.some(g => g.alive)) { sh.hitAt = G.t; explode(q.x, 0, 10, 'none', true); G.toast = { text: 'The battleship shrugs it off — knock out every AA gun and machine gun first', grade: 'yellow', until: G.t + 3.5 }; PROJ.splice(i, 1); continue; }
+      if (sh) { if (CLS(sh.type) === 'bb') (sh.hits = sh.hits || []).push(q.x - sh.x); applyDmg(sh, 22); explode(q.x, 0, 18, 'none', true); FX.push({ k: 'flash', x: q.x, y: 3, vx: 0, vy: 0, life: 0.3, t: 0 }); sfx('boom', { k: 'torp' }); PROJ.splice(i, 1); continue; }
       if (q.life <= 0) PROJ.splice(i, 1);
       continue;
     }
@@ -2443,14 +2501,16 @@ function drawTarget(c, t, dead) {
     case 'dd': poly([[-22, 2.5], [20, 2.5], [24, 5], [16, -0.5], [-20, -0.5]], '#5d6b78'); rect(-4, 2.5, 9, 4, '#7b8895'); rect(10, 2.5, 4, 1.4, '#3a4550'); rect(0.4, 6.4, 0.16, 5.4, '#d8d8d0'); drawFlagJP(c, 0.52, 11.8, 3.4, 2.1); break;
     case 'tr': poly([[-18, 0], [17, 0], [19, 5], [-18, 5]], '#6b5a4a'); rect(-4, 5, 8, 4, '#8a7a66'); rect(8, 5, 0.6, 7, '#4a4036'); rect(-12, 5, 0.6, 6, '#4a4036'); rect(8.2, 12, 0.16, 5.4, '#d8d8d0'); drawFlagJP(c, 8.35, 17.4, 3.4, 2.1); break;
     case 'bm': case 'bb': drawBattleship(c, t, t.type === 'bb'); break;
+    default: if (USHIP[t.type]) drawCustomShip(c, t, USHIP[t.type]); break;
     case 'cv': poly([[-46, 0], [46, 0], [48, 6], [-48, 6]], '#6f7b87'); rect(-48, 6, 96, 1.4, '#3a4350'); rect(12, 7.4, 12, 6, '#8794a1'); rect(15, 13.4, 5, 3, '#8794a1'); rect(-0.4, 13.4, 0.8, 4, '#46505a'); rect(-0.08, 17.4, 0.16, 5.4, '#d8d8d0'); drawFlagJP(c, 0.06, 22.8, 3.6, 2.2); [-30, -18, -6].forEach(x => rect(x, 7.4, 7, 0.9, '#2f3a2c')); break;
   }
   if (bdm) { c.restore(); drawHalfRuin(c, t, bside); }
   else if (t.type === 'barracks' && t.alive && t.hp < t.hp0 * 0.8) drawBarracksScar(c, t);
   if (!dead && !SHIPS[t.type]) drawLife(c, t);
   if (SHIPS[t.type] && !dead && AA_N[t.type]) {
-    const SG = SHIP_GUNS[t.type], gy = SG.gy, xs = SG.xs, dr = t.dir < 0 ? -1 : 1;
+    const SG = SHIP_GUNS[t.type], gy0 = SG.gy, xs = SG.xs, dr = t.dir < 0 ? -1 : 1;
     xs.forEach((lx, gi) => {
+      const gy = SG.gys ? SG.gys[gi] : gy0;
       const gun = t.guns && t.guns[gi], base = gy - 1.3;
       const quad = (x0, y0, w, h, f) => { c.fillStyle = f; c.fillRect(x0, y0, w, h); };
       if (gun && !gun.alive) {   // 부서진 포: 그을린 받침과 찢어진 포탑, 피어오르는 연기
@@ -2554,7 +2614,8 @@ function drawHpBars(c) {   // 적 구조물·함정이 맞으면 잠깐 체력�
       c.fillStyle = 'rgba(205,208,214,0.8)'; c.beginPath(); c.roundRect(X - bw / 2 - 1, Y - 1, bw + 2, bh + 2, bh / 2 + 1); c.fill();
       c.fillStyle = enemyCol(fr); c.beginPath(); c.roundRect(X - bw / 2, Y, Math.max(bh, bw * fr), bh, bh / 2); c.fill();
     }
-    if (t.guns && SHIP_GUNS[t.type]) { const n = t.guns.filter(g => g.alive).length; c.fillStyle = '#fff'; c.font = '700 11px system-ui,sans-serif'; c.textAlign = 'center'; c.lineWidth = 3; c.strokeStyle = 'rgba(8,12,20,0.8)'; const tx = 'AA guns ' + n + '/' + t.guns.length; c.strokeText(tx, X, Y - 5); c.fillText(tx, X, Y - 5); }
+    if (USHIP[t.type]) { c.fillStyle = '#ffd23f'; c.font = '700 12px system-ui,sans-serif'; c.textAlign = 'center'; c.lineWidth = 3; c.strokeStyle = 'rgba(8,12,20,0.8)'; c.strokeText(SHIP_NAME[t.type], X, Y - 20); c.fillText(SHIP_NAME[t.type], X, Y - 20); }   // 내가 만든 배의 이름
+    if (t.guns && SHIP_GUNS[t.type]) { const n =t.guns.filter(g => g.alive).length; c.fillStyle = '#fff'; c.font = '700 11px system-ui,sans-serif'; c.textAlign = 'center'; c.lineWidth = 3; c.strokeStyle = 'rgba(8,12,20,0.8)'; const tx = 'AA guns ' + n + '/' + t.guns.length; c.strokeText(tx, X, Y - 5); c.fillText(tx, X, Y - 5); }
     c.restore();
   }
 }
@@ -3542,7 +3603,7 @@ function frame(ts) {
   drawWorld(); ctx.restore(); if (G.scene === 'play') drawHudFaded(); else drawScene();
   requestAnimationFrame(frame);
 }
-importCustomFromUrl(); reset(); startDemo(); cam.x = p.x; cam.y = 60;
+importCustomFromUrl(); registerShips(); reset(); startDemo(); cam.x = p.x; cam.y = 60;
 requestAnimationFrame(frame);
 // 오프라인에서도 열리게 (실제 사이트에서만 등록한다)
 if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator && typeof location !== 'undefined' && location.protocol === 'https:' && window.top === window) navigator.serviceWorker.register('sw.js').catch(() => {});

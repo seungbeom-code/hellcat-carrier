@@ -53,6 +53,7 @@ textarea { width:100%; height:80px; background:#0f1a2b; color:var(--txt); border
   <button id="bImport">Import file</button>
   <button id="bLink">Copy phone link</button>
   <button class="go" id="bPlay">Play (new tab)</button>
+  <a href="shipyard.html" style="color:var(--acc);text-decoration:none;border:1px solid var(--line);border-radius:6px;padding:5px 10px">Ship Designer</a>
   <span id="msg"></span>
   <input type="file" id="file" accept=".json,application/json" hidden>
 </header>
@@ -95,7 +96,12 @@ const TYPES = {   // 섬 시설: 색, 이름, 너비(m)
   tower:    { n: 'Watch tower',      c: '#c0824a', w: 8 },
   runway:   { n: 'Airfield',         c: '#555d69', w: 520 }
 };
-const SHIPS = { dd: 'Destroyer', tr: 'Transport', bm: 'Small battleship', bb: 'Large battleship', cv: 'Carrier' };
+const SHIPS = { dd: 'Destroyer', bb: 'Battleship', cv: 'Carrier' };
+function shipList() {   // 기본 3종 + 내가 shipyard.html 에서 만든 배 + 무작위 내 배
+  const o = Object.assign({}, SHIPS); o.ur = 'Random custom ship';
+  try { const v = JSON.parse(localStorage.getItem('hellcat-ships')); if (v && Array.isArray(v.ships)) v.ships.forEach(s => { if (s && s.id) o['u_' + String(s.id).replace(/[^\w]/g, '').slice(0, 12)] = '★ ' + (s.name || 'Ship') + ' (' + ({ dd: 'destroyer', bb: 'battleship', cv: 'carrier' }[s.cls] || '') + ')'; }); } catch (_) {}
+  return o;
+}
 const PLANES = { zero: 'Zero', ace: 'Ace Zero', n1k: 'N1K', d4y: 'Bomber (D4Y)', b6n: 'Torpedo (B6N)' };
 const ISLAND_LEN = { s: 3000, b: 7200 };
 const GOALS = { capture: 'Capture islands', air: 'Airbase strike', fleet: 'Fleet strike', defend: 'Fleet defense' };
@@ -119,6 +125,7 @@ $('#file').onchange = e => { const f = e.target.files[0]; if (!f) return; const 
 $('#bLink').onclick = () => {
   const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(data)))).replace(/\+/g, '-').replace(/\//g, '_');
   const url = new URL('index.html', location.href); url.search = '?cmp=' + b64;
+  try { const sv = localStorage.getItem('hellcat-ships'); if (sv && JSON.parse(sv).ships.length) url.search += '&ships=' + btoa(unescape(encodeURIComponent(sv))).replace(/\+/g, '-').replace(/\//g, '_'); } catch (_) {}   // 내가 만든 배도 같이 보낸다
   const s = url.toString();
   (navigator.clipboard ? navigator.clipboard.writeText(s) : Promise.reject()).then(() => say('Link copied (' + Math.round(s.length / 1000) + 'k chars). Open it on the other device once.'), () => { prompt('Copy this link:', s); });
 };
@@ -241,7 +248,8 @@ function overlaps(q) {   // 서로 너무 가깝게 겹친 시설 (활주로 위
 
 function renderShips() {
   const m = M(), row = $('#shipRow'); row.innerHTML = '';
-  Object.entries(SHIPS).forEach(([k, n]) => {
+  m.ships = m.ships.map(s => s === 'tr' ? 'dd' : s === 'bm' ? 'bb' : s);
+  Object.entries(shipList()).forEach(([k, n]) => {
     const cnt = m.ships.filter(s => s === k).length, d = document.createElement('div'); d.className = 'cnt';
     d.innerHTML = '<span style="min-width:120px;color:var(--dim)">' + n + '</span><button class="sm">−</button><b>' + cnt + '</b><button class="sm">+</button>';
     const [bm, , bp] = d.querySelectorAll('button, b');
@@ -267,7 +275,7 @@ function renderWarns() {
   const hasRw = m.islands.some(q => q.items.some(i => i.t === 'runway'));
   if (m.goal === 'capture' && !m.islands.length) w.push('"Capture islands" needs at least one island. The game will switch to ' + (m.ships.length ? 'a fleet strike' : 'fleet defense') + '.');
   if (m.goal === 'air' && !hasRw) w.push('"Airbase strike" needs an Airfield on an island. The game will fall back to capturing the islands.');
-  if (m.goal === 'fleet' && !m.ships.length) w.push('"Fleet strike" with no ships: the game adds one large battleship.');
+  if (m.goal === 'fleet' && !m.ships.length) w.push('"Fleet strike" with no ships: the game adds one battleship.');
   if (m.goal === 'defend' && !m.waves.some(x => x.l.some(t => t === 'd4y' || t === 'b6n'))) w.push('Fleet defense has no bombers or torpedo planes, so a default raid will be added.');
   m.islands.forEach((q, i) => { if (!q.items.length) w.push('Island ' + (i + 1) + ' has no buildings, so it counts as captured immediately.'); const o = overlaps(q); if (o.size) w.push('Island ' + (i + 1) + ': ' + o.size + ' buildings overlap (shown with a red outline).'); });
   $('#warns').innerHTML = w.length ? w.map(x => '<div class="warn">⚠ ' + esc(x) + '</div>').join('') : '<div class="okmsg">✓ Looks good.</div>';

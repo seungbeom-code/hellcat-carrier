@@ -1020,7 +1020,7 @@ const rankOf = n => n < 3 ? 'Ensign' : n < 6 ? 'Lt (jg)' : n < 10 ? 'Lieutenant'
 function startMission(i) {
   const M = typeof i === 'number' ? MISSIONS[i] : i; G.cur = M; G.mi = typeof i === 'number' ? i : -1; G.scene = 'play'; G.res = null; G.sink = null; G.lives = 3; G.carrierHp = 100; G.land = null; G.dark = 0;
   G.m = { t: 0, kills: 0, zeros: 0, ace: false, landings: 0, greens: 0, crashes: 0, wave: 0, hits: [], done: false, obj: false, flag: 0, runwayFirst: false, revived: 0 };
-  G.gunHint = 0; G.gunHintT = 0;
+  G.gunHint = 0; G.gunHintT = 0; G.camWing = false;
   G.loadout = M.goal === 'fleet' ? 2 : 0;   // 시작 무장: 함대 공격은 어뢰, 나머지는 로켓
   ENE.length = 0; EB.length = 0; FLAK.length = 0; FX.length = 0; PROJ.length = 0; SOLD.length = 0; SHELL.length = 0; WRECKS.length = 0; G.tick = []; G.fmx = undefined; G.depX = undefined; G.fmTask = undefined; G.fmDir = 1;
   ship.x = -500; G.t = 0;
@@ -3096,6 +3096,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyP') { G.paused = !G.paused; G.askQuit = false; return; }
   if (G.paused) { G.paused = false; G.askQuit = false; return; }
   if (e.code === 'KeyM') setMuted(!sound.muted);
+  if (e.code === 'KeyN') G.camWing = !G.camWing;   // 동료기 시점 전환
   if ((e.code === 'KeyR' || e.code === 'Enter') && G.result) { afterCrash(); return; }   // 결과창을 닫는 키는 다른 동작(무장 고르기 등)을 하지 않는다
   if (hangarOpen()) {
     if (e.code === 'Digit1') pickLoad(0); else if (e.code === 'Digit2') pickLoad(1); else if (e.code === 'Digit3') pickLoad(2);
@@ -3109,7 +3110,7 @@ addEventListener('keydown', e => {
 addEventListener('keyup', e => { keys[e.code] = false; });
 // 방향 조종: 왼쪽 아래의 원. 원 가운데에서 터치한 곳까지의 방향과 거리로 기수(위·아래)와 좌우(진행/반대)를 정한다
 const STICK = { x: 128, y: 402, R: 92, dead: 0.16 };
-const BTN = [{ id: 'menu', x: 14, y: 12, w: 64, h: 34, label: 'Ops' }, { id: 'snd', x: 14, y: 54, w: 64, h: 34, label: 'Sound' }, { id: 'pause', x: 14, y: 96, w: 64, h: 34, label: 'Pause' }];
+const BTN = [{ id: 'menu', x: 14, y: 12, w: 64, h: 34, label: 'Ops' }, { id: 'snd', x: 14, y: 54, w: 64, h: 34, label: 'Sound' }, { id: 'pause', x: 14, y: 96, w: 64, h: 34, label: 'Pause' }, { id: 'wing', x: 14, y: 138, w: 64, h: 34, label: 'Wingman' }];
 const touch = { ids: {}, on: { up: 0, down: 0, left: 0, right: 0, gun: 0 }, stick: null };   // stick: { id, dx, dy } 길이 1 이하로 정규화
 let keyIn = 0, prevRev = false;
 function readKeys(dt) {
@@ -3134,7 +3135,7 @@ cv.addEventListener('pointerdown', e => {
   if (overElev() && inR(m, ELEV_BTN)) { startLift(); return; }
   if (p.mode === 'air') for (const b of fireBtns()) if (inR(m, b)) { if (b.k === 'gun') { touch.ids[e.pointerId] = 'gun'; touch.on.gun++; try { cv.setPointerCapture(e.pointerId); } catch (_) {} } else if (b.k === 'rocket') fireRocket(); else if (b.k === 'torp') fireTorpedo(); else dropBomb(); return; }
   if (!touch.stick && Math.hypot(m.x - STICK.x, m.y - STICK.y) < STICK.R * 1.45) { touch.stick = { id: e.pointerId, dx: 0, dy: 0 }; stickMove(m); try { cv.setPointerCapture(e.pointerId); } catch (_) {} return; }
-  for (const b of BTN) if (inR(m, b)) { if (b.id === 'menu') { G.paused = true; G.askQuit = true; for (const k in keys) keys[k] = false; } else if (b.id === 'pause') { G.paused = true; G.askQuit = false; for (const k in keys) keys[k] = false; } else setMuted(!sound.muted); return; }
+  for (const b of BTN) if (inR(m, b)) { if (b.id === 'menu') { G.paused = true; G.askQuit = true; for (const k in keys) keys[k] = false; } else if (b.id === 'pause') { G.paused = true; G.askQuit = false; for (const k in keys) keys[k] = false; } else if (b.id === 'wing') G.camWing = !G.camWing; else setMuted(!sound.muted); return; }
   if (G.result && m.y > 150 && m.y < 400 && m.x > 250 && m.x < 710) afterCrash();
 });
 function stickMove(m) { const st = touch.stick; if (!st) return; let dx = (m.x - STICK.x) / STICK.R, dy = (m.y - STICK.y) / STICK.R; const l = Math.hypot(dx, dy); if (l > 1) { dx /= l; dy /= l; } st.dx = dx; st.dy = dy; }
@@ -3664,7 +3665,7 @@ function drawHUD() {
   for (const b of BTN) {
     c.fillStyle = 'rgba(26,60,110,0.85)'; c.beginPath(); c.roundRect(b.x, b.y, b.w, b.h, 9); c.fill();
     c.fillStyle = '#fff'; c.font = '800 13px system-ui,sans-serif'; c.textAlign = 'center';
-    { const lb = b.id === 'snd' ? (sound.muted ? 'Sound off' : 'Sound on') : b.label; fitFont(c, lb, 13, '800', b.w - 8); c.fillText(lb, b.x + b.w / 2, b.y + b.h / 2 + 5); }
+    { const lb = b.id === 'snd' ? (sound.muted ? 'Sound off' : 'Sound on') : b.id === 'wing' ? (G.camWing ? 'My plane' : 'Wingman') : b.label; fitFont(c, lb, 13, '800', b.w - 8); c.fillText(lb, b.x + b.w / 2, b.y + b.h / 2 + 5); }
   }
   if (overElev()) {   // 엘리베이터 버튼
     const b = ELEV_BTN; c.fillStyle = 'rgba(26,90,150,0.92)'; c.beginPath(); c.roundRect(b.x, b.y, b.w, b.h, 12); c.fill(); c.strokeStyle = '#9fd0ff'; c.lineWidth = 2; c.stroke();
@@ -3724,6 +3725,12 @@ function drawHUD() {
 
 const ZOOM_MIN = 0.6;   // 가장 많이 축소했을 때 (화면에 약 1.6km 폭)
 function updateCam(dt) {
+  if (G.camWing && WG && G.scene === 'play') {   // 동료기 시점
+    const w = WG, zt = Math.max(ZOOM_MIN, Math.min(w.st === 'park' || w.st === 'roll' || w.st === 'rollout' || w.st === 'taxi' ? 2.9 : 1.6, 0.5 * H / Math.max(w.y, 40)));
+    cam.z = lerp(cam.z, zt, Math.min(1, dt * (zt < cam.z ? 6 : 1.5)));
+    const dir = Math.cos(w.h) >= 0 ? 1 : -1, tx = w.x + dir * 0.2 * W / cam.z, ty = Math.max(w.y * 0.92, H * 0.27 / cam.z);
+    cam.x = lerp(cam.x, tx, Math.min(1, dt * 5)); cam.y = lerp(cam.y, ty, Math.min(1, dt * 6)); cam.y = Math.min(cam.y, Math.max(0.4 * H / cam.z, w.y - 0.3 * H / cam.z)); return;
+  }
   const xr = p.x - ship.x, near = Math.abs(xr - DECK_L / 2) < APP_R + 400 && p.y < 260;
   let zt = p.mode === 'deck' || p.mode === 'taxi' || p.mode === 'lift' || (p.mode === 'down' && !G.result.sea) ? 2.9 : near ? 2.1 : 1.6;
   zt = Math.max(ZOOM_MIN, Math.min(zt, 0.5 * H / Math.max(p.y, 40)));   // 높이 올라가면 바다가 보이도록 축소하되, 너무 작아지지 않게 한계를 둔다

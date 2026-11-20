@@ -2964,14 +2964,16 @@ function wingGun(t, w) {   // 배에서 아직 살아 있는 포 중 하나 (선
   return b;
 }
 function wingPick(w) {   // 다음 공격 목표: 적기 > 지상 시설 > 병사 > 함정 (무기가 맞는 것만)
-  let best = null, bs = 1e9; const add = (o, kind, base) => { const s = base + Math.abs(o.x - w.x) + 0.3 * Math.abs(o.x - p.x) + Math.random() * 400; if (s < bs) { bs = s; best = { k: kind, o }; } };
-  for (const e of ENE) if (!e.dead && Math.abs(e.x - w.x) < 1500 && w.ammo.gun > 0) add(e, 'e', -600);
+  let best = null, bs = 1e9; const add = (o, kind, base) => { if (w.bl && w.bl.o === o && G.t < w.bl.until) return; const s = base + Math.abs(o.x - w.x) + 0.3 * Math.abs(o.x - p.x) + Math.random() * 400; if (s < bs) { bs = s; best = { k: kind, o }; } };
+  const dang = x => TARGETS.reduce((n, t) => n + (t.alive && AA_N[t.type] && Math.abs(t.x - x) < 700 ? AA_N[t.type] : 0), 0), weak = w.hp < WING_HP * 0.7;   // 대공 화력이 센 곳은 피한다 (다쳤으면 더)
+  for (const e of ENE) if (!e.dead && Math.abs(e.x - w.x) < 1500 && w.ammo.gun > 0) add(e, 'e', -600 - (p.mode === 'air' && Math.abs(e.x - p.x) < 800 ? 1200 : 0));   // 내 비행기를 노리는 적기를 먼저 쫓아낸다
   for (const t of TARGETS) {
     if (!t.alive || t.type === 'runway') continue;
     if (SHIPS[t.type]) {
       const gunsUp = t.guns && t.guns.some(g => g.alive), endUp = t.guns && t.guns.some(g => g.alive && g.end), torpOk = w.ammo.tp > 0 && !endUp && (CLS(t.type) !== 'bb' || !gunsUp);
+      if (weak) continue;   // 다쳤으면 대공포가 센 함정은 건드리지 않고 돌아가 수리한다
       if (torpOk) add(t, 'ts', 4000); else if (gunsUp && (w.ammo.rk > 0 || w.ammo.gun > 0)) add(t, 'g', 4500);
-    } else if (w.ammo.rk > 0 || (w.ammo.gun > 0 && (DMG.gun[t.type] || 0) >= 0.1)) add(t, 'g', 0);
+    } else if (w.ammo.rk > 0 || (w.ammo.gun > 0 && (DMG.gun[t.type] || 0) >= 0.1)) add(t, 'g', (AA_N[t.type] || t.type === 'radar' ? -500 : 0) + dang(t.x) * (weak ? 700 : 200));   // 대공포·레이더를 먼저 없앤다
   }
   if (w.ammo.gun > 0) for (const o of SOLD) if (o.alive && o.st !== 'enter') add(o, 'g', 1500);
   return best;
@@ -3028,16 +3030,23 @@ function wingStep(dt) {
   for (let k = 1; k <= 5; k++) g0 = Math.max(g0, gh(w.x + hxx * w.v * 0.35 * k));
   const spent = w.ammo.rk <= 0 && (w.ammo.tp <= 0 || !TARGETS.some(t => t.alive && SHIPS[t.type])), carrierOk = !G.sink && G.carrierHp > 0;
   if (w.st === 'hunt') {
-    if (carrierOk && (w.fuel < 28 || spent || w.hp < 60)) { w.st = 'app'; w.tg = null; w.lap = null; }
+    if (carrierOk && (w.fuel < 14 + Math.abs(w.x - ship.x) * 0.003 || spent || (w.ammo.gun < 150 && w.ammo.rk <= 0) || w.hp < 60)) { w.st = 'app'; w.tg = null; w.lap = null; }
     else {
       if (w.tg) { const o = w.tg.o, k = w.tg.k; if (o.dead || o.alive === false || (k === 'ts' && w.ammo.tp <= 0) || (k === 'e' && w.ammo.gun <= 0) || (k === 'g' && SHIPS[o.type] && w.ammo.rk <= 0 && w.ammo.gun <= 0) || (k === 'ts' && o.guns && o.guns.some(g => g.alive && g.end))) w.tg = null; }
-      if (!w.tg) { w.tg = wingPick(w); w.ph = 'ing'; }
+      if (w.tg && w.tg.k !== 'e' && w.ammo.gun > 0 && G.t > (w.rpT || 0)) {   // 적기가 가까이 붙으면 하던 일을 접고 맞서 싸운다
+        w.rpT = G.t + 1.5; if (ENE.some(e => !e.dead && Math.hypot(e.x - w.x, e.y - w.y) < 800)) w.tg = null;
+      }
+      if (w.tg && w.tg.k !== 'e') { if (w.tgO !== w.tg.o) { w.tgO = w.tg.o; w.tgT = G.t; } else if (G.t - w.tgT > 70) { w.bl = { o: w.tg.o, until: G.t + 60 }; w.tg = null; } }   // 한 목표에 너무 오래 매달리면 잠시 미룬다
+      if (!w.tg) { w.tg = wingPick(w); w.ph = 'ing'; w.clb = false; }
       if (!w.tg) {   // 할 일이 없으면 내 비행기 곁을 맴돌다가 착함
         w.idle += dt; if (w.idle > 8 && carrierOk) { w.st = 'app'; w.lap = null; }
         hd = Math.atan2(p.y + 40 - w.y, p.x + 300 * Math.sin(G.t * 0.2) - w.x); vt = W_CRUISE;
       } else {
-        w.idle = 0; const o = w.tg.o, k = w.tg.k, gp = k === 'g' && SHIPS[o.type] ? wingGun(o, w) : null, tx = gp ? gp.x : o.x, ty = k === 'e' ? o.y : k === 'ts' ? 0 : gp ? gp.y : (o.y || 0) + 2;
-        const dx = tx - w.x, dir = dx >= 0 ? 1 : -1, dirA = dir > 0 ? 0 : Math.PI, hi = k === 'g' && o.type && w.ammo.rk > 0 && (DMG.rocket[o.type] || 0) > 0, A = k === 'ts' ? 38 : k === 'e' ? ty : hi ? ty + 300 : ty + 70;   // hi: 로켓 공격은 높은 곳에서 멀리서 내리꽂듯 쏜다
+        w.idle = 0; const o = w.tg.o, k = w.tg.k, gp = k === 'g' && SHIPS[o.type] ? wingGun(o, w) : null;
+        if (w.lo !== o) { w.lo = o; w.lx0 = o.x; w.tv = 0; } else if (dt > 0) { w.tv = lerp(w.tv || 0, clamp((o.x - w.lx0) / dt, -25, 25), Math.min(1, dt * 2)); w.lx0 = o.x; }   // 목표의 움직임을 재서 앞질러 겨눈다
+        const tx = (gp ? gp.x : o.x) + (k === 'ts' ? (w.tv || 0) * clamp(Math.abs(o.x - w.x) / 46, 0, 14) : 0), ty = k === 'e' ? o.y : k === 'ts' ? 0 : gp ? gp.y : (o.y || 0) + 2;
+        const dx = tx - w.x, dir = dx >= 0 ? 1 : -1, dirA = dir > 0 ? 0 : Math.PI, hi = k === 'g' && o.type && w.ammo.rk > 0 && (DMG.rocket[o.type] || 0) > 0 && !(w.ammo.gun > 200 && !SHIPS[o.type] && (DMG.gun[o.type] || 0) >= 0.3),   // 기관총으로 되는 약한 목표에 로켓을 낭비하지 않는다
+           A = k === 'ts' ? 38 : k === 'e' ? ty : hi ? ty + 300 : ty + 70;   // hi: 로켓 공격은 높은 곳에서 멀리서 내리꽂듯 쏜다
         const passed = hxx * dx < 0;
         if (w.ph === 'ing' && Math.abs(dx) < (hi ? 230 : 200) + (k === 'ts' ? 300 : 0)) w.ph = 'egr';
         if (w.ph === 'ing' && passed && Math.abs(dx) > 100) w.ph = 'egr';
@@ -3046,7 +3055,7 @@ function wingStep(dt) {
         if (w.ph === 'ing' && hi && Math.sin(w.h) < 0 && w.y - g0 < 90) w.ph = 'egr';   // 내리꽂다가 땅이 가까워지면 즉시 급상승
         if (w.ph === 'egr' && !w.clb && Math.abs(dx) > (hi ? 1750 : 1150) && (!hi || w.y - ty > 250)) w.ph = 'ing';   // 로켓 공격은 충분히 올라간 뒤에야 다시 들어간다
         if (w.ph === 'egr' && w.clb) { const ee = clamp((A - w.y) * 0.01, -0.1, 0.2); hd = dx > 0 ? Math.PI - ee : ee; }
-        else if (w.ph === 'egr') { const ee = clamp((A - w.y) * 0.01, -0.25, hi ? 0.5 : 0.2); hd = sgn > 0 ? ee : Math.PI - ee; }
+        else if (w.ph === 'egr') { const ee = clamp((A - w.y) * 0.01, -0.25, hi ? 0.5 : 0.2) + (G.t < (w.smokeT || 0) + 2 ? 0.3 * Math.sin(G.t * 5) : 0); hd = sgn > 0 ? ee : Math.PI - ee; }   // 맞은 직후에는 위아래로 흔들며 빠져나간다
         else if (Math.abs(dx) > (hi ? 1500 : 1000)) hd = Math.atan2(clamp(A - w.y, k === 'ts' ? -450 : -120, 120), dx);
         else if (hi && Math.abs(dx) > 700) hd = Math.atan2(clamp(A - w.y, -60, 60), dx);   // 높이를 유지하다가 사격 거리에서 내리꽂는다
         else if (k === 'ts') { const cc = clamp((38 - w.y) * 0.02, -0.3, 0.15); hd = dir > 0 ? cc : Math.PI - cc; }

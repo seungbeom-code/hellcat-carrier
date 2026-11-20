@@ -2081,7 +2081,7 @@ function drawTree(c, t) {
 }
 // 사람이 사는 기지처럼: 보초, 굴뚝 연기, 빨래, 취사 불, 상자·드럼통, 위장망, 바람자루
 function drawLife(c, t) {
-  const T = G.t + t.x * 0.13, R = (x, y, w, h, f) => { c.fillStyle = f; c.fillRect(x, y, w, h); };
+  const T = G.t + t.x * 0.13 + 5000, R = (x, y, w, h, f) => { c.fillStyle = f; c.fillRect(x, y, w, h); };
   const guard = (x, dir, ph) => {   // 소총을 든 보초 (가끔 고개를 돌린다)
     c.save(); c.translate(x, 0); c.scale(4 * dir, 4);
     c.strokeStyle = '#4e4630'; c.lineWidth = 0.22; c.beginPath(); c.moveTo(-0.08, 0.8); c.lineTo(-0.12, 0); c.moveTo(0.08, 0.8); c.lineTo(0.12, 0); c.stroke();
@@ -2251,7 +2251,7 @@ function drawRuin(c, t) {
   }
 }
 function drawBunkerBody(c, t, wreck) {   // 모래주머니를 쌓은 보루: 안에서 병사 셋이 4연장 대공포를 돌리고, 탄을 나르고, 쌍안경으로 본다
-  const T = G.t + t.x * 0.13, aim = t.aim !== undefined ? t.aim : 0.9, ca = Math.cos(aim), firing = t.burst > 0;
+  const T = G.t + t.x * 0.13 + 5000, aim = t.aim !== undefined ? t.aim : 0.9, ca = Math.cos(aim), firing = t.burst > 0;
   const R = (x, y, w, h, f) => { c.fillStyle = f; c.fillRect(x, y, w, h); };
   const man = (x, y0, bob, lookX) => {   // 보루 안에서 가슴 위만 보이는 병사
     c.fillStyle = '#8e8458'; c.fillRect(x - 0.62, y0 + bob, 1.24, 1.5); c.fillStyle = '#e0c9a0'; c.beginPath(); c.arc(x + lookX * 0.12, y0 + bob + 1.95, 0.5, 0, 7); c.fill();
@@ -2281,7 +2281,7 @@ function drawBunkerBody(c, t, wreck) {   // 모래주머니를 쌓은 보루: �
     R(-3.4, 0.2, 7, 1.0, '#2a2218');
     for (let i = 0; i < 6; i++) { const bx = -9 + i * 3.6 + Math.sin(i * 2.3) * 0.8; c.fillStyle = i % 2 ? '#7d6e50' : '#6e6144'; c.beginPath(); c.ellipse(bx, 0.45, 1.0, 0.5, 0.3 * Math.sin(i), 0, 7); c.fill(); }   // 흩어진 모래주머니
     const k = t.repT > 0 ? t.repT / 7 : 1;
-    for (let i = 0; i < 5; i++) { const u = ((G.t * 0.35 + i / 5 + t.x * 0.01) % 1); c.fillStyle = 'rgba(70,70,68,' + (0.5 * (1 - u) * k) + ')'; c.beginPath(); c.arc(Math.sin(G.t + i) * 0.8 + u * 3, 3.5 + u * 12, 1.4 + u * 2.6, 0, 7); c.fill(); }
+    for (let i = 0; i < 5; i++) { const u = ((G.t * 0.35 + i / 5 + t.x * 0.01 + 500) % 1); c.fillStyle = 'rgba(70,70,68,' + (0.5 * (1 - u) * k) + ')'; c.beginPath(); c.arc(Math.sin(G.t + i) * 0.8 + u * 3, 3.5 + u * 12, 1.4 + u * 2.6, 0, 7); c.fill(); }
     if (t.inside > 0) { c.fillStyle = '#5c5a34'; c.beginPath(); c.arc(-0.6 + Math.sin(G.t * 4) * 0.6, 1.6, 0.5, Math.PI, 0); c.fill(); }   // 안에서 수리하는 일본군 철모
   }
 }
@@ -2366,7 +2366,7 @@ function drawBattleship(c, t, big) {   // 야마토급 전함: 붉은 수선부�
   [[bx - 7.5], [bx + 9.5]].forEach(([x]) => { c.fillStyle = '#9fa8b0'; c.beginPath(); c.ellipse(x, D + 0.65, 2.3, 0.55, 0, 0, Math.PI); c.fill(); line(x - 2.3, D + 0.65, x + 2.3, D + 0.65, '#5a6672', 0.1); });
 }
 function drawHalfRuin(c, t, side) {   // 막사의 맞은 쪽 절반이 무너져 불타는 모습: 부러진 벽 밑동, 내려앉은 지붕, 그을린 잔해, 일렁이는 불
-  const T = G.t + t.x * 0.2, X = x => x * side, R = k => Math.abs(Math.sin(t.x * 12.9898 + k * 78.233) * 43758.5453) % 1;
+  const T = G.t + t.x * 0.2 + 5000, X = x => x * side, R = k => Math.abs(Math.sin(t.x * 12.9898 + k * 78.233) * 43758.5453) % 1;
   c.fillStyle = 'rgba(18,12,8,0.4)'; c.beginPath(); c.ellipse(X(9.5), 0.15, 11, 0.7, 0, 0, 7); c.fill();
   c.fillStyle = '#7a6a4f'; c.beginPath(); c.moveTo(X(0), 0); for (let i = 0; i <= 8; i++) c.lineTo(X(0.3 + i * 2.35), 0.5 + R(i) * 2.2); c.lineTo(X(19), 0); c.closePath(); c.fill();   // 부러진 벽
   c.fillStyle = '#3a2e20'; c.fillRect(Math.min(0, X(0.6)), 0.3, 0.6, 4.4);   // 단면(찢긴 벽 끝)

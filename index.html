@@ -767,7 +767,8 @@ Object.assign(HP, { barracks: 12 }); Object.assign(BOX, { barracks: { w: 40, h: 
 const JP = { pill: 1, aa: 1, bunker: 1, cave: 1, radar: 1, barracks: 1, tank: 1 };   // 일본군이 있는 시설
 const SHIPS = { boat: 1, dd: 1, tr: 1, bm: 1, bb: 1, cv: 1 }, DEF_W = { pill: 2, aa: 1, bunker: 1.5, cave: 2, radar: 1 }, AA_N = { pill: 1, aa: 1, dd: 2, bm: 3, bb: 5, cv: 3, tr: 1, cave: 1 }, AA_R = { pill: 500, aa: 500, cave: 500, dd: 500, bm: 500, bb: 500, cv: 500, tr: 500 };
 const HULL_H = { boat: 4.5, dd: 6.5, tr: 16, bm: 7.8, bb: 7.8, cv: 14.5 };   // 적 함정 선체(갑판) 높이(m)
-const SHIP_GUNS = { dd: { gy: 3.2, xs: [-12, 8] }, bm: { gy: 4.3, xs: [-30, 36], mg: [1] }, bb: { gy: 4.3, xs: [-52, -44, 52, 62], mg: [1, 3] }, cv: { gy: 8.2, xs: [-36, 28, 44] }, tr: { gy: 5.2, xs: [8] } };   // 함정의 대공포 자리 (예전의 절반)   // 함정의 대공포 자리
+const SHIP_GUNS = { dd: { gy: 3.2, xs: [-12, 8] }, bm: { gy: 4.3, xs: [-30, 36], mg: [1] }, bb: { gy: 4.3, xs: [-52, -44, 52, 62], mg: [1, 3] }, cv: { gy: 8.2, xs: [-36, 24, 38] }, tr: { gy: 5.2, xs: [8] } };
+for (const k of ['dd', 'bb', 'cv', 'bm', 'tr']) { const G0 = SHIP_GUNS[k], e = BOX[k].w / 2 / SK[k] - 1.8, n = G0.xs.length; G0.xs.push(-e, e); G0.mg = (G0.mg || []).concat([n, n + 1]); G0.end = [n, n + 1]; }   // 모든 배의 선수·선미에 기관포: 살아 있는 동안 다가오는 어뢰를 쏘아 떨어뜨린다   // 함정의 대공포 자리 (예전의 절반)   // 함정의 대공포 자리
 // ───── 함정은 전함·항공모함·구축함 3종류. 거기에 shipyard.html 에서 직접 설계한 배(u_...)를 더할 수 있다 ─────
 const SHIP_KEY = 'hellcat-ships', SHIP_CLS = {}, USHIP = {}, SHIP_NAME = { dd: 'destroyer', bb: 'battleship', cv: 'carrier' };
 const CLS = ty => SHIP_CLS[ty] || ty, normShip = t => t === 'tr' || t === 'boat' ? 'dd' : t === 'bm' ? 'bb' : t;   // 수송선·작은 배는 구축함, 소형 전함은 전함으로
@@ -784,13 +785,15 @@ function registerShips() {
     hull = hull.map(q => [q[0] - cx, q[1]]);
     const top = Math.max(...hull.map(q => q[1])), parts = (Array.isArray(d.parts) ? d.parts : []).slice(0, 48).filter(q => q && ['box', 'funnel', 'mast', 'turret'].includes(q.k)).map(q => ({ k: q.k, x: num(q.x, -400, 400, 0) - cx, y: num(q.y, -6, 120, 0), w: num(q.w, 1, 200, 8), h: num(q.h, 1, 120, 6), n: Math.round(num(q.n, 1, 4, 2)), c: col(q.c, '#7b8895') }));
     const aa = (Array.isArray(d.aa) ? d.aa : []).slice(0, 8).map(q => ({ x: num(q.x, -400, 400, 0) - cx, y: num(q.y, 0, 120, top), mg: q.mg ? 1 : 0 }));
+    const topAt = x => { let b = null; for (let i = 0; i < hull.length; i++) { const a = hull[i], c2 = hull[(i + 1) % hull.length]; if ((a[0] <= x && x <= c2[0]) || (c2[0] <= x && x <= a[0])) { const y = a[0] === c2[0] ? Math.max(a[1], c2[1]) : a[1] + (x - a[0]) / (c2[0] - a[0]) * (c2[1] - a[1]); b = b === null ? y : Math.max(b, y); } } return b === null ? top : b; };
+    const nAA = aa.length; [-1, 1].forEach(sg => { const x = sg * (len / 2 - 6); aa.push({ x, y: topAt(x), mg: 1 }); });   // 선수·선미 기관포 (어뢰 요격)
     let hi = top; parts.forEach(q => { hi = Math.max(hi, q.k === 'mast' ? q.y + q.h : q.k === 'turret' ? q.y + q.w * 0.7 : q.y + q.h); });
     const SKu = 2.6, name = String(d.name || 'Ship').replace(/[<>]/g, '').slice(0, 24) || 'Ship';
     USHIP[key] = { d, cls, len, hull, parts, aa, top, col: { hull: col(d.hullCol, '#5d6b78'), deck: col(d.deckCol, '#3a4350'), water: col(d.waterCol, '#6b2a22') } };
     SHIP_CLS[key] = cls; SHIP_NAME[key] = name; SHIPS[key] = 1; HP[key] = HP[cls]; SK[key] = SKu; SP[key] = SP[cls]; HULL_H[key] = Math.max(2, top);
     BOX[key] = { w: len, h: Math.max(10, hi) }; AA_N[key] = AA_N[cls]; AA_R[key] = AA_R[cls];
     for (const tb of Object.values(DMG)) tb[key] = tb[cls];
-    SHIP_GUNS[key] = { gy: aa.length ? aa.reduce((s, q) => s + q.y, 0) / aa.length / SKu + 0.9 : 3, gys: aa.map(q => q.y / SKu + 0.9), xs: aa.map(q => q.x / SKu), mg: aa.map((q, i) => q.mg ? i : -1).filter(i => i >= 0) };
+    SHIP_GUNS[key] = { gy: aa.length ? aa.reduce((s, q) => s + q.y, 0) / aa.length / SKu + 0.9 : 3, gys: aa.map(q => q.y / SKu + 0.9), xs: aa.map(q => q.x / SKu), mg: aa.map((q, i) => q.mg ? i : -1).filter(i => i >= 0), end: [nAA, nAA + 1] };
   });
 }
 const userShipKeys = () => Object.keys(USHIP);
@@ -1073,7 +1076,7 @@ function makeTargets(M) {
     if (SHIPS[type] && type !== 'boat' && G.HC !== null) x = G.shipX[G.shipN++];   // 함정 자리는 위에서 정해 둔 순서대로
     else if (type === 'boat' && !raw && G.HC !== null && ISLANDS.length) { const k = (G.boatK = (G.boatK || 0) + 1) % ISLANDS.length, q = ISLANDS[k], out = (q.a + q.b) / 2 > G.HC ? 1 : -1, n = G.boatN[k] = (G.boatN[k] || 0) + 1; x = (out > 0 ? q.b + 90 + 70 * n : q.a - 90 - 70 * n); }   // 작은 배는 섬 바깥쪽 바다에
     const bvx = Math.abs(Math.sin(x * 0.071 + 7.3) * 9301.7) % 1;
-    const t = { bv: Math.floor(bvx * 5), type, x, y: SHIPS[type] ? 0 : gh(x), hp: HP[type], hp0: HP[type], alive: true, burn: 0, fire: Math.random() * 2, deadT: 0, x0: x, dir: TARGETS.length % 2 ? -1 : 1, launch: 10 + Math.random() * 12 }; t.isl = ISLANDS.findIndex(s => x > s.a && x < s.b); if (SHIP_GUNS[type]) t.guns = SHIP_GUNS[type].xs.map((lx, gi) => { const mg = (SHIP_GUNS[type].mg || []).includes(gi); return { lx, hp: mg ? 1 : 2, alive: true, mg, cd: 1 + Math.random() * 3, bn: 0, bt: 0 }; }); TARGETS.push(t); return t; };
+    const t = { bv: Math.floor(bvx * 5), type, x, y: SHIPS[type] ? 0 : gh(x), hp: HP[type], hp0: HP[type], alive: true, burn: 0, fire: Math.random() * 2, deadT: 0, x0: x, dir: TARGETS.length % 2 ? -1 : 1, launch: 10 + Math.random() * 12 }; t.isl = ISLANDS.findIndex(s => x > s.a && x < s.b); if (SHIP_GUNS[type]) t.guns = SHIP_GUNS[type].xs.map((lx, gi) => { const mg = (SHIP_GUNS[type].mg || []).includes(gi); return { lx, hp: mg ? 1 : 2, alive: true, mg, end: (SHIP_GUNS[type].end || []).includes(gi), cd: 1 + Math.random() * 3, bn: 0, bt: 0 }; }); TARGETS.push(t); return t; };
   const rwIsl = new Set();
   const CREW_W = { barracks: 1 };   // 일본군은 병영(집)에만 산다
   M.build((type, x0) => { const k = ISLANDS.findIndex(q => x0 - OFF > q.a && x0 - OFF < q.b); if (k >= 0 && !M.custom && (type === 'bunker' || type === 'barracks' || type === 'runway')) { if (type === 'runway') rwIsl.add(k); return null; } return add(type, x0); }, P);
@@ -1739,6 +1742,16 @@ function stepProj(dt) {
       if (Math.random() < dt * 25) FX.push({ k: 'splash', x: q.x - q.d * 3, y: 0, vx: 0, vy: 0, life: 0.35, t: 0 });
       if (Math.abs(q.x - q.sx) > TORP_RANGE) { FX.push({ k: 'splash', x: q.x, y: 0, vx: 0, vy: 0, life: 0.6, t: 0 }); PROJ.splice(i, 1); continue; }   // 사거리 끝: 가라앉는다
       if (gh(q.x) > 0) { explode(q.x, 0.5, 10, 'none', true); PROJ.splice(i, 1); continue; }
+      for (const t of TARGETS) {   // 선수·선미 기관포가 살아 있으면 다가오는 어뢰를 쏘아 떨어뜨린다
+        if (!t.alive || !t.guns || !SHIPS[t.type]) continue;
+        const dr = t.dir < 0 ? -1 : 1, gun = t.guns.find(g => g.end && g.alive && Math.abs(t.x + g.lx * SK[t.type] * dr - q.x) < 280);
+        if (!gun) continue;
+        gun.fl = G.t; if (q.kill === undefined) q.kill = G.t + 0.7 + Math.random() * 0.5;
+        if (Math.random() < dt * 14) { sfx('egun'); FX.push({ k: 'splash', x: q.x + (Math.random() - 0.5) * 8, y: 0, vx: 0, vy: 0, life: 0.3, t: 0 }); }
+        if (G.t >= q.kill) { FX.push({ k: 'splash', x: q.x, y: 0, vx: 0, vy: 0, life: 0.8, t: 0 }); explode(q.x, 0, 8, 'none', true); G.toast = { text: 'Ship machine guns shot down your torpedo — knock out the bow and stern guns first', grade: 'yellow', until: G.t + 3.5 }; PROJ.splice(i, 1); q.dead = true; }
+        break;
+      }
+      if (q.dead) continue;
       const sh = TARGETS.find(t => t.alive && SHIPS[t.type] && Math.abs(q.x - t.x) < BOX[t.type].w / 2);
       if (sh && CLS(sh.type) === 'bb' && sh.guns.some(g => g.alive)) { sh.hitAt = G.t; explode(q.x, 0, 10, 'none', true); G.toast = { text: 'The battleship shrugs it off — knock out every AA gun and machine gun first', grade: 'yellow', until: G.t + 3.5 }; PROJ.splice(i, 1); continue; }
       if (sh) { if (CLS(sh.type) === 'bb') (sh.hits = sh.hits || []).push(q.x - sh.x); applyDmg(sh, 22); explode(q.x, 0, 18, 'none', true); FX.push({ k: 'flash', x: q.x, y: 3, vx: 0, vy: 0, life: 0.3, t: 0 }); sfx('boom', { k: 'torp' }); PROJ.splice(i, 1); continue; }

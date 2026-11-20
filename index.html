@@ -1657,7 +1657,7 @@ function fireStep(dt) {
     }
   } else p.gunT = 0;
 }
-const gunOn = () => (keys.Space || keys.KeyZ || touch.on.gun > 0 || G.demoFire) && p.ammo.gun > 0;   // 기관총을 쏘는 동안에는 로켓·폭탄을 쓸 수 없다
+const gunOn = () => p === WP ? !!(WG && WG.gF > G.t) : (keys.Space || keys.KeyZ || touch.on.gun > 0 || G.demoFire) && p.ammo.gun > 0;   // 기관총을 쏘는 동안에는 로켓·폭탄을 쓸 수 없다
 const WPN = [['rk', 'rocket', 'rockets'], ['bm', 'bomb', 'bombs'], ['tp', 'torpedo', 'torpedoes']];
 function noAmmo(i) {   // 없는 무기를 눌렀다
   if (G.scene !== 'play') return; const loaded = LOAD_AMMO[G.loadout][WPN[i][0]] > 0;
@@ -3095,7 +3095,7 @@ function wingStep(dt) {
         if (w.ph === 'ing' && !passed && !(w.turn > 0)) {
           if (k !== 'ts') {   // 기관총
             if (w.ammo.gun > 0 && (cand.some(q => q.cdx < 650 && q.ce < 0.07 && (DMG.gun[q.c.type] >= 0.1 || !q.c.type)) || dxa < 650 && aimErr < 0.07 && (k === 'e' || k === 'g' && (SHIPS[o.type] || (DMG.gun[o.type] || 0) >= 0.1 || !o.type)))) {
-              w.gT -= dt;
+              w.gT -= dt; w.gF = G.t + 0.15;
               while (w.gT <= 0 && w.ammo.gun > 0) { w.gT += 1 / 16; w.ammo.gun -= 5; const a = w.h + (Math.random() - 0.5) * 0.03, cx = Math.cos(a), cy = Math.sin(a); PROJ.push({ k: 'b', x: w.x + cx * 9, y: w.y + cy * 9 - 0.4, vx: dxv + cx * 640, vy: dyv + cy * 640, life: 0.95, tr: Math.random() < 0.2 }); if (Math.random() < 0.35) sfx('gun', { x: w.x }); }
             } else w.gT = 0;
             const rt = k === 'g' && w.ammo.rk > 0 && G.t > w.rT ? (cand.length ? cand : [{ c: o, cdx: dxa, ce: aimErr }]).find(q => q.c.type && (DMG.rocket[q.c.type] || 0) > 0 && q.cdx < (hi ? 560 : 950) && q.cdx > (hi ? 260 : 300) && q.ce < 0.05 && (w.fpm.get(q.c) || 0) < Math.max(1, Math.ceil((q.c.hp || 1) / DMG.rocket[q.c.type]))) : null;
@@ -3877,13 +3877,12 @@ function frame(ts) {
   const dt = Math.min(0.05, (ts - last) / 1000 || 0); last = ts;
   if (!G.paused) {
     readKeys(dt); acc += dt;
-    while (acc >= STEP) { update(STEP); acc -= STEP; }
-    updateCam(dt);
+    try { while (acc >= STEP) { update(STEP); acc -= STEP; } updateCam(dt); } catch (err) { acc = 0; if (!G.errLogged) { G.errLogged = 1; console.error(err); } }   // 오류가 나도 게임이 멈추지 않게 한다
   }
-  updateSound(dt);
+  try { updateSound(dt); } catch (_) {}
   const shake = p.mode === 'deck' && !p.landing && p.thr > 0.7 ? 1.6 : 0;
   ctx.save(); if (shake) ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
-  drawWorld(); ctx.restore(); if (G.scene === 'play') drawHudFaded(); else drawScene();
+  try { drawWorld(); ctx.restore(); if (G.scene === 'play') drawHudFaded(); else drawScene(); } catch (err) { try { ctx.restore(); } catch (_) {} if (!G.errLogged) { G.errLogged = 1; console.error(err); } }
   requestAnimationFrame(frame);
 }
 importCustomFromUrl(); registerShips(); reset(); startDemo(); cam.x = p.x; cam.y = 60;

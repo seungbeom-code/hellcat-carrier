@@ -1776,7 +1776,7 @@ function stepProj(dt) {
     }
     if (q.k === 'b') { const sd = SOLD.find(o => o.alive && o.st !== 'enter' && Math.abs(q.x - o.x) < 4.5 && q.y >= o.y - 0.5 && q.y <= o.y + 8); if (sd) { killSoldier(sd); PROJ.splice(i, 1); continue; } }
     const hit = hitTest(q.x, q.y, q.k === 'b' ? 0.5 : q.k === 'm' ? 0 : 1.5),   // 기관총도 건물·벙커·대공포·함선의 포에 피해를 준다
-      tree = q.k === 'b' ? hitTree(q.x, q.y) : null,   // 기관총은 나무도 맞힌다 (로켓은 폭발로만 쓰러뜨린다)
+      tree = q.k === 'b' || q.k === 'r' ? hitTree(q.x, q.y) : null,   // 기관총은 나무도 맞힌다 (로켓은 폭발로만 쓰러뜨린다)
       g = gh(q.x), ground = g > 0 && q.y <= g, sea = !ground && q.y <= 0;
     if (!(hit || tree || ground || sea)) { if (q.life <= 0) PROJ.splice(i, 1); continue; }
     if (q.k === 'b') {
@@ -2953,7 +2953,6 @@ function wingStep(dt) {
   if (G.scene !== 'play') { WG = null; return; }
   if (!WG || WG.m !== G.m) WG = newWing();
   const w = WG, deck = DECK_Y + WH, sgn = Math.cos(w.h) >= 0 ? 1 : -1;
-  const steer = (hd, rate) => { w.h += clamp(angd(hd, w.h), -rate * dt, rate * dt); };
   if (w.st === 'park') {   // 갑판 위: 정비 후 대기
     w.x = ship.x + w.xr; w.y = deck; w.v = ship.v; w.h = 0.2; w.vrel = 0;
     w.t -= dt; if (w.t > 0) return;
@@ -2962,7 +2961,7 @@ function wingStep(dt) {
   }
   if (w.st === 'roll') {   // 이륙 활주
     w.vrel += 30 * dt; w.xr += w.vrel * dt; w.x = ship.x + w.xr; w.y = deck; w.v = ship.v + w.vrel; w.h = 0.2 * clamp(1 - w.vrel / 40, 0, 1);
-    if (w.vrel >= 48 || w.xr > DECK_L - 15) { w.st = 'hunt'; w.h = 0.1; w.tg = null; w.ph = 'ing'; w.idle = 0; }
+    if (w.vrel >= 48 || w.xr > DECK_L - 15) { w.st = 'hunt'; w.h = 0.1; w.s = 1; w.pitch = 0.1; w.turn = 0; w.tg = null; w.ph = 'ing'; w.idle = 0; }
     return;
   }
   if (w.st === 'rollout') {   // 착함 후 감속하며 정위치로
@@ -2977,6 +2976,7 @@ function wingStep(dt) {
   }
   // ── 공중 ──
   w.fuel = Math.max(0, w.fuel - 0.3 * dt);
+  if (w.s === undefined) { w.s = Math.cos(w.h) >= 0 ? 1 : -1; w.pitch = 0; w.turn = 0; }
   const hxx = Math.cos(w.h);
   let vt = W_CRUISE, hd = w.h, rate = 1.8, g0 = 0;
   for (let k = 1; k <= 5; k++) g0 = Math.max(g0, gh(w.x + hxx * w.v * 0.35 * k));
@@ -3003,7 +3003,7 @@ function wingStep(dt) {
         else hd = Math.atan2(ty - w.y, dx);
         if (k === 'ts') vt = 100;
         const aimErr = Math.abs(angd(Math.atan2(ty - w.y, dx), w.h)), dxa = Math.abs(dx), dxv = Math.cos(w.h) * w.v, dyv = Math.sin(w.h) * w.v;
-        if (w.ph === 'ing' && !passed) {
+        if (w.ph === 'ing' && !passed && !(w.turn > 0)) {
           if (k !== 'ts') {   // 기관총
             if (dxa < 650 && aimErr < 0.07 && w.ammo.gun > 0 && (k === 'e' || k === 'g' && (SHIPS[o.type] || (DMG.gun[o.type] || 0) >= 0.1 || !o.type))) {
               w.gT -= dt;
@@ -3041,23 +3041,38 @@ function wingStep(dt) {
       if (w.y <= deck + 0.25 && xr > 60 && xr < DECK_L - 40) {   // 접함
         w.st = 'rollout'; w.xr = xr; w.vrel = Math.max(10, w.v - ship.v); w.y = deck; w.h = 0.1; sfx('thump'); return;
       }
-      if (xr > DECK_L - 30) { w.st = 'hunt'; w.tg = null; w.h = 0.2; w.y = deck + 6; }   // 못 내렸다: 다시 이륙
+      if (xr > DECK_L - 30) { w.st = 'hunt'; w.tg = null; w.h = 0.2; w.s = 1; w.pitch = 0.2; w.turn = 0; w.y = deck + 6; }   // 못 내렸다: 다시 이륙
     }
   }
   // 지형·고도 한계 회피
   const floor = (w.tg && w.tg.k === 'ts' ? 8 : 22) + g0;
-  if (w.st !== 'final' && w.y < floor + 12 && !(w.tg && w.tg.k === 'ts' && g0 <= 0)) { hd = hxx >= 0 ? 0.75 : Math.PI - 0.75; rate = 3; }
-  if (w.y > MAX_ALT - 60 && Math.sin(hd) > 0) hd = hxx >= 0 ? -0.3 : -Math.PI + 0.3;
-  steer(hd, rate); w.h = Math.atan2(Math.sin(w.h), Math.cos(w.h));
+  if (w.st !== 'final' && w.y < floor + 12 && !(w.tg && w.tg.k === 'ts' && g0 <= 0)) { hd = w.s > 0 ? 0.75 : Math.PI - 0.75; }
+  if (w.y > MAX_ALT - 60 && Math.sin(hd) > 0) hd = w.s > 0 ? -0.3 : Math.PI + 0.3;
+  // 움직임은 내 비행기와 같게: 기수는 위아래로만 움직이고, 반대로 가려면 제자리 뒤집기 선회(속도·고도를 조금 잃는다)
+  if (w.turn > 0) {
+    w.turn -= dt; const f = clamp(1 - w.turn / TURN_T, 0, 1);
+    w.vx = w.s0 * Math.abs(w.v0) * lerp(1, 0.85, f) * Math.cos(Math.PI * f); w.vy += (-3 - w.vy) * Math.min(1, 2.5 * dt);
+    if (f >= 0.5 && !w.flipped) { w.s = -w.s; w.flipped = true; }
+    w.tp += (clamp(Math.atan2(w.vy, Math.max(Math.abs(w.v0) * 0.85, 25)), -0.6, 0.6) - w.tp) * Math.min(1, 4 * dt); w.pitch = w.tp;
+    w.h = w.s > 0 ? w.pitch : Math.PI - w.pitch; w.x += w.vx * dt; w.y = Math.min(MAX_ALT, w.y + w.vy * dt);
+    if (w.turn <= 0) { w.turn = 0; w.v = Math.abs(w.v0) * 0.85; }
+    return;
+  }
+  let wantDir = Math.cos(hd) >= 0 ? 1 : -1, wp = angd(wantDir > 0 ? hd : Math.PI - hd, 0);
+  if (wantDir !== w.s) {   // 방향을 바꿔야 한다: 수평에 가깝고, 속도와 높이가 충분할 때만 선회
+    if (Math.abs(w.pitch) < 0.5 && w.v * KT >= TURN_KT + 20 && w.y - g0 > 30 && w.st !== 'final') { w.turn = TURN_T; w.s0 = w.s; w.v0 = w.v; w.flipped = false; w.tp = w.pitch; w.vy = Math.sin(w.h) * w.v; return; }
+    wp = 0; wantDir = w.s;
+  }
+  w.pitch += clamp(clamp(wp, -0.62, 0.62) - w.pitch, -1.1 * dt, 1.1 * dt);
+  w.h = w.s > 0 ? w.pitch : Math.PI - w.pitch;
   w.v += (vt - w.v) * Math.min(1, dt * 0.8);
   w.x += Math.cos(w.h) * w.v * dt; w.y += Math.sin(w.h) * w.v * dt;
   if (w.y < 1) w.y = 1;
-  w.fl += (sgn - w.fl) * Math.min(1, dt * 7);
 }
 function drawWing(c) {
   const w = WG; if (!w || G.scene !== 'play') return;
   const onDeck = w.st === 'park' || w.st === 'roll' || w.st === 'rollout' || w.st === 'taxi', low = w.st === 'final' || w.st === 'app' || onDeck;
-  world(w.x, w.y, () => { c.rotate(w.h); c.scale(1, onDeck || w.st === 'final' ? 1 : w.fl); drawPlane({ gear: low && (onDeck || w.st === 'final'), flaps: w.st === 'final' || onDeck, hook: w.st === 'final' || w.st === 'rollout', thr: onDeck && w.st === 'park' ? 0 : 1 }); });
+  world(w.x, w.y, () => { if (w.turn > 0) { const f = clamp(1 - w.turn / TURN_T, 0, 1), ph = (w.s0 > 0 ? 0 : Math.PI) + Math.PI * f; c.rotate((w.tp || 0) * Math.cos(ph)); drawPlane3D(ph, Math.sin(Math.PI * f), false); return; } c.rotate(w.h); c.scale(1, w.s >= 0 ? 1 : -1); drawPlane({ gear: low && (onDeck || w.st === 'final'), flaps: w.st === 'final' || onDeck, hook: w.st === 'final' || w.st === 'rollout', thr: onDeck && w.st === 'park' ? 0 : 1 }); });
   const X = sx(w.x), Y = sy(w.y) - 30;
   { c.save(); c.font = '700 12px system-ui,sans-serif'; c.textAlign = 'center'; c.lineWidth = 3; c.strokeStyle = 'rgba(0,0,0,0.6)'; c.fillStyle = '#9fd8ff'; c.strokeText('Wingman', X, Y); c.fillText('Wingman', X, Y); c.restore(); }
 }

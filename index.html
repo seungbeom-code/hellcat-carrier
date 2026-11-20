@@ -3029,8 +3029,8 @@ function wingStep(dt) {
     return;
   }
   if (w.st === 'roll') {   // 이륙 활주
-    w.vrel += 30 * dt; w.xr += w.vrel * dt; w.x = ship.x + w.xr; w.y = deck; w.v = ship.v + w.vrel; w.h = 0.2 * clamp(1 - w.vrel / 40, 0, 1);
-    if (w.vrel >= 48 || w.xr > DECK_L - 15) { w.st = 'hunt'; w.h = 0.1; w.s = 1; w.pitch = 0.1; w.turn = 0; w.tg = null; w.clb = false; w.ph = 'ing'; w.idle = 0; }
+    w.vrel += (12 + w.vrel * 0.12) * dt; w.xr += w.vrel * dt; w.x = ship.x + w.xr; w.y = deck; w.v = ship.v + w.vrel; w.h = 0.14 * clamp((w.vrel - 38) / 14, 0, 1);   // 천천히 가속하고, 끝에서 기수를 든다
+    if (w.vrel >= 52 || w.xr > DECK_L - 15) { w.tkT = G.t; w.st = 'hunt'; w.h = 0.14; w.s = 1; w.pitch = 0.14; w.turn = 0; w.tg = null; w.clb = false; w.ph = 'ing'; w.idle = 0; }
     return;
   }
   if (w.st === 'rollout') {   // 착함 후 감속하며 정위치로
@@ -3129,7 +3129,8 @@ function wingStep(dt) {
   }
   // 지형·고도 한계 회피
   const floor = (w.tg && w.tg.k === 'ts' ? 8 : 22) + g0;
-  if (w.st !== 'final' && w.y < floor + 12 && !(w.tg && w.tg.k === 'ts' && g0 <= 0)) { hd = w.s > 0 ? 0.75 : Math.PI - 0.75; }
+  if (w.st !== 'final' && !(w.tkT && G.t - w.tkT < 7 && w.st === 'hunt') && w.y < floor + 12 && !(w.tg && w.tg.k === 'ts' && g0 <= 0)) { hd = w.s > 0 ? 0.75 : Math.PI - 0.75; }
+  if (w.tkT && G.t - w.tkT < 7 && w.st === 'hunt') { hd = 0.3; vt = 100; rate = 1; }   // 이륙 직후: 완만하게 오르며 속도를 붙인다
   if (w.y > MAX_ALT - 60 && Math.sin(hd) > 0) hd = w.s > 0 ? -0.3 : Math.PI + 0.3;
   // 움직임은 내 비행기와 같게: 기수는 위아래로만 움직이고, 반대로 가려면 제자리 뒤집기 선회(속도·고도를 조금 잃는다)
   if (w.turn > 0) {

@@ -169,7 +169,7 @@ function renderMain() {
   </div>
 
   <div class="card"><h2>Ships</h2><div id="shipRow" class="row"></div>
-    <p class="hint">Ships are placed in the sea automatically. Sink them with torpedoes.</p></div>
+    <p class="hint">Pick a ship by name — your own designs from the Ship Designer (★) are listed after the three standard classes. Ships are placed in the sea automatically. Sink them with torpedoes. The list refreshes when you come back to this tab.</p></div>
 
   <div class="card"><h2>Enemy air raids</h2><div id="waves"></div>
     <button id="wAdd" class="sm">+ Add wave</button>
@@ -246,17 +246,22 @@ function overlaps(q) {   // 서로 너무 가깝게 겹친 시설 (활주로 위
   return bad;
 }
 
+addEventListener('focus', () => { try { renderShips(); } catch (_) {} });
 function renderShips() {
-  const m = M(), row = $('#shipRow'); row.innerHTML = '';
+  const m = M(), row = $('#shipRow'), list = shipList(); row.innerHTML = '';
   m.ships = m.ships.map(s => s === 'tr' ? 'dd' : s === 'bm' ? 'bb' : s);
-  Object.entries(shipList()).forEach(([k, n]) => {
-    const cnt = m.ships.filter(s => s === k).length, d = document.createElement('div'); d.className = 'cnt';
-    d.innerHTML = '<span style="min-width:120px;color:var(--dim)">' + n + '</span><button class="sm">−</button><b>' + cnt + '</b><button class="sm">+</button>';
-    const [bm, , bp] = d.querySelectorAll('button, b');
-    bm.onclick = () => { const i = m.ships.lastIndexOf(k); if (i >= 0) { m.ships.splice(i, 1); renderShips(); renderWarns(); } };
-    bp.onclick = () => { if (m.ships.length < 8) { m.ships.push(k); renderShips(); renderWarns(); } };
-    row.appendChild(d);
+  const add = document.createElement('div'); add.className = 'cnt';
+  add.innerHTML = '<select style="min-width:260px">' + Object.entries(list).map(([k, n]) => '<option value="' + k + '">' + esc(n) + '</option>').join('') + '</select><button class="sm pri">+ Add to mission</button>';
+  add.querySelector('button').onclick = () => { if (m.ships.length >= 8) { say('At most 8 ships per mission.', true); return; } m.ships.push(add.querySelector('select').value); renderShips(); renderWarns(); };
+  row.appendChild(add);
+  const box = document.createElement('div'); box.style.cssText = 'flex-basis:100%;display:flex;flex-wrap:wrap;gap:6px';
+  if (!m.ships.length) box.innerHTML = '<span class="hint" style="margin:0">No ships in this mission.</span>';
+  m.ships.forEach((k, i) => {
+    const b = document.createElement('button'); b.className = 'sm'; b.title = 'Click to remove';
+    b.innerHTML = esc(list[k] || ('(missing ship) ' + k)) + ' ✕'; if (!list[k]) b.style.borderColor = 'var(--bad)';
+    b.onclick = () => { m.ships.splice(i, 1); renderShips(); renderWarns(); }; box.appendChild(b);
   });
+  row.appendChild(box);
 }
 
 function renderWaves() {

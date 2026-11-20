@@ -2957,7 +2957,7 @@ function wingHurt(d) {
   for (let i = 0, n = 3 + Math.min(4, Math.round(d)); i < n; i++) FX.push({ k: 'dirt', x: w.x + (Math.random() - 0.5) * 7, y: w.y + (Math.random() - 0.5) * 2.5, vx: (Math.random() - 0.5) * 22, vy: (Math.random() - 0.4) * 14 + 2, life: 0.25 + Math.random() * 0.3, t: 0, s: 0.18 + Math.random() * 0.16, c: i % 2 ? '#c9ced4' : '#3f72b8' });
   if (w.hp <= 0) { w.st = 'wreck'; w.vx = Math.cos(w.h) * w.v; w.vy = Math.sin(w.h) * w.v * 0.5; w.turn = 0; G.toast = { text: 'Your wingman was shot down! A replacement is being readied', grade: 'brown', until: G.t + 3.5 }; }
 }
-function newWing() { return { s: 1, pitch: 0, turn: 0, hp: WING_HP, m: G.m, st: 'park', t: 1.5, xr: W_PARK_XR, vrel: 0, x: ship.x + W_PARK_XR, y: DECK_Y + WH, h: 0, v: ship.v, fl: 1, ammo: { gun: 1500, rk: 8, tp: 2 }, fuel: 100, tg: null, ph: 'ing', gT: 0, rT: 0, tT: 0, idle: 0 }; }
+function newWing() { return { s: 1, pitch: 0, turn: 0, hp: WING_HP, m: G.m, st: 'hangar', t: 1.5, xr: ELEV_C, ey: -ELEV_DEPTH, goal: LAUNCH_XR, vrel: 0, x: ship.x + ELEV_C, y: DECK_Y + WH - ELEV_DEPTH, h: 0, v: ship.v, fl: 1, ammo: { gun: 1500, rk: 8, tp: 2 }, fuel: 100, tg: null, ph: 'ing', gT: 0, rT: 0, tT: 0, idle: 0 }; }
 function wingGun(t, w) {   // 배에서 아직 살아 있는 포 중 하나 (선수·선미 기관포를 먼저)
   const dr = t.dir < 0 ? -1 : 1; let b = null, bs = 1e9;
   for (const g of t.guns || []) { if (!g.alive) continue; const s = Math.abs(t.x + g.lx * SK[t.type] * dr - w.x) + (g.end ? 0 : 2000); if (s < bs) { bs = s; b = { x: t.x + g.lx * SK[t.type] * dr, y: t.y + HULL_H[t.type] + 3 }; } }
@@ -2990,10 +2990,24 @@ function wingStep(dt) {
   if (WG.st === 'gone') { WG.t -= dt; if (WG.t <= 0) WG = newWing(); return; }
   if (G.t < (WG.smokeT || 0) || WG.hp < 50) { const w = WG; if ((w.st === 'hunt' || w.st === 'app' || w.st === 'final') && Math.random() < dt * (w.hp < 50 ? 14 : 8)) FX.push({ k: 'smoke', x: w.x - Math.cos(w.h) * 5, y: w.y - Math.sin(w.h) * 5, vx: 0, vy: 2, life: 0.9, t: 0, s: 1.4 }); }
   const w = WG, deck = DECK_Y + WH, sgn = Math.cos(w.h) >= 0 ? 1 : -1;
-  if (w.st === 'park') {   // 갑판 위: 정비 후 대기
-    w.x = ship.x + w.xr; w.y = deck; w.v = ship.v; w.h = 0.2; w.vrel = 0;
+  const elevFree = () => p.mode !== 'lift' && !(p.mode === 'taxi' && Math.abs(p.xr - ELEV_C) < 30);
+  if (w.st === 'hangar') {   // 격납고: 정비 후 대기. 엘리베이터가 비면 올라온다
+    w.ey = -ELEV_DEPTH; w.xr = ELEV_C; w.x = ship.x + w.xr; w.y = deck + w.ey; w.v = ship.v; w.vrel = 0; w.h = 0;
     w.t -= dt; if (w.t > 0) return;
-    if (w.fuel >= 60 && (w.ammo.gun > 0 || w.ammo.rk > 0 || w.ammo.tp > 0) && wingPick(w)) { w.st = 'roll'; w.h = 0; } else w.t = 2;
+    if (!elevFree()) { w.wait = (w.wait || 0) + dt; if (w.wait < 12) return; }   // 내 비행기가 엘리베이터를 쓰는 동안은 기다린다 (너무 오래면 그냥 올라온다)
+    w.wait = 0;
+    if (w.fuel >= 60 && (w.ammo.gun > 0 || w.ammo.rk > 0 || w.ammo.tp > 0) && wingPick(w)) { w.st = 'eup'; w.t2 = 0; sfx('lift', { x: w.x }); } else w.t = 2;
+    return;
+  }
+  if (w.st === 'eup' || w.st === 'edown') {   // 엘리베이터: 갑판으로 올라오거나 격납고로 내려간다
+    w.t2 += dt; const k = clamp(w.t2 / 1.3, 0, 1); w.ey = -ELEV_DEPTH * (w.st === 'eup' ? 1 - smooth(k) : smooth(k));
+    w.xr = ELEV_C; w.x = ship.x + w.xr; w.y = deck + w.ey; w.v = ship.v; w.h = 0.2;
+    if (k >= 1) { if (w.st === 'eup') { w.ey = 0; w.st = 'taxi'; w.goal = LAUNCH_XR; } else { w.st = 'hangar'; w.t = 6; w.ammo = { gun: 1500, rk: 8, tp: 2 }; w.fuel = 100; w.hp = WING_HP; w.tg = null; } }   // 내려간 동안 급유·장전·수리
+    return;
+  }
+  if (w.st === 'taxi') {   // 갑판 위 이동: 엘리베이터 ↔ 발진선
+    w.ey = 0; const d = w.goal - w.xr; w.xr += clamp(d, -13 * dt, 13 * dt); w.x = ship.x + w.xr; w.y = deck; w.v = ship.v; w.h = 0.2;
+    if (Math.abs(d) < 0.05) { if (w.goal === LAUNCH_XR) { w.st = 'roll'; w.vrel = 0; w.h = 0; } else if (elevFree() || (w.wait = (w.wait || 0) + dt) > 12) { w.wait = 0; w.st = 'edown'; w.t2 = 0; sfx('lift', { x: w.x }); } }
     return;
   }
   if (w.st === 'roll') {   // 이륙 활주
@@ -3003,12 +3017,7 @@ function wingStep(dt) {
   }
   if (w.st === 'rollout') {   // 착함 후 감속하며 정위치로
     w.vrel = Math.max(0, w.vrel - 34 * dt); w.xr += w.vrel * dt; w.x = ship.x + w.xr; w.y = deck; w.v = ship.v + w.vrel; w.h = 0.15;
-    if (w.vrel <= 0.5 || w.xr > DECK_L - 30) { w.st = 'taxi'; }
-    return;
-  }
-  if (w.st === 'taxi') {
-    w.xr = Math.min(W_PARK_XR, w.xr + 12 * dt); w.x = ship.x + w.xr; w.y = deck; w.v = ship.v; w.h = 0.2;
-    if (w.xr >= W_PARK_XR - 0.01) { w.st = 'park'; w.t = 6; w.ammo = { gun: 1500, rk: 8, tp: 2 }; w.fuel = 100; w.hp = WING_HP; w.tg = null; }
+    if (w.vrel <= 0.5 || w.xr > DECK_L - 30) { w.st = 'taxi'; w.goal = ELEV_C; }
     return;
   }
   // ── 공중 ──
@@ -3112,7 +3121,8 @@ function wingStep(dt) {
 }
 function drawWing(c) {
   const w = WG; if (!w || G.scene !== 'play' || w.st === 'gone') return;
-  const onDeck = w.st === 'park' || w.st === 'roll' || w.st === 'rollout' || w.st === 'taxi', low = w.st === 'final' || w.st === 'app' || onDeck;
+  if (w.st === 'hangar') return;
+  const onDeck = w.st === 'roll' || w.st === 'rollout' || w.st === 'taxi' || w.st === 'eup' || w.st === 'edown', low = w.st === 'final' || w.st === 'app' || onDeck;
   world(w.x, w.y, () => { if (w.turn > 0) { const f = clamp(1 - w.turn / TURN_T, 0, 1), ph = (w.s0 > 0 ? 0 : Math.PI) + Math.PI * f; c.rotate((w.tp || 0) * Math.cos(ph)); drawPlane3D(ph, Math.sin(Math.PI * f), false); return; } c.rotate(w.h); c.scale(1, w.s === -1 ? -1 : 1); drawPlane({ gear: low && (onDeck || w.st === 'final'), flaps: w.st === 'final' || onDeck, hook: w.st === 'final' || w.st === 'rollout', thr: onDeck && w.st === 'park' ? 0 : 1 }); });
   const X = sx(w.x), Y = sy(w.y) - 30;
   { c.save(); c.font = '700 12px system-ui,sans-serif'; c.textAlign = 'center'; c.lineWidth = 3; c.strokeStyle = 'rgba(0,0,0,0.6)'; c.fillStyle = '#9fd8ff'; c.strokeText('Wingman', X, Y); c.fillText('Wingman', X, Y); c.restore(); }
@@ -3491,7 +3501,7 @@ function drawShip0() {
     c.strokeStyle = 'rgba(36,44,56,0.9)'; c.lineWidth = 0.18;
     for (let x = 2; x < DECK_L + 2; x += 9) { if (x > ZONE_A - 1 && x < ZONE_B + 1) continue; c.beginPath(); c.moveTo(x, DECK_Y); c.lineTo(x, DECK_Y + 1); c.stroke(); }   // 안전망 지지대
     {   // 가운데 엘리베이터와 발진선
-      const ey = p.mode === 'lift' && p.el ? p.el.y : 0;
+      const ey = Math.min(p.mode === 'lift' && p.el ? p.el.y : 0, WG && (WG.st === 'eup' || WG.st === 'edown') ? WG.ey : 0);
       if (ey < -0.05) {   // 내려가는 중: 승강기 통로 단면을 보여 준다
         c.fillStyle = 'rgba(8,12,20,0.96)'; c.fillRect(ELEV_A, 4.5, ELEV_W, DECK_Y - 4.5);
         c.strokeStyle = '#59667a'; c.lineWidth = 0.35;
@@ -3784,7 +3794,7 @@ function drawHUD() {
 const ZOOM_MIN = 0.6;   // 가장 많이 축소했을 때 (화면에 약 1.6km 폭)
 function updateCam(dt) {
   if (G.camWing && WG && G.scene === 'play') {   // 동료기 시점
-    const w = WG, zt = Math.max(ZOOM_MIN, Math.min(w.st === 'park' || w.st === 'roll' || w.st === 'rollout' || w.st === 'taxi' ? 2.9 : 1.6, 0.5 * H / Math.max(w.y, 40)));
+    const w = WG, zt = Math.max(ZOOM_MIN, Math.min(w.st === 'hangar' || w.st === 'eup' || w.st === 'edown' || w.st === 'roll' || w.st === 'rollout' || w.st === 'taxi' ? 2.9 : 1.6, 0.5 * H / Math.max(w.y, 40)));
     cam.z = lerp(cam.z, zt, Math.min(1, dt * (zt < cam.z ? 6 : 1.5)));
     const dir = Math.cos(w.h) >= 0 ? 1 : -1, tx = w.x + dir * 0.2 * W / cam.z, ty = Math.max(w.y * 0.92, H * 0.27 / cam.z);
     cam.x = lerp(cam.x, tx, Math.min(1, dt * 5)); cam.y = lerp(cam.y, ty, Math.min(1, dt * 6)); cam.y = Math.min(cam.y, Math.max(0.4 * H / cam.z, w.y - 0.3 * H / cam.z)); return;

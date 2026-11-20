@@ -3034,9 +3034,10 @@ function wingStep(dt) {
         if (w.ph === 'ing' && passed && Math.abs(dx) > 100) w.ph = 'egr';
         if (w.ph === 'ing' && hi && Math.abs(dx) < 1500 && w.y - ty < 180 && !passed) { w.ph = 'egr'; w.clb = true; }   // 로켓을 쏘기엔 낮다: 목표에서 멀어지며 먼저 높이를 번다
         if (w.ph === 'egr' && w.clb && (w.y - ty > 270 || Math.abs(dx) > 1800)) { w.ph = 'ing'; w.clb = false; }
-        if (w.ph === 'egr' && !w.clb && Math.abs(dx) > (hi ? 1750 : 1150)) w.ph = 'ing';
+        if (w.ph === 'ing' && hi && Math.sin(w.h) < 0 && w.y - g0 < 90) w.ph = 'egr';   // 내리꽂다가 땅이 가까워지면 즉시 급상승
+        if (w.ph === 'egr' && !w.clb && Math.abs(dx) > (hi ? 1750 : 1150) && (!hi || w.y - ty > 250)) w.ph = 'ing';   // 로켓 공격은 충분히 올라간 뒤에야 다시 들어간다
         if (w.ph === 'egr' && w.clb) { const ee = clamp((A - w.y) * 0.01, -0.1, 0.2); hd = dx > 0 ? Math.PI - ee : ee; }
-        else if (w.ph === 'egr') { const ee = clamp((A - w.y) * 0.01, -0.25, 0.2); hd = sgn > 0 ? ee : Math.PI - ee; }
+        else if (w.ph === 'egr') { const ee = clamp((A - w.y) * 0.01, -0.25, hi ? 0.5 : 0.2); hd = sgn > 0 ? ee : Math.PI - ee; }
         else if (Math.abs(dx) > (hi ? 1500 : 1000)) hd = Math.atan2(clamp(A - w.y, k === 'ts' ? -450 : -120, 120), dx);
         else if (hi && Math.abs(dx) > 700) hd = Math.atan2(clamp(A - w.y, -60, 60), dx);   // 높이를 유지하다가 사격 거리에서 내리꽂는다
         else if (k === 'ts') { const cc = clamp((38 - w.y) * 0.02, -0.3, 0.15); hd = dir > 0 ? cc : Math.PI - cc; }

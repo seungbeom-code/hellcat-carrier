@@ -2990,7 +2990,7 @@ function wingStep(dt) {
   }
   if (w.st === 'roll') {   // 이륙 활주
     w.vrel += 30 * dt; w.xr += w.vrel * dt; w.x = ship.x + w.xr; w.y = deck; w.v = ship.v + w.vrel; w.h = 0.2 * clamp(1 - w.vrel / 40, 0, 1);
-    if (w.vrel >= 48 || w.xr > DECK_L - 15) { w.st = 'hunt'; w.h = 0.1; w.s = 1; w.pitch = 0.1; w.turn = 0; w.tg = null; w.ph = 'ing'; w.idle = 0; }
+    if (w.vrel >= 48 || w.xr > DECK_L - 15) { w.st = 'hunt'; w.h = 0.1; w.s = 1; w.pitch = 0.1; w.turn = 0; w.tg = null; w.clb = false; w.ph = 'ing'; w.idle = 0; }
     return;
   }
   if (w.st === 'rollout') {   // 착함 후 감속하며 정위치로
@@ -3020,14 +3020,17 @@ function wingStep(dt) {
         hd = Math.atan2(p.y + 40 - w.y, p.x + 300 * Math.sin(G.t * 0.2) - w.x); vt = W_CRUISE;
       } else {
         w.idle = 0; const o = w.tg.o, k = w.tg.k, gp = k === 'g' && SHIPS[o.type] ? wingGun(o, w) : null, tx = gp ? gp.x : o.x, ty = k === 'e' ? o.y : k === 'ts' ? 0 : gp ? gp.y : (o.y || 0) + 2;
-        const dx = tx - w.x, dir = dx >= 0 ? 1 : -1, dirA = dir > 0 ? 0 : Math.PI, A = k === 'ts' ? 38 : k === 'e' ? ty : ty + 70;
+        const dx = tx - w.x, dir = dx >= 0 ? 1 : -1, dirA = dir > 0 ? 0 : Math.PI, hi = k === 'g' && o.type && w.ammo.rk > 0 && (DMG.rocket[o.type] || 0) > 0, A = k === 'ts' ? 38 : k === 'e' ? ty : hi ? ty + 300 : ty + 70;   // hi: 로켓 공격은 높은 곳에서 멀리서 내리꽂듯 쏜다
         const passed = hxx * dx < 0;
-        if (w.ph === 'ing' && Math.abs(dx) < 200 + (k === 'ts' ? 300 : 0)) w.ph = 'egr';
+        if (w.ph === 'ing' && Math.abs(dx) < (hi ? 230 : 200) + (k === 'ts' ? 300 : 0)) w.ph = 'egr';
         if (w.ph === 'ing' && passed && Math.abs(dx) > 100) w.ph = 'egr';
-        if (w.ph === 'egr' && Math.abs(dx) > 1150 && !passed) w.ph = 'ing';
-        if (w.ph === 'egr' && Math.abs(dx) > 1150 && passed) w.ph = 'ing';
-        if (w.ph === 'egr') { const ee = clamp((A - w.y) * 0.01, -0.25, 0.2); hd = sgn > 0 ? ee : Math.PI - ee; }
-        else if (Math.abs(dx) > 1000) hd = Math.atan2(clamp(A - w.y, k === 'ts' ? -450 : -120, 120), dx);
+        if (w.ph === 'ing' && hi && Math.abs(dx) < 1500 && w.y - ty < 180 && !passed) { w.ph = 'egr'; w.clb = true; }   // 로켓을 쏘기엔 낮다: 목표에서 멀어지며 먼저 높이를 번다
+        if (w.ph === 'egr' && w.clb && (w.y - ty > 270 || Math.abs(dx) > 1800)) { w.ph = 'ing'; w.clb = false; }
+        if (w.ph === 'egr' && !w.clb && Math.abs(dx) > (hi ? 1750 : 1150)) w.ph = 'ing';
+        if (w.ph === 'egr' && w.clb) { const ee = clamp((A - w.y) * 0.01, -0.1, 0.2); hd = dx > 0 ? Math.PI - ee : ee; }
+        else if (w.ph === 'egr') { const ee = clamp((A - w.y) * 0.01, -0.25, 0.2); hd = sgn > 0 ? ee : Math.PI - ee; }
+        else if (Math.abs(dx) > (hi ? 1500 : 1000)) hd = Math.atan2(clamp(A - w.y, k === 'ts' ? -450 : -120, 120), dx);
+        else if (hi && Math.abs(dx) > 700) hd = Math.atan2(clamp(A - w.y, -60, 60), dx);   // 높이를 유지하다가 사격 거리에서 내리꽂는다
         else if (k === 'ts') { const cc = clamp((38 - w.y) * 0.02, -0.3, 0.15); hd = dir > 0 ? cc : Math.PI - cc; }
         else hd = Math.atan2(ty - w.y, dx);
         if (k === 'ts') vt = 100;
@@ -3038,7 +3041,7 @@ function wingStep(dt) {
               w.gT -= dt;
               while (w.gT <= 0 && w.ammo.gun > 0) { w.gT += 1 / 16; w.ammo.gun -= 5; const a = w.h + (Math.random() - 0.5) * 0.03, cx = Math.cos(a), cy = Math.sin(a); PROJ.push({ k: 'b', x: w.x + cx * 9, y: w.y + cy * 9 - 0.4, vx: dxv + cx * 640, vy: dyv + cy * 640, life: 0.95, tr: Math.random() < 0.2 }); if (Math.abs(w.x - p.x) < 1100 && Math.random() < 0.35) sfx('gun'); }
             } else w.gT = 0;
-            if (k === 'g' && o.type && dxa < 950 && dxa > 300 && aimErr < 0.05 && w.ammo.rk > 0 && G.t > w.rT && (DMG.rocket[o.type] || 0) > 0) {   // 로켓
+            if (k === 'g' && o.type && dxa < (hi ? 560 : 950) && dxa > (hi ? 260 : 300) && aimErr < 0.05 && w.ammo.rk > 0 && G.t > w.rT && (DMG.rocket[o.type] || 0) > 0) {   // 로켓
               w.rT = G.t + 0.9; w.ammo.rk--; const cx = Math.cos(w.h), cy = Math.sin(w.h); sfx('rocket');
               PROJ.push({ k: 'r', x: w.x + cx * 8, y: w.y + cy * 8 - 1, vx: dxv + cx * 130, vy: dyv + cy * 130, life: 14 });
             }

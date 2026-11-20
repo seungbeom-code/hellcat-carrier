@@ -3073,7 +3073,7 @@ function wingStep(dt) {
         if (w.ph === 'ing' && hi && Math.sin(w.h) < 0 && w.y - g0 < 90) w.ph = 'egr';   // 내리꽂다가 땅이 가까워지면 즉시 급상승
         if (w.ph === 'egr' && !w.clb && Math.abs(dx) > (hi ? 900 : 600) && (!hi || w.y - ty > 200)) w.ph = 'ing';   // 빠져나간 뒤 바로 돌아서 다시 들어간다 (멀리 가지 않는다)   // 로켓 공격은 충분히 올라간 뒤에야 다시 들어간다
         if (w.ph === 'egr' && !w.clb && k === 'g' && passed && Math.abs(dx) > 60) { w.tg = null; }   // 지나친 목표는 놔두고, 진행 방향의 다음 목표로 바로 넘어간다
-        if (w.ph === 'egr' && w.clb) { const ee = clamp((A - w.y) * 0.01, -0.1, 0.2); hd = dx > 0 ? Math.PI - ee : ee; }
+        if (w.ph === 'egr' && w.clb) { const ee = clamp((A - w.y) * 0.01, -0.1, 0.2); hd = Math.abs(dx) > 700 && dir === w.s ? (w.s > 0 ? 0.5 : Math.PI - 0.5) : dx > 0 ? Math.PI - ee : ee; }   // 높이가 모자라면: 목표가 앞에 멀리 있으면 돌아서지 않고 진행 방향으로 오르며 접근한다
         else if (w.ph === 'egr') { const ee = clamp((A - w.y) * 0.01, -0.25, hi ? 0.5 : 0.2) + (G.t < (w.smokeT || 0) + 2 ? 0.3 * Math.sin(G.t * 5) : 0); hd = sgn > 0 ? ee : Math.PI - ee; }   // 맞은 직후에는 위아래로 흔들며 빠져나간다
         else if (bomb) hd = Math.atan2(clamp(A - w.y, -80, 80), dx) * (Math.abs(dx) > 250 ? 1 : 0.3);   // 목표 높이 150m를 유지하며 곧게 들어간다
         else if (Math.abs(dx) > (hi ? 1500 : 1000)) hd = Math.atan2(clamp(A - w.y, k === 'ts' ? -450 : -120, 120), dx);

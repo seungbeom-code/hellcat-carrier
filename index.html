@@ -1598,7 +1598,7 @@ function applyDmg(t, d) {
     const dcols = ['#8a5a32', '#7d5230', '#946238', '#855630', '#8f5c34'];
     for (let i = 0; i < 12; i++) FX.push({ k: 'drum', x: t.x + (Math.random() - 0.5) * 7, y: t.y + 2 + Math.random() * 5, vx: (Math.random() - 0.5) * 46, vy: 16 + Math.random() * 30, vr: (Math.random() - 0.5) * 16, r: Math.random() * 6, c: dcols[i % 5], life: 5, t: 0, bn: 0 });
   }
-  if (CLS(t.type) !== 'dd') G.toast = { text: (USHIP[t.type] ? SHIP_NAME[t.type] : CLS(t.type) === 'cv' ? 'Enemy carrier' : 'Enemy battleship') + ' sunk!', grade: 'green', until: G.t + 3.5 };
+  if (SHIPS[t.type] && CLS(t.type) !== 'dd') G.toast = { text: (USHIP[t.type] ? SHIP_NAME[t.type] : CLS(t.type) === 'cv' ? 'Enemy carrier' : 'Enemy battleship') + ' sunk!', grade: 'green', until: G.t + 3.5 };
 }
 function damageAt(x, y, r, kind) {
   if (kind === 'none') return;

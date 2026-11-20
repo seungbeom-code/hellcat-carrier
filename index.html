@@ -170,7 +170,7 @@ function airStep(dt) {
     if (Math.abs(Math.atan2(p.vy, Math.abs(p.vx))) < 0.5) startTurn();
   }
   if (G.t - p.liftT < 4) p.vy = Math.min(p.vy, 1 + (G.t - p.liftT) * 3);
-  if (p.y > MAX_ALT - 80 && p.vy > 0) { p.vy = Math.min(p.vy, Math.max(0, MAX_ALT - p.y) * 0.4); if (p.y > MAX_ALT - 15 && (!G.msg || G.msg.until < G.t)) G.msg = { text: 'Maximum altitude ' + MAX_ALT + ' m', until: G.t + 1.5 }; }   // 600m 가까이 가면 부드럽게 멈춘다
+  if (p.y > MAX_ALT - 80 && p.vy > 0) { p.vy = Math.min(p.vy, Math.max(0, MAX_ALT - p.y) * 0.4); }   // 600m 가까이 가면 부드럽게 멈춘다
   if (p.y > 250 && kts() < stallKt() * 1.08 && (!G.toast || G.toast.until < G.t)) G.toast = { text: p.y > 420 ? 'Air too thin, stalling! Lower the nose and build speed' : 'Stalling! Lower the nose and build speed', grade: 'yellow', until: G.t + 2.5 };   // 고도 제한 대신 실속
   p.x += p.vx * dt; p.y += p.vy * dt;
 }
@@ -3504,7 +3504,9 @@ function drawHUD() {
   const stall = p.mode === 'air' && (p.stalled || kt < stallKt() * 1.04);
   if (stall && Math.sin(G.t * 12) > 0) { c.fillStyle = '#ff5a3c'; c.font = '800 22px system-ui,sans-serif'; c.fillText('STALL!', 480, 84); }
   // 연료
-  if (p.mode === 'air') { const fX = focusX(); if (fX !== null) { const dI = fX - p.x; panel(612, 50, 112, 26, 0.6); c.fillStyle = '#fff'; c.font = '700 12px system-ui,sans-serif'; c.fillText((dI < 0 ? '◀ Target ' : 'Target ▶ ') + (Math.abs(dI) / 1000).toFixed(1) + 'km', 622, 67); } }
+  if (p.mode === 'air') { const fX = focusX(); if (fX !== null) { const dI = fX - p.x, tt = (dI < 0 ? '◀ Target ' : 'Target ▶ ') + (Math.abs(dI) / 1000).toFixed(1) + 'km'; c.textAlign = 'center'; const tw = fitFont(c, tt, 14, '700', 200); panel(480 - tw / 2 - 12, 10, tw + 24, 30, 0.6); c.fillStyle = '#fff'; c.fillText(tt, 480, 30); } }
+  // 속도·고도: 오른쪽 맨 위
+  if (p.mode === 'air') { c.textAlign = 'center'; panel(808, 10, 144, 46, 0.6); c.fillStyle = '#fff'; fitFont(c, 'Speed ' + Math.round(kt) + ' kt', 15, '700', 128); c.fillText('Speed ' + Math.round(kt) + ' kt', 880, 29); fitFont(c, 'Altitude ' + Math.round(Math.max(0, p.y)) + ' m', 15, '700', 128); c.fillText('Altitude ' + Math.round(Math.max(0, p.y)) + ' m', 880, 48); }
   // 항모 방향
   if (p.mode === 'air') {
     const d = (ship.x + DECK_L / 2) - p.x, far = Math.abs(d) > W / cam.z * 0.6;

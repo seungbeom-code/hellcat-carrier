@@ -3765,7 +3765,7 @@ function drawHudFaded() {   // HUD를 따로 그린 뒤 3분의 1 불투명도�
   ctx0.save(); ctx0.setTransform(1, 0, 0, 1, 0, 0); ctx0.globalAlpha = HUD_ALPHA; ctx0.drawImage(hudCv, 0, 0); ctx0.restore();
   try { drawFwdView(m); } catch (e) { ctx = ctx0; }
 }
-let pipCv = null, pipCx = null, pipT = -9;
+let pipCv = null, pipCx = null, pipT = -9, pipS = null;
 function drawFwdView(m) {   // 정면 화면: 비행기가 향한 쪽 멀리(기수 방향 380m 앞, 조준선 포함)를 작은 창으로 보여준다. 내 비행기나 윙맨이 날고 있을 때만
   const wv = G.camWing && WG && G.scene === 'play'; let x, y, dir, ang;
   if (wv) { if (!wingAir()) return; x = WG.x; y = WG.y; ang = WG.turn > 0 ? (WG.s > 0 ? 0 : Math.PI) : WG.h; dir = Math.cos(ang) >= 0 ? 1 : -1; }
@@ -3773,8 +3773,17 @@ function drawFwdView(m) {   // 정면 화면: 비행기가 향한 쪽 멀리(기
   const PW = 224, PH = 126, X = 732, Y = wv ? 160 : 92;
   if (!pipCv) { pipCv = document.createElement('canvas'); pipCv.width = 448; pipCv.height = 252; pipCx = koWrap(pipCv.getContext('2d')); }
   if (G.t - pipT > 0.04 || G.t < pipT) {   // 매 프레임이 아니라 몇 프레임에 한 번만 새로 그린다
-    pipT = G.t; const sv = { x: cam.x, y: cam.y, z: cam.z }, sc = ctx;
-    cam.z = 2.2; cam.x = x + Math.cos(ang) * 380; cam.y = y + Math.sin(ang) * 380;   // 기수가 향한 쪽 380m 앞을 본다: 조준선에 들어온 벙커가 실제로 보이는 것처럼 보인다
+    const gap = G.t - pipT; pipT = G.t; if (gap > 1) pipS = null; const sv = { x: cam.x, y: cam.y, z: cam.z }, sc = ctx;
+    {   // 조준선 위(또는 가까이)에 있는 가장 가까운 사물을 찾아 그것을 가운데에 크게 보여준다. 없으면 기수 방향 380m 앞
+      const ca = Math.cos(ang), sa = Math.sin(ang); let best = null, bd = 1e9;
+      const cand = o => { const ox = o.x - x, oy = (o.y || 0) + 4 - y, al = ox * ca + oy * sa, pp = Math.abs(-ox * sa + oy * ca); if (al > 150 && al < 1700 && pp < 50 + al * 0.09 && al < bd) { bd = al; best = { x: o.x, y: (o.y || 0) + 4, al }; } };
+      for (const t of TARGETS) if (t.alive && t.type !== 'runway') cand(t);
+      for (const q of SOLD) if (q.alive && q.st !== 'enter') cand(q);
+      for (const e of ENE) if (!e.dead) cand(e);
+      const tx = best ? best.x : x + ca * 380, ty = best ? best.y : y + sa * 380, tz = best ? clamp(960 / Math.max(150, best.al * 0.42), 2.2, 6.5) : 2.2;
+      if (!pipS) pipS = { x: tx, y: ty, z: tz }; else { pipS.x = lerp(pipS.x, tx, 0.35); pipS.y = lerp(pipS.y, ty, 0.35); pipS.z = lerp(pipS.z, tz, 0.25); }
+      cam.z = pipS.z; cam.x = pipS.x; cam.y = pipS.y;
+    }   // 기수가 향한 쪽 380m 앞을 본다: 조준선에 들어온 벙커가 실제로 보이는 것처럼 보인다
     ctx = pipCx; pipCx.setTransform(pipCv.width / W, 0, 0, pipCv.height / H, 0, 0);
     try { drawWorld(); } finally { ctx = sc; cam.x = sv.x; cam.y = sv.y; cam.z = sv.z; }
   }

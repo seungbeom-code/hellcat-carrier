@@ -3763,24 +3763,31 @@ function drawHUD() {
   const wv = G.camWing && WG && G.scene === 'play';   // 동료기 화면: 미니맵만 보여준다 (조작 버튼 자리는 그대로 눌리지만 그림은 없다)
   if (!wv) drawEnemyMarks(c);
   drawMiniMap(c);
-  if (!wv) {
   c.save(); c.translate(0, 24);   // 위쪽 표시판은 지도 아래로
   // 속도, 고도
   c.fillStyle = '#fff'; c.textAlign = 'center'; c.font = '800 20px system-ui,sans-serif';
   const stall = p.mode === 'air' && (p.stalled || kt < stallKt() * 1.04);
-  if (stall && Math.sin(G.t * 12) > 0) { c.fillStyle = '#ff5a3c'; c.font = '800 22px system-ui,sans-serif'; c.fillText('STALL!', 480, 84); }
+  if (!wv && stall && Math.sin(G.t * 12) > 0) { c.fillStyle = '#ff5a3c'; c.font = '800 22px system-ui,sans-serif'; c.fillText('STALL!', 480, 84); }
   // 연료
-  if (p.mode === 'air') { const fX = focusX(); if (fX !== null) { const dI = fX - p.x, tt = (dI < 0 ? '◀ Target ' : 'Target ▶ ') + (Math.abs(dI) / 1000).toFixed(1) + 'km'; c.textAlign = 'center'; const tw = fitFont(c, tt, 14, '700', 200); panel(480 - tw / 2 - 12, 10, tw + 24, 30, 0.6); c.fillStyle = '#fff'; c.fillText(tt, 480, 30); } }
+  if (!wv && p.mode === 'air') { const fX = focusX(); if (fX !== null) { const dI = fX - p.x, tt = (dI < 0 ? '◀ Target ' : 'Target ▶ ') + (Math.abs(dI) / 1000).toFixed(1) + 'km'; c.textAlign = 'center'; const tw = fitFont(c, tt, 14, '700', 200); panel(480 - tw / 2 - 12, 10, tw + 24, 30, 0.6); c.fillStyle = '#fff'; c.fillText(tt, 480, 30); } }
   // 속도·고도: 오른쪽 맨 위
-  if (p.mode === 'air') { c.textAlign = 'center'; panel(808, 10, 144, 46, 0.6); c.fillStyle = '#fff'; fitFont(c, 'Speed ' + Math.round(kt) + ' kt', 15, '700', 128); c.fillText('Speed ' + Math.round(kt) + ' kt', 880, 29); fitFont(c, 'Altitude ' + Math.round(Math.max(0, p.y)) + ' m', 15, '700', 128); c.fillText('Altitude ' + Math.round(Math.max(0, p.y)) + ' m', 880, 48); }
+  if (wv) {   // 동료기 화면: 동료기의 속도·고도와 상태
+    const w = WG, wk = Math.round((w.turn > 0 ? Math.abs(w.v0 || 0) : w.v) * KT), ok = w.st === 'hunt' || w.st === 'app' || w.st === 'final';
+    c.textAlign = 'center'; panel(808, 10, 144, 46, 0.6); c.fillStyle = '#9fd8ff'; c.font = '700 15px system-ui,sans-serif';
+    c.fillText('Speed ' + (ok ? wk : 0) + ' kt', 880, 29); c.fillText('Altitude ' + Math.round(Math.max(0, w.y - (gh(w.x) > 0 ? 0 : 0))) + ' m', 880, 48);
+    panel(808, 62, 144, 62, 0.6); c.font = '700 13px system-ui,sans-serif'; c.fillStyle = '#fff';
+    c.fillText('Wingman HP ' + Math.max(0, Math.round(w.hp)), 880, 80); c.fillText('Fuel ' + Math.round(w.fuel) + '%', 880, 97);
+    c.fillText('Gun ' + w.ammo.gun + ' · ' + (w.load === 1 ? 'Bomb ' + w.ammo.bm : w.load === 2 ? 'Torp ' + w.ammo.tp : 'Rocket ' + w.ammo.rk), 880, 114);
+  }
+  if (!wv && p.mode === 'air') { c.textAlign = 'center'; panel(808, 10, 144, 46, 0.6); c.fillStyle = '#fff'; fitFont(c, 'Speed ' + Math.round(kt) + ' kt', 15, '700', 128); c.fillText('Speed ' + Math.round(kt) + ' kt', 880, 29); fitFont(c, 'Altitude ' + Math.round(Math.max(0, p.y)) + ' m', 15, '700', 128); c.fillText('Altitude ' + Math.round(Math.max(0, p.y)) + ' m', 880, 48); }
   // 항모 방향
-  if (p.mode === 'air') {
+  if (!wv && p.mode === 'air') {
     const d = (ship.x + DECK_L / 2) - p.x, far = Math.abs(d) > W / cam.z * 0.6;
     if (far) { panel(250, 10, 100, 36); c.fillStyle = '#fff'; c.textAlign = 'center'; { const ct = (d < 0 ? '◀ ' : '') + 'Carrier ' + Math.round(Math.abs(d)) + 'm' + (d > 0 ? ' ▶' : ''); fitFont(c, ct, 14, '700', 92); c.fillText(ct, 300, 33); } }
   }
   c.restore();
   // 방향 조종 원: 바깥 원, 가운데 작은 원, 손가락 위치를 따라 움직이는 손잡이
-  { const S = STICK, st = touch.stick, kx = S.x + (st ? st.dx * S.R : 0), ky = S.y + (st ? st.dy * S.R : 0);
+  if (!wv) { const S = STICK, st = touch.stick, kx = S.x + (st ? st.dx * S.R : 0), ky = S.y + (st ? st.dy * S.R : 0);
     c.fillStyle = 'rgba(8,20,34,0.34)'; c.beginPath(); c.arc(S.x, S.y, S.R, 0, 7); c.fill(); c.strokeStyle = 'rgba(255,255,255,0.55)'; c.lineWidth = 2.5; c.stroke();
     c.strokeStyle = 'rgba(255,255,255,0.22)'; c.lineWidth = 1.5; c.beginPath(); c.arc(S.x, S.y, S.R * S.dead * 1.4, 0, 7); c.stroke(); c.beginPath(); c.moveTo(S.x - S.R, S.y); c.lineTo(S.x + S.R, S.y); c.moveTo(S.x, S.y - S.R); c.lineTo(S.x, S.y + S.R); c.stroke();
     c.fillStyle = 'rgba(255,255,255,0.75)'; c.font = '800 22px system-ui,sans-serif'; c.textAlign = 'center'; [['▲', 0, -1], ['▼', 0, 1], ['◀', -1, 0], ['▶', 1, 0]].forEach(([t, ux, uy]) => c.fillText(t, S.x + ux * (S.R - 16), S.y + uy * (S.R - 16) + 8));
@@ -3790,7 +3797,7 @@ function drawHUD() {
     c.fillStyle = '#fff'; c.font = '800 13px system-ui,sans-serif'; c.textAlign = 'center';
     { const lb = b.id === 'snd' ? (sound.muted ? 'Sound off' : 'Sound on') : b.id === 'wing' ? (G.camWing ? 'My plane' : 'Wingman') : b.label; fitFont(c, lb, 13, '800', b.w - 8); c.fillText(lb, b.x + b.w / 2, b.y + b.h / 2 + 5); }
   }
-  if (overElev()) {   // 엘리베이터 버튼
+  if (!wv && overElev()) {   // 엘리베이터 버튼
     const b = ELEV_BTN; c.fillStyle = 'rgba(26,90,150,0.92)'; c.beginPath(); c.roundRect(b.x, b.y, b.w, b.h, 12); c.fill(); c.strokeStyle = '#9fd0ff'; c.lineWidth = 2; c.stroke();
     c.fillStyle = '#fff'; c.font = '800 17px system-ui,sans-serif'; c.textAlign = 'center'; c.fillText('Elevator down (Space)', b.x + b.w / 2, b.y + 34);
   }
@@ -3804,8 +3811,8 @@ function drawHUD() {
     panel(MSG_CX - tw / 2 - 34, 138, tw + 68, ph, 0.8); c.fillStyle = col; c.beginPath(); c.arc(MSG_CX - tw / 2 - 14, 138 + ph / 2, 8, 0, 7); c.fill();
     c.fillStyle = '#fff'; c.textAlign = 'center'; L.forEach((l, i) => c.fillText(l, MSG_CX + 8, 159 + i * lh)); G.toastH = ph;
   }
-  if (landBtnOn()) { const b = LANDBTN; c.fillStyle = 'rgba(40,120,70,0.94)'; c.beginPath(); c.roundRect(b.x, b.y, b.w, b.h, 12); c.fill(); c.strokeStyle = '#9ef0b8'; c.lineWidth = 2; c.stroke(); c.fillStyle = '#fff'; c.font = '800 17px system-ui,sans-serif'; c.textAlign = 'center'; c.fillText('Start landing (V)', b.x + b.w / 2, b.y + 32); }
-  if (p.mode === 'air') fireBtns().forEach(b => {   // 발사 버튼
+  if (!wv && landBtnOn()) { const b = LANDBTN; c.fillStyle = 'rgba(40,120,70,0.94)'; c.beginPath(); c.roundRect(b.x, b.y, b.w, b.h, 12); c.fill(); c.strokeStyle = '#9ef0b8'; c.lineWidth = 2; c.stroke(); c.fillStyle = '#fff'; c.font = '800 17px system-ui,sans-serif'; c.textAlign = 'center'; c.fillText('Start landing (V)', b.x + b.w / 2, b.y + 32); }
+  if (!wv && p.mode === 'air') fireBtns().forEach(b => {   // 발사 버튼
     const n = b.k === 'gun' ? p.ammo.gun : b.k === 'rocket' ? p.ammo.rk : b.k === 'torp' ? (p.ammo.tp || 0) : p.ammo.bm, held = b.k === 'gun' && (keys.Space || keys.KeyZ || touch.on.gun > 0);
     c.fillStyle = held ? 'rgba(230,90,60,0.9)' : n > 0 ? 'rgba(150,40,30,0.62)' : 'rgba(60,66,76,0.55)'; c.strokeStyle = 'rgba(255,255,255,0.45)'; c.lineWidth = 2; c.beginPath(); c.roundRect(b.x, b.y, b.w, b.h, 12); c.fill(); c.stroke();
     c.fillStyle = '#fff'; c.textAlign = 'center'; c.font = '800 15px system-ui,sans-serif'; c.fillText(b.label, b.x + b.w / 2, b.y + 26); c.font = '600 12px system-ui,sans-serif'; c.fillText(n + '  (' + b.key + ')', b.x + b.w / 2, b.y + 46);
@@ -3818,7 +3825,6 @@ function drawHUD() {
     c.textAlign = 'left'; c.font = fs19; c.fillText(T.text, bx + 96, by + 27);
     c.fillStyle = 'rgba(255,255,255,0.25)'; c.fillRect(bx, by + 38, bw, 2); c.globalAlpha = 1;
   }
-  }   // !wv
   if (hangarOpen() && !wv) drawPick(c);
   if (G.paused && G.scene === 'play' && !G.quiet) {   // 일시정지 화면 (G.quiet: 시험용으로 화면 표시 없이 멈춤)
     c.fillStyle = 'rgba(6,14,26,0.55)'; c.fillRect(-10, -40, W + 20, H + 60);

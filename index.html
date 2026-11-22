@@ -3769,6 +3769,24 @@ function drawHudFaded() {   // HUD를 따로 그린 뒤 3분의 1 불투명도�
   const m = ctx0.getTransform(); hudCx.setTransform(1, 0, 0, 1, 0, 0); hudCx.clearRect(0, 0, hudCv.width, hudCv.height); hudCx.setTransform(m);
   ctx = hudCx; try { drawHUD(); } finally { ctx = ctx0; }
   ctx0.save(); ctx0.setTransform(1, 0, 0, 1, 0, 0); ctx0.globalAlpha = HUD_ALPHA; ctx0.drawImage(hudCv, 0, 0); ctx0.restore();
+  try { drawFwdView(m); } catch (e) { ctx = ctx0; }
+}
+let pipCv = null, pipCx = null, pipT = -9;
+function drawFwdView(m) {   // 정면 화면: 비행기가 향한 쪽 멀리(약 260~1140m 앞)를 작은 창으로 보여준다. 내 비행기나 윙맨이 날고 있을 때만
+  const wv = G.camWing && WG && G.scene === 'play'; let x, y, dir;
+  if (wv) { if (!wingAir()) return; x = WG.x; y = WG.y; dir = Math.cos(WG.h) >= 0 ? 1 : -1; }
+  else { if (p.mode !== 'air' || G.paused) return; x = p.x; y = p.y; dir = p.vx >= 0 ? 1 : -1; }
+  const PW = 156, PH = 88, X = 800, Y = wv ? 160 : 92;
+  if (!pipCv) { pipCv = document.createElement('canvas'); pipCv.width = 312; pipCv.height = 176; pipCx = koWrap(pipCv.getContext('2d')); }
+  if (G.t - pipT > 0.09 || G.t < pipT) {   // 매 프레임이 아니라 몇 프레임에 한 번만 새로 그린다
+    pipT = G.t; const sv = { x: cam.x, y: cam.y, z: cam.z }, sc = ctx;
+    cam.z = 1.1; cam.x = x + dir * 700; cam.y = Math.min(Math.max(y * 0.92, H * 0.27 / cam.z), Math.max(0.4 * H / cam.z, y - 0.3 * H / cam.z));
+    ctx = pipCx; pipCx.setTransform(pipCv.width / W, 0, 0, pipCv.height / H, 0, 0);
+    try { drawWorld(); } finally { ctx = sc; cam.x = sv.x; cam.y = sv.y; cam.z = sv.z; }
+  }
+  const c = ctx0; c.save(); c.setTransform(m); c.beginPath(); c.roundRect(X, Y, PW, PH, 8); c.clip(); c.drawImage(pipCv, X, Y, PW, PH);
+  c.restore(); c.save(); c.setTransform(m); c.strokeStyle = 'rgba(255,255,255,0.7)'; c.lineWidth = 2; c.beginPath(); c.roundRect(X, Y, PW, PH, 8); c.stroke();
+  c.fillStyle = 'rgba(255,255,255,0.85)'; c.beginPath(); const ay = Y + PH / 2, ax = dir > 0 ? X + PW - 8 : X + 8; c.moveTo(ax, ay - 6); c.lineTo(ax + dir * 8, ay); c.lineTo(ax, ay + 6); c.fill(); c.restore();
 }
 function drawHUD() {
   const c = ctx, kt = p.turn > 0 ? Math.abs(p.v0) * KT : kts(), xr = p.x - ship.x;

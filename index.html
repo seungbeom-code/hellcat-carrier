@@ -3770,7 +3770,7 @@ function drawFwdView(m) {   // 정면 화면: 비행기가 향한 쪽 멀리(기
   const wv = G.camWing && WG && G.scene === 'play'; let x, y, dir, ang;
   if (wv) { if (!wingAir()) return; x = WG.x; y = WG.y; ang = WG.turn > 0 ? (WG.s > 0 ? 0 : Math.PI) : WG.h; dir = Math.cos(ang) >= 0 ? 1 : -1; }
   else { if (p.mode !== 'air' || G.paused) return; x = p.x; y = p.y; dir = p.vx >= 0 ? 1 : -1; ang = p.turn > 0 ? (dir > 0 ? 0 : Math.PI) : p.th; }
-  const PW = 224, PH = 126, X = 732, Y = wv ? 160 : 92;
+  const PW = 224, PH = 126, X = dir > 0 ? 732 : 100, Y = wv && dir > 0 ? 160 : 92;   // 오른쪽으로 날면 오른쪽에, 왼쪽으로 날면 왼쪽에 둔다
   if (!pipCv) { pipCv = document.createElement('canvas'); pipCv.width = 448; pipCv.height = 252; pipCx = koWrap(pipCv.getContext('2d')); }
   if (G.t - pipT > 0.04 || G.t < pipT) {   // 매 프레임이 아니라 몇 프레임에 한 번만 새로 그린다
     const gap = G.t - pipT; pipT = G.t; if (gap > 1) pipS = null; const sv = { x: cam.x, y: cam.y, z: cam.z }, sc = ctx;

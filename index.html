@@ -2789,6 +2789,7 @@ function demoBot(dt) {
 function drawTitle() {
   const c = ctx, top = c.createLinearGradient(0, 0, 0, 210), bot = c.createLinearGradient(0, H - 110, 0, H);
   top.addColorStop(0, 'rgba(6,14,26,0.8)'); top.addColorStop(1, 'rgba(6,14,26,0)'); c.fillStyle = top; c.fillRect(0, 0, W, 210);
+  c.save(); c.globalAlpha = 0.75; drawMiniMap(c); c.restore();   // 데모 비행에도 미니맵을 보여 준다
   bot.addColorStop(0, 'rgba(6,14,26,0)'); bot.addColorStop(1, 'rgba(6,14,26,0.85)'); c.fillStyle = bot; c.fillRect(0, H - 110, W, 110);
   c.textAlign = 'center'; c.lineJoin = 'round';
   c.font = '900 54px system-ui,sans-serif'; c.lineWidth = 7; c.strokeStyle = 'rgba(10,20,34,0.9)'; c.strokeText('Blue Wings of the Pacific', 480, 88); c.fillStyle = '#ffd23f'; c.fillText('Blue Wings of the Pacific', 480, 88);

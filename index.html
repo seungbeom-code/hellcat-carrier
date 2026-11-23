@@ -973,10 +973,12 @@ function genMission(L, seed, rnd) {   // rnd: 정해진 레벨 계획 대신 무
 
 // ───────── 사용자 캠페인 (editor.html 에서 만든 작전) ─────────
 const CUS_KEY = 'hellcat-custom', CUS_ITEMS = ['bunker', 'pill', 'barracks', 'aa', 'radar', 'fuel', 'tank', 'cave', 'tower', 'runway'], CUS_SHIPS = ['dd', 'bb', 'cv'];
-function loadCustom() { try { const v = JSON.parse(localStorage.getItem(CUS_KEY)); if (v && Array.isArray(v.missions)) return v; } catch (_) {} return { name: 'My Campaign', missions: [] }; }
+const cleanCus = v => { v.missions = v.missions.filter(m => m && typeof m === 'object').slice(0, 60); v.missions.forEach(m => { m.islands = (Array.isArray(m.islands) ? m.islands : []).filter(q => q && typeof q === 'object').map(q => (q.items = (Array.isArray(q.items) ? q.items : []).filter(it => it && typeof it === 'object'), q)); if (!Array.isArray(m.ships)) m.ships = []; if (!Array.isArray(m.waves)) m.waves = []; m.waves = m.waves.filter(w => w && typeof w === 'object'); }); return v; };   // 깨진 파일이 와도 게임이 멈추지 않게 정리
+function loadCustom() { try { const v = JSON.parse(localStorage.getItem(CUS_KEY)); if (v && Array.isArray(v.missions)) return cleanCus(v); } catch (_) {} return { name: 'My Campaign', missions: [] }; }
 function importCustomFromUrl() {   // index.html?cmp=<base64 JSON> 로 열면 사용자 캠페인을 이 기기에 저장한다
   const dec = q => JSON.parse(decodeURIComponent(escape(atob(q.replace(/-/g, '+').replace(/_/g, '/')))));
-  try { const sp = new URLSearchParams(location.search), q = sp.get('cmp'), sq = sp.get('ships'); if (sq) { const sv = dec(sq); if (sv && Array.isArray(sv.ships)) localStorage.setItem(SHIP_KEY, JSON.stringify(sv)); } if (!q && !sq) return; if (q) { const v = dec(q); if (v && Array.isArray(v.missions)) { localStorage.setItem(CUS_KEY, JSON.stringify(v)); G.cus = v; G.mode = 'custom'; } } history.replaceState(null, '', location.pathname); } catch (_) {}
+  try { const sp = new URLSearchParams(location.search), q = sp.get('cmp'), sq = sp.get('ships'); if (sq) { const sv = dec(sq); if (sv && Array.isArray(sv.ships)) localStorage.setItem(SHIP_KEY, JSON.stringify(sv)); } const cu = sp.get('cus'); if (cu !== null) { G.mode = 'custom'; G.cusIdx = Math.max(0, parseInt(cu, 10) || 0); }   // editor.html 의 "이 작전 플레이" 버튼: 사용자 캠페인 탭에서 그 작전을 고른 채로 연다
+    if (!q && !sq) { if (cu !== null) history.replaceState(null, '', location.pathname); return; } if (q) { const v = dec(q); if (v && Array.isArray(v.missions)) { cleanCus(v); localStorage.setItem(CUS_KEY, JSON.stringify(v)); G.cus = v; G.mode = 'custom'; } } history.replaceState(null, '', location.pathname); } catch (_) {}
 }
 const customList = () => (G.cus || (G.cus = loadCustom())).missions;
 function customMission(def, i) {

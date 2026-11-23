@@ -7,23 +7,23 @@
 <style>
 :root { --bg:#0e1622; --panel:#17243a; --panel2:#1d2e49; --line:#2c4266; --txt:#e6edf5; --dim:#93a6bf; --acc:#ffd23f; --ok:#59d37a; --bad:#ff7a5c; --blue:#3478be; }
 * { box-sizing: border-box; }
-body { margin:0; background:var(--bg); color:var(--txt); font:14px/1.45 system-ui,sans-serif; }
-header { display:flex; flex-wrap:wrap; gap:10px; align-items:center; padding:10px 16px; background:var(--panel); border-bottom:1px solid var(--line); position:sticky; top:0; z-index:5; }
+body { margin:0; background:var(--bg); color:var(--txt); font:14px/1.45 system-ui,'Malgun Gothic',sans-serif; }
+header { display:flex; flex-wrap:wrap; gap:8px 10px; align-items:center; padding:10px 16px; background:var(--panel); border-bottom:1px solid var(--line); position:sticky; top:0; z-index:5; }
 header h1 { font-size:17px; margin:0 8px 0 0; color:var(--acc); }
 button, select, input { font:inherit; color:var(--txt); background:var(--panel2); border:1px solid var(--line); border-radius:6px; padding:5px 10px; }
-button { cursor:pointer; } button:hover { border-color:var(--acc); }
+button { cursor:pointer; } button:hover:not(:disabled) { border-color:var(--acc); } button:disabled { opacity:.4; cursor:default; }
 button.pri { background:var(--blue); border-color:var(--blue); } button.go { background:#2d8f55; border-color:#2d8f55; }
-button.sm { padding:2px 8px; font-size:12px; }
+button.sm { padding:3px 9px; font-size:12.5px; }
 input[type=text], input[type=number], select { background:#0f1a2b; }
-input[type=number] { width:70px; }
+input[type=number] { width:76px; }
 .wrap { display:grid; grid-template-columns:240px 1fr; gap:14px; padding:14px 16px; max-width:1320px; margin:0 auto; }
-@media (max-width: 900px) { .wrap { grid-template-columns:1fr; } }
+@media (max-width: 900px) { .wrap { grid-template-columns:1fr; } .row label input[type=text] { width:100% !important; } }
 .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:12px; margin-bottom:14px; }
 .card h2 { margin:0 0 8px; font-size:14px; color:var(--acc); letter-spacing:.3px; }
 #list { list-style:none; margin:0 0 8px; padding:0; }
 #list li { padding:7px 9px; border:1px solid transparent; border-radius:6px; cursor:pointer; display:flex; justify-content:space-between; gap:6px; }
 #list li:hover { background:var(--panel2); } #list li.on { background:var(--panel2); border-color:var(--acc); }
-#list li small { color:var(--dim); }
+#list li small { color:var(--dim); white-space:nowrap; }
 .row { display:flex; flex-wrap:wrap; gap:10px 16px; align-items:center; margin-bottom:8px; }
 .row label { display:flex; align-items:center; gap:6px; color:var(--dim); }
 .row label input[type=text] { width:260px; }
@@ -39,42 +39,48 @@ canvas { width:100%; height:auto; background:#0f1a2b; border:1px solid var(--lin
 .warn { color:var(--bad); font-size:13px; margin:4px 0; } .okmsg { color:var(--ok); }
 table { border-collapse:collapse; width:100%; } td, th { padding:4px 6px; border-bottom:1px solid var(--line); text-align:left; font-weight:500; }
 th { color:var(--dim); font-size:12px; }
-.cnt { display:inline-flex; align-items:center; gap:4px; } .cnt b { min-width:18px; text-align:center; }
+.cnt { display:inline-flex; align-items:center; gap:4px; flex-wrap:wrap; }
 #msg { color:var(--ok); min-height:20px; }
-textarea { width:100%; height:80px; background:#0f1a2b; color:var(--txt); border:1px solid var(--line); border-radius:6px; }
+#dirty { color:var(--acc); font-size:12.5px; }
+#selbar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:8px; padding:6px 8px; background:#0f1a2b; border:1px solid var(--line); border-radius:8px; min-height:38px; }
+#selbar .dim { color:var(--dim); }
+.scroll { overflow-x:auto; }
 </style>
 </head>
 <body>
 <header>
-  <h1>Campaign Editor</h1>
-  <label>Campaign name <input type="text" id="cname" style="width:200px"></label>
-  <button class="pri" id="bSave">Save</button>
-  <button id="bExport">Export file</button>
-  <button id="bImport">Import file</button>
-  <button id="bLink">Copy phone link</button>
-  <button class="go" id="bPlay">Play (new tab)</button>
-  <a href="shipyard.html" style="color:var(--acc);text-decoration:none;border:1px solid var(--line);border-radius:6px;padding:5px 10px">Ship Designer</a>
-  <span id="msg"></span>
+  <h1 data-t="Campaign Editor">Campaign Editor</h1>
+  <label><span data-t="Campaign name">Campaign name</span> <input type="text" id="cname" style="width:180px"></label>
+  <button class="pri" id="bSave" data-t="Save">Save</button>
+  <button id="bUndo" title="Ctrl+Z">↶</button>
+  <button id="bRedo" title="Ctrl+Y">↷</button>
+  <button id="bExport" data-t="Export file">Export file</button>
+  <button id="bImport" data-t="Import file">Import file</button>
+  <button id="bLink" data-t="Copy phone link">Copy phone link</button>
+  <button class="go" id="bPlay" data-t="Play this mission">Play this mission</button>
+  <a href="shipyard.html" data-t="Ship Designer" style="color:var(--acc);text-decoration:none;border:1px solid var(--line);border-radius:6px;padding:5px 10px">Ship Designer</a>
+  <button id="bLang">한국어</button>
+  <span id="dirty"></span><span id="msg"></span>
   <input type="file" id="file" accept=".json,application/json" hidden>
 </header>
 
 <div class="wrap">
   <aside>
     <div class="card">
-      <h2>Missions</h2>
+      <h2 data-t="Missions">Missions</h2>
       <ul id="list"></ul>
       <div class="row" style="margin:0">
-        <button id="mAdd" class="sm">+ New</button>
-        <button id="mDup" class="sm">Duplicate</button>
-        <button id="mDel" class="sm">Delete</button>
+        <button id="mAdd" class="sm" data-t="+ New">+ New</button>
+        <button id="mDup" class="sm" data-t="Duplicate">Duplicate</button>
+        <button id="mDel" class="sm" data-t="Delete">Delete</button>
         <button id="mUp" class="sm">▲</button>
         <button id="mDn" class="sm">▼</button>
       </div>
-      <p class="hint">Missions play in this order. After a win the game goes to the next one.</p>
+      <p class="hint" data-t="Missions play in this order. After a win the game goes to the next one.">Missions play in this order. After a win the game goes to the next one.</p>
     </div>
     <div class="card">
-      <h2>How it works</h2>
-      <p class="hint">Build missions here, press <b>Save</b>, then open the game and pick the <b>Custom</b> tab. Saved data lives in this browser. To play on another device use <b>Copy phone link</b> (open it once on that device) or Export / Import a file.</p>
+      <h2 data-t="How it works">How it works</h2>
+      <p class="hint" data-t="HOW">Build missions here, press Save, then open the game and pick the Custom tab. Saved data lives in this browser. To play on another device use Copy phone link (open it once on that device) or Export / Import a file.</p>
     </div>
   </aside>
 
@@ -82,6 +88,60 @@ textarea { width:100%; height:80px; background:#0f1a2b; color:var(--txt); border
 </div>
 
 <script>
+// ───── 말 (한국어 / English) ─────
+const KO = {
+  'Campaign Editor': '캠페인 편집기', 'Campaign name': '캠페인 이름', 'Save': '저장', 'Export file': '파일로 내보내기', 'Import file': '파일 불러오기',
+  'Copy phone link': '폰용 링크 복사', 'Play this mission': '이 작전 플레이', 'Ship Designer': '함선 설계', 'Missions': '작전 목록',
+  '+ New': '+ 새 작전', 'Duplicate': '복제', 'Delete': '삭제', 'How it works': '사용법',
+  'Missions play in this order. After a win the game goes to the next one.': '작전은 이 순서대로 진행됩니다. 이기면 다음 작전으로 넘어갑니다.',
+  'HOW': '여기서 작전을 만들고 저장을 누른 뒤, 게임을 열어 "사용자 캠페인" 탭을 고르세요. 저장한 내용은 이 브라우저에만 있습니다. 다른 기기에서 하려면 "폰용 링크 복사"(그 기기에서 한 번 열기)나 파일 내보내기/불러오기를 쓰세요.',
+  'Mission': '작전', 'Name': '이름', 'Difficulty (1-20)': '난이도 (1-20)', 'Goal': '목표', 'Time of day': '시간대', 'Zeros to shoot down': '격추할 제로센 수',
+  'Briefing text (optional)': '작전 설명 (선택)', 'Leave empty for an automatic briefing': '비워 두면 자동으로 만들어집니다',
+  'Difficulty sets enemy strength and how many bunker shots the gunners fire, like campaign level numbers. Concrete bunkers are only used where you place them.': '난이도는 캠페인 레벨처럼 적의 강도와 포병의 사격 수를 정합니다. 콘크리트 벙커는 직접 놓은 곳에만 생깁니다.',
+  'Islands': '섬', '(left to right on the map; the carrier starts to the left)': '(지도의 왼쪽에서 오른쪽 순서, 항모는 왼쪽에서 시작)',
+  'Island {0} ({1})': '섬 {0} ({1})', 'large': '큰 섬', 'small': '작은 섬', '+ Add island': '+ 섬 추가',
+  'No islands. This mission is a fleet defense.': '섬이 없습니다. 이 작전은 함대 방어입니다.', 'No islands. This mission is sea only.': '섬이 없습니다. 바다만 있는 작전입니다.',
+  'Size': '크기', 'Small (3,000 m)': '작은 섬 (3,000 m)', 'Large (7,200 m)': '큰 섬 (7,200 m)', 'Clear all': '모두 지우기', 'Remove island': '섬 삭제',
+  'Snap 10 m': '10 m 간격 맞춤', 'Fix overlaps': '겹침 풀기',
+  '{0} buildings · 1 px ≈ {1} m': '시설 {0}개 · 1픽셀 ≈ {1} m',
+  'PLACE_HINT': '시설 종류를 고른 뒤 섬을 클릭(터치)해서 놓으세요. 끌어서 옮기고, 오른쪽 클릭이나 삭제 버튼으로 지웁니다. 섬은 모든 시설과 병사가 사라져야 항복하므로 시설을 하나 이상 놓으세요.',
+  'Nothing selected — click an empty spot to place a {0}, or click a building to select it.': '선택한 것이 없습니다. 빈 곳을 누르면 {0}을(를) 놓고, 시설을 누르면 선택합니다.',
+  'Position (m)': '위치 (m)', 'Remove': '지우기', 'Remove all buildings on this island?': '이 섬의 시설을 모두 지울까요?', 'Remove this island and its buildings?': '이 섬과 시설을 모두 삭제할까요?',
+  'Ships': '함선', '+ Add to mission': '+ 작전에 추가', 'No ships in this mission.': '이 작전에는 함선이 없습니다.', 'Click to remove': '누르면 삭제', '(missing ship) {0}': '(없는 함선) {0}',
+  'SHIP_HINT': '이름으로 함선을 고르세요. 함선 설계에서 만든 내 함선(★)은 기본 3종 뒤에 나옵니다. 함선은 바다에 자동 배치되고 어뢰로 침몰시킵니다. 이 탭으로 돌아오면 목록이 새로 고쳐집니다.',
+  'At most 8 ships per mission.': '작전당 함선은 최대 8척입니다.', 'Random custom ship': '내 함선 중 무작위',
+  'destroyer': '구축함', 'battleship': '전함', 'carrier': '항공모함', 'Destroyer': '구축함', 'Battleship': '전함', 'Carrier': '항공모함',
+  'Enemy air raids': '적 공습', 'No air raids.': '공습이 없습니다.', 'Time (s)': '시간 (초)', '+ Add wave': '+ 공습 추가',
+  'Time is in seconds after takeoff. Fleet defense needs at least one wave with bombers (D4Y / B6N).': '시간은 이륙 후 몇 초인지입니다. 함대 방어에는 폭격기(D4Y / B6N)가 있는 공습이 하나 이상 필요합니다.',
+  'Capture islands': '섬 점령', 'Airbase strike': '비행장 공습', 'Fleet strike': '함대 공격', 'Fleet defense': '함대 방어',
+  'Day': '낮', 'Dawn': '새벽', 'Dusk': '해질녘', 'Night': '밤',
+  'Zero': '제로센', 'Ace Zero': '에이스 제로센', 'N1K': 'N1K', 'Bomber (D4Y)': '폭격기 (D4Y)', 'Torpedo (B6N)': '뇌격기 (B6N)',
+  'Bunker': '벙커', 'Concrete bunker': '콘크리트 벙커', 'Barracks': '막사', 'AA gun': '대공포', 'Radar': '레이더', 'Fuel tanks': '연료 탱크', 'Tank': '전차', 'Cave gun': '동굴 포', 'Watch tower': '감시탑', 'Airfield': '비행장',
+  'Untitled': '이름 없음', 'Mission {0}': '작전 {0}', '{0} copy': '{0} 복사본', 'Delete "{0}"?': '"{0}" 작전을 삭제할까요?',
+  'Saved. Pick the Custom tab in the game.': '저장했습니다. 게임에서 사용자 캠페인 탭을 고르세요.', 'Could not save: {0}': '저장하지 못했습니다: {0}',
+  'Imported {0} missions (press Save to keep them).': '작전 {0}개를 불러왔습니다 (저장을 눌러야 남습니다).', 'Import failed: {0}': '불러오기 실패: {0}', 'not a campaign file': '캠페인 파일이 아닙니다',
+  'Link copied ({0}k chars). Open it on the other device once.': '링크를 복사했습니다 ({0}k 글자). 다른 기기에서 한 번 여세요.', 'Copy this link:': '이 링크를 복사하세요:',
+  'Unsaved changes': '저장 안 된 변경 있음', 'Nothing to undo': '되돌릴 것이 없습니다', 'Nothing to redo': '다시 할 것이 없습니다',
+  '"Capture islands" needs at least one island. The game will switch to {0}.': '"섬 점령"에는 섬이 하나 이상 필요합니다. 게임이 {0}(으)로 바꿉니다.',
+  'a fleet strike': '함대 공격', 'fleet defense': '함대 방어',
+  '"Airbase strike" needs an Airfield on an island. The game will fall back to capturing the islands.': '"비행장 공습"에는 섬에 비행장이 필요합니다. 없으면 섬 점령으로 바뀝니다.',
+  '"Fleet strike" with no ships: the game adds one battleship.': '함선이 없는 "함대 공격": 게임이 전함 한 척을 넣습니다.',
+  'Fleet defense has no bombers or torpedo planes, so a default raid will be added.': '함대 방어에 폭격기나 뇌격기가 없어서 기본 공습이 추가됩니다.',
+  'Island {0} has no buildings, so it counts as captured immediately.': '섬 {0}에 시설이 없어서 바로 점령된 것으로 칩니다.',
+  'Island {0}: {1} buildings overlap (shown with a red outline).': '섬 {0}: 시설 {1}개가 겹쳐 있습니다 (빨간 테두리).',
+  '✓ Looks good.': '✓ 문제 없습니다.', 'Fixed overlaps.': '겹침을 풀었습니다.', 'No overlaps to fix.': '풀 겹침이 없습니다.', 'Not enough room to separate every building.': '모든 시설을 떼어 놓을 자리가 모자랍니다.',
+  'Phone: tap to place, drag to move. Use the buttons below to remove.': '폰: 눌러서 놓고 끌어서 옮깁니다. 지우기는 아래 버튼을 쓰세요.',
+  'Leave this page? You have unsaved changes.': '저장하지 않은 변경이 있습니다. 나갈까요?'
+};
+let LANG = 'en';
+try { const q = new URLSearchParams(location.search).get('lang'); LANG = q === 'ko' || q === 'en' ? q : (localStorage.getItem('hellcat-editor-lang') || ((navigator.language || '').toLowerCase().startsWith('ko') ? 'ko' : 'en')); } catch (_) {}
+const T = (s, ...a) => { let t = (LANG === 'ko' && KO[s]) || s; a.forEach((x, i) => { t = t.split('{' + i + '}').join(x); }); return t; };
+function applyStatic() {
+  document.documentElement.lang = LANG; document.title = T('Campaign Editor');
+  document.querySelectorAll('[data-t]').forEach(el => { el.textContent = T(el.dataset.t); });
+  $('#bLang').textContent = LANG === 'ko' ? 'English' : '한국어';
+}
+
 // ───── 게임과 같은 정의 ─────
 const KEY = 'hellcat-custom';
 const TYPES = {   // 섬 시설: 색, 이름, 너비(m)
@@ -97,148 +157,230 @@ const TYPES = {   // 섬 시설: 색, 이름, 너비(m)
   runway:   { n: 'Airfield',         c: '#555d69', w: 520 }
 };
 const SHIPS = { dd: 'Destroyer', bb: 'Battleship', cv: 'Carrier' };
-function shipList() {   // 기본 3종 + 내가 shipyard.html 에서 만든 배 + 무작위 내 배
-  const o = Object.assign({}, SHIPS); o.ur = 'Random custom ship';
-  try { const v = JSON.parse(localStorage.getItem('hellcat-ships')); if (v && Array.isArray(v.ships)) v.ships.forEach(s => { if (s && s.id) o['u_' + String(s.id).replace(/[^\w]/g, '').slice(0, 12)] = '★ ' + (s.name || 'Ship') + ' (' + ({ dd: 'destroyer', bb: 'battleship', cv: 'carrier' }[s.cls] || '') + ')'; }); } catch (_) {}
-  return o;
-}
 const PLANES = { zero: 'Zero', ace: 'Ace Zero', n1k: 'N1K', d4y: 'Bomber (D4Y)', b6n: 'Torpedo (B6N)' };
 const ISLAND_LEN = { s: 3000, b: 7200 };
 const GOALS = { capture: 'Capture islands', air: 'Airbase strike', fleet: 'Fleet strike', defend: 'Fleet defense' };
 const TINTS = { day: 'Day', dawn: 'Dawn', dusk: 'Dusk', night: 'Night' };
+const U_MIN = 0.04, U_MAX = 0.96;
+function shipList() {   // 기본 3종 + 내가 shipyard.html 에서 만든 배 + 무작위 내 배
+  const o = {}; Object.entries(SHIPS).forEach(([k, n]) => o[k] = T(n)); o.ur = T('Random custom ship');
+  try { const v = JSON.parse(localStorage.getItem('hellcat-ships')); if (v && Array.isArray(v.ships)) v.ships.forEach(s => { if (s && s.id) o['u_' + String(s.id).replace(/[^\w]/g, '').slice(0, 12)] = '★ ' + (s.name || 'Ship') + ' (' + T({ dd: 'destroyer', bb: 'battleship', cv: 'carrier' }[s.cls] || '') + ')'; }); } catch (_) {}
+  return o;
+}
+
+// ───── 데이터 정리: 깨지거나 오래된 파일이 와도 편집기가 멈추지 않게 ─────
+const clampN = (v, a, b, d) => { v = +v; return isFinite(v) ? Math.max(a, Math.min(b, v)) : d; };
+function blank(n) { return { name: T('Mission {0}', n + 1), brief: '', lvl: 3, goal: 'capture', tint: 'day', zeroN: 8, islands: [{ size: 's', items: [] }], ships: [], waves: [] }; }
+function normMission(m, i) {
+  m = m && typeof m === 'object' ? m : {};
+  return {
+    name: String(m.name == null ? T('Mission {0}', i + 1) : m.name).slice(0, 60), brief: String(m.brief || '').slice(0, 300),
+    lvl: Math.round(clampN(m.lvl, 1, 20, 3)), goal: GOALS[m.goal] ? m.goal : 'capture', tint: TINTS[m.tint] ? m.tint : 'day', zeroN: Math.round(clampN(m.zeroN, 1, 40, 8)),
+    islands: (Array.isArray(m.islands) ? m.islands : []).filter(q => q && typeof q === 'object').slice(0, 5).map(q => ({ size: q.size === 'b' ? 'b' : 's', items: (Array.isArray(q.items) ? q.items : []).filter(it => it && TYPES[it.t] && isFinite(+it.u)).slice(0, 80).map(it => ({ t: it.t, u: +clampN(it.u, U_MIN, U_MAX, 0.5).toFixed(4) })) })),
+    ships: (Array.isArray(m.ships) ? m.ships : []).filter(s => typeof s === 'string').map(s => s === 'tr' ? 'dd' : s === 'bm' ? 'bb' : s).slice(0, 8),
+    waves: (Array.isArray(m.waves) ? m.waves : []).filter(w => w && typeof w === 'object').slice(0, 12).map(w => ({ t: Math.round(clampN(w.t, 5, 1200, 40)), l: (Array.isArray(w.l) ? w.l : []).filter(k => PLANES[k]).slice(0, 14) }))
+  };
+}
+function normData(v) {
+  const d = { name: String((v && v.name) || 'My Campaign').slice(0, 60), missions: (v && Array.isArray(v.missions) ? v.missions : []).slice(0, 60).map(normMission) };
+  if (!d.missions.length) d.missions.push(blank(0));
+  return d;
+}
+function load() { try { const v = JSON.parse(localStorage.getItem(KEY)); if (v && Array.isArray(v.missions)) return normData(v); } catch (_) {} return normData(null); }
 
 // ───── 상태 ─────
-let data = load(), cur = 0, isl = 0, tool = 'bunker', sel = -1, drag = null;
-function blank(n) { return { name: 'Mission ' + (n + 1), brief: '', lvl: 3, goal: 'capture', tint: 'day', zeroN: 8, islands: [{ size: 's', items: [] }], ships: [], waves: [] }; }
-function load() { try { const v = JSON.parse(localStorage.getItem(KEY)); if (v && Array.isArray(v.missions)) return v; } catch (_) {} return { name: 'My Campaign', missions: [blank(0)] }; }
+let data = load(), cur = 0, isl = 0, tool = 'bunker', sel = -1, drag = null, snap = true;
+let savedStr = JSON.stringify(data), hist = [savedStr], hi = 0, histT = 0;
 const M = () => data.missions[cur];
 const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const say = (t, bad) => { const m = $('#msg'); m.textContent = t; m.style.color = bad ? 'var(--bad)' : 'var(--ok)'; clearTimeout(say.t); say.t = setTimeout(() => m.textContent = '', 3500); };
 
-// ───── 저장 ─────
-function save() { try { localStorage.setItem(KEY, JSON.stringify(data)); say('Saved. Pick the Custom tab in the game.'); } catch (e) { say('Could not save: ' + e.message, true); } }
+// ───── 되돌리기 / 저장 상태 ─────
+function touch() {   // 데이터를 바꾼 뒤 부른다. 0.6초 안에 이어진 변경(글자 입력 등)은 한 번으로 묶는다
+  const s = JSON.stringify(data); if (s === hist[hi]) { updDirty(); return; }
+  const now = Date.now();
+  if (now - histT < 600 && hi > 0 && hist.length === hi + 1) hist[hi] = s; else { hist.length = hi + 1; hist.push(s); hi++; if (hist.length > 80) { hist.shift(); hi--; } }
+  histT = now; updDirty();
+}
+function updDirty() { $('#dirty').textContent = JSON.stringify(data) !== savedStr ? '● ' + T('Unsaved changes') : ''; $('#bUndo').disabled = hi <= 0; $('#bRedo').disabled = hi >= hist.length - 1; }
+function goHist(d) { const n = hi + d; if (n < 0 || n >= hist.length) { say(T(d < 0 ? 'Nothing to undo' : 'Nothing to redo'), true); return; } hi = n; histT = 0; data = JSON.parse(hist[hi]); cur = Math.min(cur, data.missions.length - 1); sel = -1; renderAll(); }
+$('#bUndo').onclick = () => goHist(-1); $('#bRedo').onclick = () => goHist(1);
+function save() { try { localStorage.setItem(KEY, JSON.stringify(data)); savedStr = JSON.stringify(data); say(T('Saved. Pick the Custom tab in the game.')); updDirty(); return true; } catch (e) { say(T('Could not save: {0}', e.message), true); return false; } }
 $('#bSave').onclick = save;
-$('#cname').oninput = e => { data.name = e.target.value; };
+addEventListener('beforeunload', e => { if (JSON.stringify(data) !== savedStr) { e.preventDefault(); e.returnValue = T('Leave this page? You have unsaved changes.'); } });
+$('#cname').oninput = e => { data.name = e.target.value; touch(); };
+$('#bLang').onclick = () => { LANG = LANG === 'ko' ? 'en' : 'ko'; try { localStorage.setItem('hellcat-editor-lang', LANG); } catch (_) {} applyStatic(); renderAll(); };
 $('#bExport').onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' })); a.download = (data.name || 'campaign').replace(/[^\w-]+/g, '_') + '.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); };
 $('#bImport').onclick = () => $('#file').click();
-$('#file').onchange = e => { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => { try { const v = JSON.parse(r.result); if (!v || !Array.isArray(v.missions)) throw new Error('not a campaign file'); data = v; if (!data.missions.length) data.missions.push(blank(0)); cur = 0; isl = 0; sel = -1; renderAll(); say('Imported ' + data.missions.length + ' missions (press Save to keep them).'); } catch (err) { say('Import failed: ' + err.message, true); } }; r.readAsText(f); e.target.value = ''; };
+$('#file').onchange = e => { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => { try { const v = JSON.parse(r.result); if (!v || !Array.isArray(v.missions)) throw new Error(T('not a campaign file')); data = normData(v); cur = 0; isl = 0; sel = -1; touch(); renderAll(); say(T('Imported {0} missions (press Save to keep them).', data.missions.length)); } catch (err) { say(T('Import failed: {0}', err.message), true); } }; r.readAsText(f); e.target.value = ''; };
 $('#bLink').onclick = () => {
   const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(data)))).replace(/\+/g, '-').replace(/\//g, '_');
   const url = new URL('index.html', location.href); url.search = '?cmp=' + b64;
   try { const sv = localStorage.getItem('hellcat-ships'); if (sv && JSON.parse(sv).ships.length) url.search += '&ships=' + btoa(unescape(encodeURIComponent(sv))).replace(/\+/g, '-').replace(/\//g, '_'); } catch (_) {}   // 내가 만든 배도 같이 보낸다
   const s = url.toString();
-  (navigator.clipboard ? navigator.clipboard.writeText(s) : Promise.reject()).then(() => say('Link copied (' + Math.round(s.length / 1000) + 'k chars). Open it on the other device once.'), () => { prompt('Copy this link:', s); });
+  (navigator.clipboard ? navigator.clipboard.writeText(s) : Promise.reject()).then(() => say(T('Link copied ({0}k chars). Open it on the other device once.', Math.round(s.length / 1000))), () => { prompt(T('Copy this link:'), s); });
 };
-$('#bPlay').onclick = () => { save(); window.open('index.html', '_blank'); };
+$('#bPlay').onclick = () => { if (save()) window.open('index.html?cus=' + cur, '_blank'); };
 
 // ───── 미션 목록 ─────
 function renderList() {
   $('#cname').value = data.name || '';
   const ul = $('#list'); ul.innerHTML = '';
-  data.missions.forEach((m, i) => { const li = document.createElement('li'); if (i === cur) li.className = 'on'; li.innerHTML = '<span>' + (i + 1) + '. ' + esc(m.name || 'Untitled') + '</span><small>Lv ' + m.lvl + '</small>'; li.onclick = () => { cur = i; isl = 0; sel = -1; renderAll(); }; ul.appendChild(li); });
+  data.missions.forEach((m, i) => { const li = document.createElement('li'); if (i === cur) li.className = 'on'; li.innerHTML = '<span>' + (i + 1) + '. ' + esc(m.name || T('Untitled')) + '</span><small>Lv ' + m.lvl + '</small>'; li.onclick = () => { cur = i; isl = 0; sel = -1; renderAll(); }; ul.appendChild(li); });
 }
-$('#mAdd').onclick = () => { data.missions.push(blank(data.missions.length)); cur = data.missions.length - 1; isl = 0; sel = -1; renderAll(); };
-$('#mDup').onclick = () => { const c = JSON.parse(JSON.stringify(M())); c.name += ' copy'; data.missions.splice(cur + 1, 0, c); cur++; renderAll(); };
-$('#mDel').onclick = () => { if (data.missions.length === 1) { data.missions[0] = blank(0); } else { if (!confirm('Delete "' + M().name + '"?')) return; data.missions.splice(cur, 1); cur = Math.min(cur, data.missions.length - 1); } isl = 0; sel = -1; renderAll(); };
-$('#mUp').onclick = () => { if (cur > 0) { [data.missions[cur - 1], data.missions[cur]] = [data.missions[cur], data.missions[cur - 1]]; cur--; renderAll(); } };
-$('#mDn').onclick = () => { if (cur < data.missions.length - 1) { [data.missions[cur + 1], data.missions[cur]] = [data.missions[cur], data.missions[cur + 1]]; cur++; renderAll(); } };
-const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+$('#mAdd').onclick = () => { if (data.missions.length >= 60) return; data.missions.push(blank(data.missions.length)); cur = data.missions.length - 1; isl = 0; sel = -1; touch(); renderAll(); };
+$('#mDup').onclick = () => { if (data.missions.length >= 60) return; const c = JSON.parse(JSON.stringify(M())); c.name = T('{0} copy', c.name); data.missions.splice(cur + 1, 0, c); cur++; touch(); renderAll(); };
+$('#mDel').onclick = () => { if (data.missions.length === 1) { data.missions[0] = blank(0); } else { if (!confirm(T('Delete "{0}"?', M().name))) return; data.missions.splice(cur, 1); cur = Math.min(cur, data.missions.length - 1); } isl = 0; sel = -1; touch(); renderAll(); };
+$('#mUp').onclick = () => { if (cur > 0) { [data.missions[cur - 1], data.missions[cur]] = [data.missions[cur], data.missions[cur - 1]]; cur--; touch(); renderAll(); } };
+$('#mDn').onclick = () => { if (cur < data.missions.length - 1) { [data.missions[cur + 1], data.missions[cur]] = [data.missions[cur], data.missions[cur + 1]]; cur++; touch(); renderAll(); } };
 
 // ───── 본문 ─────
 function renderMain() {
   const m = M();
   if (isl >= m.islands.length) isl = Math.max(0, m.islands.length - 1);
-  const opt = (o, v) => Object.entries(o).map(([k, n]) => '<option value="' + k + '"' + (k === v ? ' selected' : '') + '>' + n + '</option>').join('');
+  const opt = (o, v) => Object.entries(o).map(([k, n]) => '<option value="' + k + '"' + (k === v ? ' selected' : '') + '>' + esc(T(n)) + '</option>').join('');
   $('#main').innerHTML = `
-  <div class="card"><h2>Mission</h2>
+  <div class="card"><h2>${T('Mission')}</h2>
     <div class="row">
-      <label>Name <input type="text" id="fName" value="${esc(m.name)}"></label>
-      <label>Difficulty (1-20) <input type="number" id="fLvl" min="1" max="20" value="${m.lvl}"></label>
-      <label>Goal <select id="fGoal">${opt(GOALS, m.goal)}</select></label>
-      <label>Time of day <select id="fTint">${opt(TINTS, m.tint)}</select></label>
-      <label id="lZero" ${m.goal === 'air' ? '' : 'hidden'}>Zeros to shoot down <input type="number" id="fZero" min="1" max="40" value="${m.zeroN}"></label>
+      <label>${T('Name')} <input type="text" id="fName" maxlength="60" value="${esc(m.name)}"></label>
+      <label>${T('Difficulty (1-20)')} <input type="number" id="fLvl" min="1" max="20" value="${m.lvl}"></label>
+      <label>${T('Goal')} <select id="fGoal">${opt(GOALS, m.goal)}</select></label>
+      <label>${T('Time of day')} <select id="fTint">${opt(TINTS, m.tint)}</select></label>
+      <label id="lZero" ${m.goal === 'air' ? '' : 'hidden'}>${T('Zeros to shoot down')} <input type="number" id="fZero" min="1" max="40" value="${m.zeroN}"></label>
     </div>
-    <div class="row"><label style="flex:1">Briefing text (optional) <input type="text" id="fBrief" style="width:min(640px,60vw)" value="${esc(m.brief)}" placeholder="Leave empty for an automatic briefing"></label></div>
-    <p class="hint">Difficulty sets enemy strength and how many bunker shots the gunners fire, like campaign level numbers. Concrete bunkers are only used where you place them.</p>
+    <div class="row"><label style="flex:1">${T('Briefing text (optional)')} <input type="text" id="fBrief" maxlength="300" style="width:min(640px,60vw)" value="${esc(m.brief)}" placeholder="${esc(T('Leave empty for an automatic briefing'))}"></label></div>
+    <p class="hint">${T('Difficulty sets enemy strength and how many bunker shots the gunners fire, like campaign level numbers. Concrete bunkers are only used where you place them.')}</p>
     <div id="warns"></div>
   </div>
 
-  <div class="card" id="islCard"><h2>Islands <small style="color:var(--dim);font-weight:400">(left to right on the map; the carrier starts to the left)</small></h2>
+  <div class="card" id="islCard"><h2>${T('Islands')} <small style="color:var(--dim);font-weight:400">${T('(left to right on the map; the carrier starts to the left)')}</small></h2>
     <div class="tabs" id="islTabs"></div>
     <div id="islBody"></div>
   </div>
 
-  <div class="card"><h2>Ships</h2><div id="shipRow" class="row"></div>
-    <p class="hint">Pick a ship by name — your own designs from the Ship Designer (★) are listed after the three standard classes. Ships are placed in the sea automatically. Sink them with torpedoes. The list refreshes when you come back to this tab.</p></div>
+  <div class="card"><h2>${T('Ships')}</h2><div id="shipRow" class="row"></div>
+    <p class="hint">${T('SHIP_HINT')}</p></div>
 
-  <div class="card"><h2>Enemy air raids</h2><div id="waves"></div>
-    <button id="wAdd" class="sm">+ Add wave</button>
-    <p class="hint">Time is in seconds after takeoff. Fleet defense needs at least one wave with bombers (D4Y / B6N).</p></div>`;
-  $('#fName').oninput = e => { m.name = e.target.value; renderList(); };
-  $('#fBrief').oninput = e => { m.brief = e.target.value; };
-  $('#fLvl').oninput = e => { m.lvl = Math.max(1, Math.min(20, +e.target.value || 1)); renderList(); };
-  $('#fGoal').onchange = e => { m.goal = e.target.value; renderMain(); };
-  $('#fTint').onchange = e => { m.tint = e.target.value; };
-  $('#fZero').oninput = e => { m.zeroN = Math.max(1, Math.min(40, +e.target.value || 1)); };
+  <div class="card"><h2>${T('Enemy air raids')}</h2><div id="waves" class="scroll"></div>
+    <button id="wAdd" class="sm">${T('+ Add wave')}</button>
+    <p class="hint">${T('Time is in seconds after takeoff. Fleet defense needs at least one wave with bombers (D4Y / B6N).')}</p></div>`;
+  $('#fName').oninput = e => { m.name = e.target.value; renderList(); touch(); };
+  $('#fBrief').oninput = e => { m.brief = e.target.value; touch(); };
+  $('#fLvl').oninput = e => { m.lvl = Math.round(clampN(e.target.value, 1, 20, 1)); renderList(); touch(); };
+  $('#fGoal').onchange = e => { m.goal = e.target.value; touch(); renderMain(); };
+  $('#fTint').onchange = e => { m.tint = e.target.value; touch(); };
+  $('#fZero').oninput = e => { m.zeroN = Math.round(clampN(e.target.value, 1, 40, 1)); touch(); };
   renderIslands(); renderShips(); renderWaves(); renderWarns();
 }
 
 function renderIslands() {
   const m = M(), tabs = $('#islTabs'); tabs.innerHTML = '';
-  m.islands.forEach((q, i) => { const b = document.createElement('button'); b.textContent = 'Island ' + (i + 1) + ' (' + (q.size === 'b' ? 'large' : 'small') + ')'; if (i === isl) b.className = 'on'; b.onclick = () => { isl = i; sel = -1; renderIslands(); }; tabs.appendChild(b); });
-  if (m.islands.length < 5) { const a = document.createElement('button'); a.textContent = '+ Add island'; a.onclick = () => { m.islands.push({ size: 's', items: [] }); isl = m.islands.length - 1; sel = -1; renderIslands(); renderWarns(); }; tabs.appendChild(a); }
+  m.islands.forEach((q, i) => { const b = document.createElement('button'); b.textContent = T('Island {0} ({1})', i + 1, T(q.size === 'b' ? 'large' : 'small')); if (i === isl) b.className = 'on'; b.onclick = () => { isl = i; sel = -1; renderIslands(); }; tabs.appendChild(b); });
+  if (m.islands.length < 5) { const a = document.createElement('button'); a.textContent = T('+ Add island'); a.onclick = () => { m.islands.push({ size: 's', items: [] }); isl = m.islands.length - 1; sel = -1; touch(); renderIslands(); renderWarns(); }; tabs.appendChild(a); }
   const body = $('#islBody');
-  if (!m.islands.length) { body.innerHTML = '<p class="hint">No islands. This mission is ' + (m.goal === 'defend' ? 'a fleet defense' : 'sea only') + '.</p>'; return; }
-  const q = m.islands[isl], len = ISLAND_LEN[q.size];
+  if (!m.islands.length) { body.innerHTML = '<p class="hint">' + T(m.goal === 'defend' ? 'No islands. This mission is a fleet defense.' : 'No islands. This mission is sea only.') + '</p>'; return; }
+  const q = m.islands[isl];
   body.innerHTML = `
     <div class="row">
-      <label>Size <select id="iSize"><option value="s"${q.size === 's' ? ' selected' : ''}>Small (3,000 m)</option><option value="b"${q.size === 'b' ? ' selected' : ''}>Large (7,200 m)</option></select></label>
-      <button id="iClear" class="sm">Clear all</button>
-      <button id="iDel" class="sm">Remove island</button>
+      <label>${T('Size')} <select id="iSize"><option value="s"${q.size === 's' ? ' selected' : ''}>${T('Small (3,000 m)')}</option><option value="b"${q.size === 'b' ? ' selected' : ''}>${T('Large (7,200 m)')}</option></select></label>
+      <label><input type="checkbox" id="iSnap"${snap ? ' checked' : ''}> ${T('Snap 10 m')}</label>
+      <button id="iFix" class="sm">${T('Fix overlaps')}</button>
+      <button id="iClear" class="sm">${T('Clear all')}</button>
+      <button id="iDel" class="sm">${T('Remove island')}</button>
       <span style="color:var(--dim)" id="iInfo"></span>
     </div>
     <div class="pal" id="pal"></div>
     <canvas id="cv" width="1200" height="300"></canvas>
-    <p class="hint">Pick a building type, then <b>click</b> the island to place it. <b>Drag</b> to move, <b>right-click</b> or <b>Delete</b> to remove. An island surrenders when every building and soldier on it is gone, so give it at least one building.</p>`;
-  $('#iSize').onchange = e => { q.size = e.target.value; renderIslands(); renderWarns(); };
-  $('#iClear').onclick = () => { if (!q.items.length || confirm('Remove all buildings on this island?')) { q.items = []; sel = -1; draw(); renderWarns(); } };
-  $('#iDel').onclick = () => { if (confirm('Remove this island and its buildings?')) { m.islands.splice(isl, 1); isl = 0; sel = -1; renderIslands(); renderWarns(); } };
+    <div id="selbar"></div>
+    <p class="hint">${T('PLACE_HINT')}</p>`;
+  $('#iSize').onchange = e => { q.size = e.target.value; touch(); renderIslands(); renderWarns(); };
+  $('#iSnap').onchange = e => { snap = e.target.checked; };
+  $('#iFix').onclick = () => { const r = fixOverlaps(q); if (r === 0) say(T('No overlaps to fix.')); else { touch(); draw(); renderWarns(); if (overlaps(q).size) say(T('Not enough room to separate every building.'), true); else say(T('Fixed overlaps.')); } };
+  $('#iClear').onclick = () => { if (!q.items.length || confirm(T('Remove all buildings on this island?'))) { q.items = []; sel = -1; touch(); draw(); renderWarns(); } };
+  $('#iDel').onclick = () => { if (confirm(T('Remove this island and its buildings?'))) { m.islands.splice(isl, 1); isl = 0; sel = -1; touch(); renderIslands(); renderWarns(); } };
   const pal = $('#pal');
-  Object.entries(TYPES).forEach(([k, t]) => { const b = document.createElement('button'); b.innerHTML = '<span class="sw" style="background:' + t.c + '"></span>' + t.n; if (k === tool) b.className = 'on'; b.onclick = () => { tool = k; [...pal.children].forEach(x => x.className = ''); b.className = 'on'; }; pal.appendChild(b); });
-  bindCanvas(); draw();
+  Object.entries(TYPES).forEach(([k, t]) => { const b = document.createElement('button'); b.innerHTML = '<span class="sw" style="background:' + t.c + '"></span>' + esc(T(t.n)); if (k === tool) b.className = 'on'; b.onclick = () => { tool = k; [...pal.children].forEach(x => x.className = ''); b.className = 'on'; renderSel(); }; pal.appendChild(b); });
+  bindCanvas(); draw(); renderSel();
 }
 
-// 섬 그림: 가운데가 솟은 완만한 지형
+// ───── 시설 겹침 풀기 ─────
+const limU = (a, b, L) => ((TYPES[a.t].w + TYPES[b.t].w) / 2 + 5) / L;
+function fixOverlaps(q) {
+  const L = ISLAND_LEN[q.size], n0 = overlaps(q).size; if (!n0) return 0;
+  const a = q.items.filter(i => i.t !== 'runway').sort((x, y) => x.u - y.u);
+  for (let i = 1; i < a.length; i++) { const mn = a[i - 1].u + limU(a[i - 1], a[i], L); if (a[i].u < mn) a[i].u = mn; }
+  if (a.length && a[a.length - 1].u > U_MAX) { a[a.length - 1].u = U_MAX; for (let i = a.length - 2; i >= 0; i--) { const mx = a[i + 1].u - limU(a[i], a[i + 1], L); if (a[i].u > mx) a[i].u = mx; } }
+  a.forEach(i => { i.u = +Math.max(U_MIN, Math.min(U_MAX, i.u)).toFixed(4); });
+  return n0;
+}
+
+// ───── 섬 그림 ─────
 const cvY = u => 215 - 70 * Math.pow(Math.sin(Math.PI * Math.min(1, Math.max(0, u))), 0.7) * (0.85 + 0.15 * Math.sin(u * 17));
+const PAD = 30;
+const uFromX = (x, cv) => { let u = Math.max(U_MIN, Math.min(U_MAX, (x - PAD) / (cv.width - 2 * PAD))); if (snap) { const L = ISLAND_LEN[M().islands[isl].size]; u = Math.round(u * L / 10) * 10 / L; u = Math.max(U_MIN, Math.min(U_MAX, u)); } return +u.toFixed(4); };
 function bindCanvas() {
   const cv = $('#cv'), q = () => M().islands[isl];
   const pos = e => { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) * cv.width / r.width, y: (e.clientY - r.top) * cv.height / r.height }; };
-  const PAD = 30, uOf = x => Math.max(0.04, Math.min(0.96, (x - PAD) / (cv.width - 2 * PAD)));
-  const hit = x => { const L = ISLAND_LEN[q().size]; let best = -1, bd = 1e9; q().items.forEach((it, i) => { const cx = PAD + it.u * (cv.width - 2 * PAD), hw = Math.max(9, TYPES[it.t].w / L * (cv.width - 2 * PAD) / 2); const d = Math.abs(x - cx); if (d <= hw + 3 && d < bd) { bd = d; best = i; } }); return best; };
-  cv.onmousedown = e => { const p = pos(e); if (e.button === 2) return; const h = hit(p.x); if (h >= 0) { sel = h; drag = h; } else { q().items.push({ t: tool, u: +uOf(p.x).toFixed(4) }); sel = q().items.length - 1; drag = sel; renderWarns(); } draw(); };
-  cv.onmousemove = e => { if (drag === null) return; q().items[drag].u = +uOf(pos(e).x).toFixed(4); draw(); };
-  cv.oncontextmenu = e => { e.preventDefault(); const h = hit(pos(e).x); if (h >= 0) { q().items.splice(h, 1); sel = -1; draw(); renderWarns(); } };
+  const hit = (x, touchy) => { const L = ISLAND_LEN[q().size]; let best = -1, bd = 1e9; q().items.forEach((it, i) => { const cx = PAD + it.u * (cv.width - 2 * PAD), hw = Math.max(touchy ? 20 : 9, TYPES[it.t].w / L * (cv.width - 2 * PAD) / 2); const d = Math.abs(x - cx); if (d <= hw + 3 && d <= bd) { bd = d; best = i; } }); return best; };
+  cv.onpointerdown = e => {
+    if (e.button === 2) return; const p = pos(e), h = hit(p.x, e.pointerType === 'touch');
+    try { cv.setPointerCapture(e.pointerId); } catch (_) {}
+    if (h >= 0) { sel = h; drag = { i: h, moved: false }; }
+    else { if (q().items.length >= 80) return; q().items.push({ t: tool, u: uFromX(p.x, cv) }); sel = q().items.length - 1; drag = { i: sel, moved: true }; renderWarns(); }
+    draw(); renderSel();
+  };
+  cv.onpointermove = e => { if (!drag) return; const it = q().items[drag.i]; if (!it) return; const u = uFromX(pos(e).x, cv); if (u !== it.u) { it.u = u; drag.moved = true; draw(); renderSel(true); } };
+  cv.oncontextmenu = e => { e.preventDefault(); const h = hit(pos(e).x, false); if (h >= 0) { q().items.splice(h, 1); sel = -1; touch(); draw(); renderSel(); renderWarns(); } };
 }
-addEventListener('mouseup', () => { if (drag !== null) { drag = null; renderWarns(); } });
-addEventListener('keydown', e => { if ((e.key === 'Delete' || e.key === 'Backspace') && sel >= 0 && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) { const q = M().islands[isl]; if (q && q.items[sel]) { q.items.splice(sel, 1); sel = -1; draw(); renderWarns(); e.preventDefault(); } } });
+function endDrag() { if (drag) { const moved = drag.moved; drag = null; if (moved) { touch(); renderWarns(); renderSel(); } } }
+addEventListener('pointerup', endDrag); addEventListener('pointercancel', endDrag);
+
+// ───── 선택한 시설 막대 ─────
+function selItem() { const q = M().islands[isl]; return q && q.items[sel] ? q.items[sel] : null; }
+function nudge(dm) { const q = M().islands[isl], it = selItem(); if (!it) return; const L = ISLAND_LEN[q.size]; it.u = +Math.max(U_MIN, Math.min(U_MAX, it.u + dm / L)).toFixed(4); touch(); draw(); renderSel(); renderWarns(); }
+function delSel() { const q = M().islands[isl]; if (selItem()) { q.items.splice(sel, 1); sel = -1; touch(); draw(); renderSel(); renderWarns(); } }
+function dupSel() { const q = M().islands[isl], it = selItem(); if (!it || q.items.length >= 80) return; const L = ISLAND_LEN[q.size], d = (TYPES[it.t].w + 6) / L, u = it.u + d <= U_MAX ? it.u + d : it.u - d; q.items.push({ t: it.t, u: +Math.max(U_MIN, Math.min(U_MAX, u)).toFixed(4) }); sel = q.items.length - 1; touch(); draw(); renderSel(); renderWarns(); }
+function renderSel(light) {
+  const bar = $('#selbar'); if (!bar) return; const it = selItem(), q = M().islands[isl];
+  if (!it) { bar.innerHTML = '<span class="dim">' + esc(T('Nothing selected — click an empty spot to place a {0}, or click a building to select it.', T(TYPES[tool].n))) + '</span>'; return; }
+  const L = ISLAND_LEN[q.size], mtr = Math.round(it.u * L);
+  if (light && $('#selPos')) { $('#selPos').value = mtr; return; }
+  bar.innerHTML = '<b style="color:' + TYPES[it.t].c + '">' + esc(T(TYPES[it.t].n)) + '</b><label class="dim">' + T('Position (m)') + ' <input type="number" id="selPos" min="' + Math.ceil(U_MIN * L) + '" max="' + Math.floor(U_MAX * L) + '" value="' + mtr + '"></label><button class="sm" id="sL">◀</button><button class="sm" id="sR">▶</button><button class="sm" id="sD">' + T('Duplicate') + '</button><button class="sm" id="sX">' + T('Remove') + '</button>';
+  $('#selPos').onchange = e => { const x = clampN(e.target.value, U_MIN * L, U_MAX * L, mtr); it.u = +(x / L).toFixed(4); touch(); draw(); renderSel(); renderWarns(); };
+  $('#sL').onclick = () => nudge(-(snap ? 10 : 2)); $('#sR').onclick = () => nudge(snap ? 10 : 2); $('#sD').onclick = dupSel; $('#sX').onclick = delSel;
+}
+addEventListener('keydown', e => {
+  const typing = /INPUT|TEXTAREA|SELECT/.test((document.activeElement || {}).tagName || '');
+  const k = e.key.toLowerCase();
+  if ((e.ctrlKey || e.metaKey) && k === 's') { e.preventDefault(); save(); return; }
+  if (typing) return;
+  if ((e.ctrlKey || e.metaKey) && k === 'z') { e.preventDefault(); goHist(e.shiftKey ? 1 : -1); return; }
+  if ((e.ctrlKey || e.metaKey) && k === 'y') { e.preventDefault(); goHist(1); return; }
+  if ((e.ctrlKey || e.metaKey) && k === 'd') { e.preventDefault(); dupSel(); return; }
+  if (!selItem()) return;
+  if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); delSel(); }
+  else if (e.key === 'ArrowLeft') { e.preventDefault(); nudge(-(e.shiftKey ? 50 : snap ? 10 : 2)); }
+  else if (e.key === 'ArrowRight') { e.preventDefault(); nudge(e.shiftKey ? 50 : snap ? 10 : 2); }
+  else if (e.key === 'Escape') { sel = -1; draw(); renderSel(); }
+});
 
 function draw() {
   const cv = $('#cv'); if (!cv) return; const c = cv.getContext('2d'), m = M(), q = m.islands[isl]; if (!q) return;
-  const W = cv.width, H = cv.height, PAD = 30, span = W - 2 * PAD, L = ISLAND_LEN[q.size];
+  const W = cv.width, H = cv.height, span = W - 2 * PAD, L = ISLAND_LEN[q.size];
   const sky = c.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, '#173456'); sky.addColorStop(1, '#2c5b7e'); c.fillStyle = sky; c.fillRect(0, 0, W, H);
   c.fillStyle = '#1b4a6e'; c.fillRect(0, 232, W, H - 232);   // 바다
   c.beginPath(); c.moveTo(PAD, 232); for (let i = 0; i <= 200; i++) { const u = i / 200; c.lineTo(PAD + u * span, cvY(u) + 17); } c.lineTo(W - PAD, 232); c.closePath(); c.fillStyle = '#4f8a45'; c.fill(); c.strokeStyle = '#2f5a2a'; c.lineWidth = 2; c.stroke();
-  // 눈금 (500 m)
-  c.fillStyle = '#9bb0c8'; c.font = '11px system-ui'; c.textAlign = 'center';
+  c.fillStyle = '#9bb0c8'; c.font = '11px system-ui'; c.textAlign = 'center';   // 눈금 (500 m)
   for (let mtr = 0; mtr <= L; mtr += 500) { const x = PAD + mtr / L * span; c.fillRect(x, 238, 1, 6); c.fillText(mtr + ' m', x, 258); }
   const over = overlaps(q);
   q.items.forEach((it, i) => {
     const t = TYPES[it.t], cx = PAD + it.u * span, w = Math.max(14, t.w / L * span), base = cvY(it.u) + 17, h = it.t === 'tower' ? 44 : it.t === 'radar' ? 28 : it.t === 'runway' ? 6 : 22;
     c.fillStyle = t.c; c.fillRect(cx - w / 2, base - h, w, h);
     c.strokeStyle = over.has(i) ? '#ff5a3c' : i === sel ? '#ffd23f' : 'rgba(0,0,0,.6)'; c.lineWidth = over.has(i) || i === sel ? 3 : 1.5; c.strokeRect(cx - w / 2, base - h, w, h);
-    c.fillStyle = '#fff'; c.font = 'bold 11px system-ui'; c.textAlign = 'center'; c.fillText(t.n, cx, base - h - 5 - (i % 2) * 12);
+    c.fillStyle = '#fff'; c.font = 'bold 11px system-ui,sans-serif'; c.textAlign = 'center'; c.fillText(T(t.n), cx, base - h - 5 - (i % 2) * 12);
   });
-  $('#iInfo').textContent = q.items.length + ' buildings · 1 px ≈ ' + Math.round(L / span) + ' m';
+  $('#iInfo').textContent = T('{0} buildings · 1 px ≈ {1} m', q.items.length, Math.round(L / span));
 }
 function overlaps(q) {   // 서로 너무 가깝게 겹친 시설 (활주로 위에는 다른 시설을 놓지 못한다)
   const L = ISLAND_LEN[q.size], bad = new Set();
@@ -248,46 +390,45 @@ function overlaps(q) {   // 서로 너무 가깝게 겹친 시설 (활주로 위
 
 addEventListener('focus', () => { try { renderShips(); } catch (_) {} });
 function renderShips() {
-  const m = M(), row = $('#shipRow'), list = shipList(); row.innerHTML = '';
-  m.ships = m.ships.map(s => s === 'tr' ? 'dd' : s === 'bm' ? 'bb' : s);
+  const m = M(), row = $('#shipRow'); if (!row) return; const list = shipList(); row.innerHTML = '';
   const add = document.createElement('div'); add.className = 'cnt';
-  add.innerHTML = '<select style="min-width:260px">' + Object.entries(list).map(([k, n]) => '<option value="' + k + '">' + esc(n) + '</option>').join('') + '</select><button class="sm pri">+ Add to mission</button>';
-  add.querySelector('button').onclick = () => { if (m.ships.length >= 8) { say('At most 8 ships per mission.', true); return; } m.ships.push(add.querySelector('select').value); renderShips(); renderWarns(); };
+  add.innerHTML = '<select style="min-width:200px;max-width:100%">' + Object.entries(list).map(([k, n]) => '<option value="' + k + '">' + esc(n) + '</option>').join('') + '</select><button class="sm pri">' + T('+ Add to mission') + '</button>';
+  add.querySelector('button').onclick = () => { if (m.ships.length >= 8) { say(T('At most 8 ships per mission.'), true); return; } m.ships.push(add.querySelector('select').value); touch(); renderShips(); renderWarns(); };
   row.appendChild(add);
   const box = document.createElement('div'); box.style.cssText = 'flex-basis:100%;display:flex;flex-wrap:wrap;gap:6px';
-  if (!m.ships.length) box.innerHTML = '<span class="hint" style="margin:0">No ships in this mission.</span>';
+  if (!m.ships.length) box.innerHTML = '<span class="hint" style="margin:0">' + T('No ships in this mission.') + '</span>';
   m.ships.forEach((k, i) => {
-    const b = document.createElement('button'); b.className = 'sm'; b.title = 'Click to remove';
-    b.innerHTML = esc(list[k] || ('(missing ship) ' + k)) + ' ✕'; if (!list[k]) b.style.borderColor = 'var(--bad)';
-    b.onclick = () => { m.ships.splice(i, 1); renderShips(); renderWarns(); }; box.appendChild(b);
+    const b = document.createElement('button'); b.className = 'sm'; b.title = T('Click to remove');
+    b.innerHTML = esc(list[k] || T('(missing ship) {0}', k)) + ' ✕'; if (!list[k]) b.style.borderColor = 'var(--bad)';
+    b.onclick = () => { m.ships.splice(i, 1); touch(); renderShips(); renderWarns(); }; box.appendChild(b);
   });
   row.appendChild(box);
 }
 
 function renderWaves() {
   const m = M(), box = $('#waves');
-  if (!m.waves.length) { box.innerHTML = '<p class="hint">No air raids.</p>'; } else {
-    box.innerHTML = '<table><tr><th>#</th><th>Time (s)</th>' + Object.values(PLANES).map(n => '<th>' + n + '</th>').join('') + '<th></th></tr>' + m.waves.map((w, i) => '<tr><td>' + (i + 1) + '</td><td><input type="number" min="5" max="1200" value="' + w.t + '" data-t="' + i + '"></td>' + Object.keys(PLANES).map(k => '<td><input type="number" min="0" max="14" style="width:56px" value="' + w.l.filter(x => x === k).length + '" data-i="' + i + '" data-k="' + k + '"></td>').join('') + '<td><button class="sm" data-d="' + i + '">Remove</button></td></tr>').join('') + '</table>';
-    box.querySelectorAll('[data-t]').forEach(el => el.oninput = () => { m.waves[+el.dataset.t].t = Math.max(5, +el.value || 5); });
-    box.querySelectorAll('[data-k]').forEach(el => el.oninput = () => { const w = m.waves[+el.dataset.i], k = el.dataset.k, n = Math.max(0, Math.min(14, +el.value || 0)); w.l = w.l.filter(x => x !== k); for (let j = 0; j < n; j++) w.l.push(k); renderWarns(); });
-    box.querySelectorAll('[data-d]').forEach(el => el.onclick = () => { m.waves.splice(+el.dataset.d, 1); renderWaves(); renderWarns(); });
+  if (!m.waves.length) { box.innerHTML = '<p class="hint">' + T('No air raids.') + '</p>'; } else {
+    box.innerHTML = '<table><tr><th>#</th><th>' + T('Time (s)') + '</th>' + Object.values(PLANES).map(n => '<th>' + esc(T(n)) + '</th>').join('') + '<th></th></tr>' + m.waves.map((w, i) => '<tr><td>' + (i + 1) + '</td><td><input type="number" min="5" max="1200" value="' + w.t + '" data-t="' + i + '"></td>' + Object.keys(PLANES).map(k => '<td><input type="number" min="0" max="14" style="width:56px" value="' + w.l.filter(x => x === k).length + '" data-i="' + i + '" data-k="' + k + '"></td>').join('') + '<td><button class="sm" data-d="' + i + '">' + T('Remove') + '</button></td></tr>').join('') + '</table>';
+    box.querySelectorAll('[data-t]').forEach(el => el.oninput = () => { m.waves[+el.dataset.t].t = Math.round(clampN(el.value, 5, 1200, 5)); touch(); });
+    box.querySelectorAll('[data-k]').forEach(el => el.oninput = () => { const w = m.waves[+el.dataset.i], k = el.dataset.k, n = Math.round(clampN(el.value, 0, 14, 0)); w.l = w.l.filter(x => x !== k); for (let j = 0; j < n; j++) w.l.push(k); touch(); renderWarns(); });
+    box.querySelectorAll('[data-d]').forEach(el => el.onclick = () => { m.waves.splice(+el.dataset.d, 1); touch(); renderWaves(); renderWarns(); });
   }
-  $('#wAdd').onclick = () => { if (m.waves.length >= 12) return; const last = m.waves[m.waves.length - 1]; m.waves.push({ t: last ? last.t + 60 : 40, l: ['zero', 'zero'] }); renderWaves(); renderWarns(); };
+  $('#wAdd').onclick = () => { if (m.waves.length >= 12) return; const last = m.waves[m.waves.length - 1]; m.waves.push({ t: last ? Math.min(1200, last.t + 60) : 40, l: ['zero', 'zero'] }); touch(); renderWaves(); renderWarns(); };
 }
 
 function renderWarns() {
-  const m = M(), w = [];
+  const m = M(), w = [], box = $('#warns'); if (!box) return;
   const hasRw = m.islands.some(q => q.items.some(i => i.t === 'runway'));
-  if (m.goal === 'capture' && !m.islands.length) w.push('"Capture islands" needs at least one island. The game will switch to ' + (m.ships.length ? 'a fleet strike' : 'fleet defense') + '.');
-  if (m.goal === 'air' && !hasRw) w.push('"Airbase strike" needs an Airfield on an island. The game will fall back to capturing the islands.');
-  if (m.goal === 'fleet' && !m.ships.length) w.push('"Fleet strike" with no ships: the game adds one battleship.');
-  if (m.goal === 'defend' && !m.waves.some(x => x.l.some(t => t === 'd4y' || t === 'b6n'))) w.push('Fleet defense has no bombers or torpedo planes, so a default raid will be added.');
-  m.islands.forEach((q, i) => { if (!q.items.length) w.push('Island ' + (i + 1) + ' has no buildings, so it counts as captured immediately.'); const o = overlaps(q); if (o.size) w.push('Island ' + (i + 1) + ': ' + o.size + ' buildings overlap (shown with a red outline).'); });
-  $('#warns').innerHTML = w.length ? w.map(x => '<div class="warn">⚠ ' + esc(x) + '</div>').join('') : '<div class="okmsg">✓ Looks good.</div>';
+  if (m.goal === 'capture' && !m.islands.length) w.push(T('"Capture islands" needs at least one island. The game will switch to {0}.', T(m.ships.length ? 'a fleet strike' : 'fleet defense')));
+  if (m.goal === 'air' && !hasRw) w.push(T('"Airbase strike" needs an Airfield on an island. The game will fall back to capturing the islands.'));
+  if (m.goal === 'fleet' && !m.ships.length) w.push(T('"Fleet strike" with no ships: the game adds one battleship.'));
+  if (m.goal === 'defend' && !m.waves.some(x => x.l.some(t => t === 'd4y' || t === 'b6n'))) w.push(T('Fleet defense has no bombers or torpedo planes, so a default raid will be added.'));
+  m.islands.forEach((q, i) => { if (!q.items.length) w.push(T('Island {0} has no buildings, so it counts as captured immediately.', i + 1)); const o = overlaps(q); if (o.size) w.push(T('Island {0}: {1} buildings overlap (shown with a red outline).', i + 1, o.size)); });
+  box.innerHTML = w.length ? w.map(x => '<div class="warn">⚠ ' + esc(x) + '</div>').join('') : '<div class="okmsg">' + T('✓ Looks good.') + '</div>';
 }
 
-function renderAll() { renderList(); renderMain(); }
-renderAll();
+function renderAll() { renderList(); renderMain(); updDirty(); }
+applyStatic(); renderAll();
 </script>
 </body>
 </html>

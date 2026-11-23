@@ -2740,6 +2740,13 @@ const LANDBTN = { x: 330, y: 392, w: 300, h: 50 };
 
 // 첫 화면: 2번 작전 섬 위에서 자동으로 날아다니며 싸우는 데모
 function startDemo() { startMission(genMission(1 + Math.floor(Math.random() * MAX_LVL), newSeed())); reset(); G.scene = 'title'; G.toast = null; G.lives = 99; G.demo = { t: 0, ct: 0, z: 0 }; }
+function leadAim(e) {   // 움직이는 적기를 맞히려면 기관총탄(내 속도 + 640m/s)이 적기와 만나는 지점을 겨눠야 한다: 탄이 날아가는 동안의 적기 이동을 미리 계산한다 (없으면 null)
+  const rx = e.x - p.x, ry = e.y - p.y, wx = Math.cos(e.h || 0) * e.v - p.vx, wy = Math.sin(e.h || 0) * e.v - p.vy, V = 640;
+  const a = wx * wx + wy * wy - V * V, b = 2 * (rx * wx + ry * wy), c = rx * rx + ry * ry; let t = null;
+  if (Math.abs(a) < 1e-6) t = c / Math.max(1e-6, -b); else { const d = b * b - 4 * a * c; if (d >= 0) { const q = Math.sqrt(d), t1 = (-b - q) / (2 * a), t2 = (-b + q) / (2 * a); t = [t1, t2].filter(z => z > 0).sort((u, v) => u - v)[0]; } }
+  if (!(t > 0) || t > 0.9) return null;
+  return { ang: Math.atan2(ry + wy * t, rx + wx * t), t, dist: Math.sqrt(c) };
+}
 function demoBot(dt) {
   const D = G.demo; D.t += dt;
   const K = (u, l, r, f) => { keys.ArrowUp = u > 0; keys.ArrowDown = u < 0; keys.ArrowLeft = !!l; keys.ArrowRight = !!r; G.demoFire = !!f; };
@@ -2752,7 +2759,7 @@ function demoBot(dt) {
   if (p.mode !== 'air') { K(0); return; }
   const fx = TARGETS.filter(t => t.alive).map(t => t.x), A = Math.min(...(ISLANDS.length ? ISLANDS.map(q => q.a) : [ship.x + 600]), ...fx), B = Math.max(...(ISLANDS.length ? ISLANDS.map(q => q.b) : [ship.x + 2500]), ...fx), dir = p.s > 0 ? 1 : -1;
   let l = 0, r = 0;
-  if (p.turn <= 0 && kts() > TURN_KT + 5) { if (dir > 0 && p.x > B + 250) l = 1; else if (dir < 0 && p.x < A - 500) r = 1; }   // 섬 끝에서 돌아선다
+  if (p.turn <= 0 && kts() > TURN_KT + 5 && p.y - Math.max(0, gh(p.x)) > 100) { if (dir > 0 && p.x > B + 250) l = 1; else if (dir < 0 && p.x < A - 500) r = 1; }   // 섬 끝에서 돌아선다 (돌아서는 동안은 조종이 안 되므로 충분히 높을 때만)
   let tgt = null; for (const t of TARGETS) if (t.alive && (t.x - p.x) * dir > 80 && (t.x - p.x) * dir < 900 && (!tgt || Math.abs(t.x - p.x) < Math.abs(tgt.x - p.x))) tgt = t;
   let en = null; for (const e of ENE) if (!e.dead && Math.hypot(e.x - p.x, e.y - p.y) < 600) en = e;
   for (const e of ENE) if (!e.dead && (e.type === 'd4y' || e.type === 'b6n') && !e.rel && Math.hypot(e.x - p.x, e.y - p.y) < 2500) { en = e; if (p.turn <= 0 && kts() > TURN_KT + 5 && (e.x - p.x) * (p.s > 0 ? 1 : -1) < -150) D.turnB = true; break; }   // 폭격기를 먼저 잡는다
@@ -2761,17 +2768,21 @@ function demoBot(dt) {
   const torpRun = !en && !!tgt && !!SHIPS[tgt.type] && ground <= 0;   // 배를 노릴 때는 바다 위를 낮게 (어뢰)
   let alt = en ? en.y : tgt ? (SHIPS[tgt.type] ? 28 : tgt.y + 70) : 150; if (!torpRun) alt = Math.max(alt, ground + 55);
   let u = p.y < alt - 6 ? 1 : p.y > alt + 10 ? -1 : 0;
-  if (tgt && !en && Math.abs(tgt.x - p.x) < 450 && p.y - tgt.y > 35) u = -1;   // 표적으로 얕게 내려간다
-  if (p.y - ground < (torpRun ? 17 : 50) || (p.vy < (torpRun ? -6 : -10) && p.y - ground < (torpRun ? 60 : 140)) || (p.vy < -25 && p.y - ground < 220)) u = 1;           // 땅이 가까우면 올라간다
-  const aim = (x, y) => Math.abs(angd(Math.atan2(y - p.y, x - p.x), p.th)) < 0.12;
+  const ld = en ? leadAim(en) : null;
+  const steer = a => { const pt = clamp(dir > 0 ? angd(a, 0) : angd(Math.PI, a), p.y - ground < 130 ? -0.06 : -0.36, 0.8), now = dir > 0 ? angd(p.th, 0) : angd(Math.PI, p.th), er = pt - now; return er > 0.012 ? 1 : er < -0.012 ? -1 : 0; };   // 위가 +: 왼쪽으로 날 때도 기수를 들면 +   // 급강하는 피한다: 내려다보는 각도에 한계를 둔다 (땅이 가까우면 더 작게)
+  if (ld && ld.dist < 1000) u = steer(ld.ang);   // 적기가 있으면 선두 각도로 기수를 맞춘다
+  else if (tgt && !en && Math.abs(tgt.x - p.x) < 750 && p.y - tgt.y > 20) u = steer(Math.atan2(tgt.y + 2 - p.y, tgt.x - p.x));   // 표적이 가까우면 기수를 표적에 맞춘다 (땅이 가까워지면 아래에서 다시 올라간다)
+  if (p.y - ground < (torpRun ? 17 : 50) || (p.vy < (torpRun ? -6 : -10) && p.y - ground < (torpRun ? 60 : 140)) || (p.vy < -25 && p.y - ground < 220) || (p.vy < -30 && p.y - ground < 80 - p.vy * 3.2)) u = 1;   // 빨리 내려가고 있으면 회복할 시간(약 3초)만큼 높을 때 미리 올린다
+  else if (p.vy < -45) u = Math.max(u, 0);   // 너무 가파르게 내려가지 않는다           // 땅이 가까우면 올라간다
+  const aim = (x, y, tol) => Math.abs(angd(Math.atan2(y - p.y, x - p.x), p.th)) < (tol || 0.03);   // 조준이 충분히 맞았을 때만 쏜다
   // 기관총은 적기와 일본군에게만, 시설과 배에는 로켓·폭탄
   let fire = false;
-  if (en && aim(en.x, en.y)) fire = true;
-  if (!fire) for (const o of SOLD) if (o.alive && o.st !== 'enter' && (o.x - p.x) * dir > 30 && (o.x - p.x) * dir < 500 && aim(o.x, o.y + 3)) { fire = true; break; }
+  if (en && ld && ld.dist < 560 && Math.abs(angd(ld.ang, p.th)) < 0.03) fire = true;   // 기관총은 선두 지점을 겨눴고 사거리 안일 때만
+  if (!fire) for (const o of SOLD) if (o.alive && o.st !== 'enter' && (o.x - p.x) * dir > 30 && (o.x - p.x) * dir < 480 && aim(o.x, o.y + 3, 0.05)) { fire = true; break; }
   K(u, l, r, fire);
   if (!fire && tgt) {
     if (SHIPS[tgt.type] && p.y < TORP_H - 3 && Math.abs(Math.atan2(p.vy, Math.abs(p.vx))) < 0.15 && Math.abs(tgt.x - p.x) < 600 && G.t > (D.tpT || 0)) { fireTorpedo(); D.tpT = G.t + 3; }   // 배는 어뢰로
-    else if (aim(tgt.x, tgt.y + 2) && G.t > (D.rkT || 0) && (!SHIPS[tgt.type] || (tgt.guns && tgt.guns.some(g => g.alive)))) { fireRocket(); D.rkT = G.t + 0.7; }
+    else if (aim(tgt.x, tgt.y + 2, 0.045) && Math.abs(tgt.x - p.x) < 900 && Math.abs(tgt.x - p.x) > 100 && G.t > (D.rkT || 0) && (!SHIPS[tgt.type] || (tgt.guns && tgt.guns.some(g => g.alive)))) { fireRocket(); D.rkT = G.t + 0.5; }
     else if (tgt.type !== 'pill' && !SHIPS[tgt.type] && p.y > tgt.y + 15) { const h = p.y - 2.5 - (tgt.y + BOX[tgt.type].h * 0.6), gg = GRAV * 2.4, v0 = p.vy - 15, tf = (v0 + Math.sqrt(Math.max(0, v0 * v0 + 2 * gg * h))) / gg, lead = (tgt.x - p.x) - p.vx * tf; if (lead < 26 && lead > -4 && G.t > (D.bmT || 0) && !(D.salvo > 0)) { D.salvo = 3; D.salvoT = 0; D.bmT = G.t + 2.4; } }   // 3발 연속 투하
   }
 }

@@ -928,9 +928,9 @@ function genMission(L, seed, rnd) {   // rnd: 정해진 레벨 계획 대신 무
   }
   const goal = spec.goal, tint = L < 3 ? 'day' : pick(L >= 5 ? ['day', 'day', 'dawn', 'dusk', 'night'] : ['day', 'day', 'dawn', 'dusk']);
   const place = pick(PLACES), M = { gen: true, skirmish: !!rnd, lvl: L, seed, name: 'Operation ' + pick(OPS) + ' · ' + place, place, tint, goal, islands: [], waves: [] };
-  const fighters = () => { const l = []; for (let k = 0, n = Math.min(5, 2 + Math.floor(L / 4) + ri(0, 1)); k < n; k++) l.push(L >= 7 && R() < 0.2 ? 'n1k' : L >= 4 && R() < 0.15 ? 'ace' : ZR); return l; };
+  const fighters = () => { const l = []; for (let k = 0, n = Math.max(1, Math.round(Math.min(5, 2 + Math.floor(L / 4) + ri(0, 1)) * 0.7)); k < n; k++) l.push(L >= 7 && R() < 0.2 ? 'n1k' : L >= 4 && R() < 0.15 ? 'ace' : ZR); return l; };
   for (let k = 0; k < (L >= 6 && (L > 14 || goal === 'defend') ? spec.waves : 0); k++) {   // 공습은 15레벨부터 (함대 방어 임무만 예외)
-    if (goal === 'defend') { const l = []; for (let j = 0, nb = Math.min(6, 2 + Math.floor(L / 3) + ri(0, 1)); j < nb; j++) l.push(R() < 0.5 ? 'd4y' : 'b6n'); M.waves.push({ t: 25 + k * 70, l: l.concat(fighters().slice(0, ri(1, 3))) }); }
+    if (goal === 'defend') { const l = []; for (let j = 0, nb = Math.max(2, Math.round(Math.min(6, 2 + Math.floor(L / 3) + ri(0, 1)) * 0.7)); j < nb; j++) l.push(R() < 0.5 ? 'd4y' : 'b6n'); M.waves.push({ t: 25 + k * 70, l: l.concat(fighters().slice(0, ri(1, 3))) }); }
     else M.waves.push({ t: 40 + k * 95 + ri(0, 20), l: L <= 2 ? [ZR, ZR] : fighters() });
   }
   // 섬
@@ -946,7 +946,7 @@ function genMission(L, seed, rnd) {   // rnd: 정해진 레벨 계획 대신 무
   });
   const boats = [];   // 작은 배는 쓰지 않는다
   // 함정: 섬이 있으면 섬 앞바다에, 바다 작전이면 멀리 함대로
-  const ships = injectShips(spec.ships.map(normShip), seed).map((t, j) => [t, M.islands.length ? 4700 - j * 650 : 6900 + j * 700]);
+  const ships = injectShips(spec.ships.map(normShip), seed).slice(0, Math.max(1, Math.round(spec.ships.length * 0.7))).map((t, j) => [t, M.islands.length ? 4700 - j * 650 : 6900 + j * 700]);
   M.build = (add, P) => { extra.forEach(([ty, k, f]) => add(ty, P(k, f))); boats.forEach(bx => add('boat', bx)); ships.forEach(([ty, sx]) => add(ty, sx)); };
   const nBig = spec.isl.filter(t => t === 'b').length, nSm = spec.isl.length - nBig, SN = SHIP_NAME;
   const shipTxt = ships.length ? Object.entries(ships.reduce((o, [t]) => (o[t] = (o[t] || 0) + 1, o), {})).map(([t, n]) => n + ' ' + SN[t] + (n > 1 ? 's' : '')).join(', ') : '';
@@ -1143,6 +1143,10 @@ function makeTargets(M) {
       }
     }
   });
+  if (M.gen && !M.custom) {   // 레벨을 만들 때 섬의 유닛(건물·포) 수를 30% 줄인다: 섬마다 활주로를 뺀 것 중 30%를 무작위로 치우되 최소 2개는 남긴다
+    const rc = rngOf((M.seed || 1) ^ 0x51ed270b);
+    ISLANDS.forEach((q, k) => { const c = TARGETS.filter(t => t.isl === k && !SHIPS[t.type] && t.type !== 'runway'); for (let n = Math.min(Math.round(c.length * 0.3), c.length - 2); n > 0; n--) { const j = Math.floor(rc() * c.length), t = c.splice(j, 1)[0]; TARGETS.splice(TARGETS.indexOf(t), 1); } });
+  }
   ISLANDS.forEach(q => { q.pads = []; });   // 건물 둘레를 평지로: 건물이 서는 자리의 높이로 땅을 고르고 가장자리는 완만하게 잇는다
   { const hts = TARGETS.filter(t => !SHIPS[t.type] && t.type !== 'runway' && t.isl >= 0).map(t => [t, gh(t.x)]);
     for (const [t, h0] of hts) { const pad = BOX[t.type].w / 2 + (t.type === 'barracks' ? 36 : 8); ISLANDS[t.isl].pads.push({ a: t.x - pad, b: t.x + pad, h: h0 }); }   // 막사 둘레의 생활시설까지 평평하게

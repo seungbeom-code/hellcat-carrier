@@ -767,7 +767,7 @@ function gh(x) {
   return 0;
 }
 const HP = { aa: 4, bunker: 10, fuel: 3, radar: 4, boat: 8, runway: 14, tank: 6, cave: 14, dd: 16, tr: 10, bm: 20, bb: 44, cv: 55 };   // 소형 전함은 어뢰 1발(22), 대형 전함은 2발, 항모는 3발에 가라앉는다
-const BOX = { aa: { w: 6, h: 5 }, bunker: { w: 20, h: 9 }, fuel: { w: 15, h: 5 }, radar: { w: 6, h: 10 }, boat: { w: 26, h: 7 }, runway: { w: 60, h: 3 }, tank: { w: 9, h: 4 }, cave: { w: 8, h: 7 }, dd: { w: 44, h: 14 }, tr: { w: 36, h: 10 }, bb: { w: 84, h: 20 }, cv: { w: 96, h: 14 } };
+const BOX = { aa: { w: 6, h: 5 }, bunker: { w: 20, h: 9 }, fuel: { w: 30, h: 10 }, radar: { w: 12, h: 20 }, boat: { w: 26, h: 7 }, runway: { w: 60, h: 3 }, tank: { w: 9, h: 4 }, cave: { w: 8, h: 7 }, dd: { w: 44, h: 14 }, tr: { w: 36, h: 10 }, bb: { w: 84, h: 20 }, cv: { w: 96, h: 14 } };
 const SK = { boat: 1.5, dd: 2.6, tr: 3.2, bm: 2.6, bb: 2.6, cv: 2.4 }, SP = { boat: 5, dd: 9, tr: 4, bm: 6, bb: 5, cv: 7 };   // 배의 크기 배율, 순항 속도(m/s)
 Object.assign(BOX, { runway: { w: RUNWAY_L, h: 6 }, boat: { w: 40, h: 11 }, dd: { w: 115, h: 36 }, tr: { w: 115, h: 32 }, bm: { w: 260, h: 52 }, bb: { w: 390, h: 52 }, cv: { w: 230, h: 34 } });   // 전함 길이: 우리 항모(520m)의 1/2과 3/4
 const DMG = {
@@ -1127,9 +1127,9 @@ function makeTargets(M) {
     const aas = TARGETS.filter(t => t.type === 'aa' && t.isl === k && !t.hill); if (!aas.length || M.custom) return;
     const near = (type, dx) => TARGETS.filter(t => t.isl === k && t.type === type).flatMap(t => [t.x - dx, t.x + dx]);
     const slots = [];
-    TARGETS.filter(t => t.isl === k && t.type === 'fuel').forEach(t => { slots.push(t.x - 16, t.x + 16); });   // 연료 저장고 양옆
+    TARGETS.filter(t => t.isl === k && t.type === 'fuel').forEach(t => { slots.push(t.x - 32, t.x + 32); });   // 연료 저장고 양옆 (2배 커졌다)
     if (q.flat) slots.push(q.flat.a - 18, q.flat.b + 18);   // 비행장 활주로 양 끝
-    TARGETS.filter(t => t.isl === k && t.type === 'radar').forEach(t => { slots.push(t.x - 13, t.x + 13); });   // 레이더 양옆
+    TARGETS.filter(t => t.isl === k && t.type === 'radar').forEach(t => { slots.push(t.x - 26, t.x + 26); });   // 레이더 양옆 (2배 커졌다)
     const w = q.b - q.a, flag = q.fx;
     for (const fr of [0.3, 0.7]) { const cx = q.a + w * fr; for (let j = -1; j <= 1; j++) slots.push(cx + j * 30); }   // 3문씩 줄지은 포대
     slots.push(flag - 36, flag + 36);   // 깃발(지휘소) 양옆
@@ -2516,6 +2516,14 @@ function drawTarget(c, t, dead) {
       line(0, 23.6, 0, 25, '#4a4a42', 0.14); c.fillStyle = '#f2f0e6'; c.fillRect(0.1, 24.0, 1.8, 1.0); c.fillStyle = '#c83a3a'; c.beginPath(); c.arc(1.0, 24.5, 0.3, 0, 7); c.fill();   // 일장기
       break;
     }
+    case 'radar': {   // 레이더: 콘크리트 받침 위의 철탑과 천천히 도는 격자 안테나 (유류저장고와 같이 2배로 그린다)
+      rect(-2.4, 0, 4.8, 1.1, '#5a6068'); rect(-1.6, 1.1, 3.2, 0.5, '#4a5058');
+      line(-1.5, 1.6, -0.3, 8, '#59616a', 0.2); line(1.5, 1.6, 0.3, 8, '#59616a', 0.2); line(-0.9, 4, 0.9, 4, '#59616a', 0.15);
+      rect(-0.3, 1.6, 0.6, 6.6, '#6b737a');
+      const f = Math.cos(G.t * 1.1 + t.x * 0.1);
+      c.save(); c.translate(0, 9); c.scale(f, 1); rect(-2.8, -1.7, 5.6, 3.4, '#8a939a'); rect(-2.6, -1.5, 5.2, 3.0, '#3c444a'); for (let i = -2; i <= 2; i++) line(i, -1.5, i, 1.5, '#8a939a', 0.14); for (let j = -1; j <= 1; j++) line(-2.6, j, 2.6, j, '#8a939a', 0.14); c.restore();
+      break;
+    }
     case 'fuel': {   // 유류저장고: 갈색 드럼통을 한 줄로 세워 놓았다 (한 층만, 이전의 1.5배 크기)
       const browns = ['#8a5a32', '#7d5230', '#946238', '#855630'];
       const drum = (x, y, col) => {
@@ -2585,7 +2593,7 @@ function drawTargets(c) {
     if (Math.abs(t.x - cam.x) > span / 2 + BOX[t.type].w) continue;
     const sea = SHIPS[t.type], dead = !t.alive, sink = dead && sea ? clamp((G.t - t.deadT) / 9, 0, 1) : 0;
     if (sea && sink >= 1) continue;
-    world(t.x, t.y + (sea ? (dead ? -sink * 16 : Math.sin(G.t * 2 + t.x) * 0.5) : 0), () => { if (sea) { if (dead) c.rotate(-sink * 0.35); c.scale(t.dir < 0 ? -SK[t.type] : SK[t.type], SK[t.type]); } else if (t.type === 'aa') c.scale(1.8, 1.8); else if (t.type === 'pill') c.scale(3, 3); if (!dead && LOWERS[t.type]) { t.hk = lerp(t.hk === undefined ? 1 : t.hk, hFac(t), 0.12); c.scale(1, t.hk); } drawTarget(c, t, dead); });
+    world(t.x, t.y + (sea ? (dead ? -sink * 16 : Math.sin(G.t * 2 + t.x) * 0.5) : 0), () => { if (sea) { if (dead) c.rotate(-sink * 0.35); c.scale(t.dir < 0 ? -SK[t.type] : SK[t.type], SK[t.type]); } else if (t.type === 'aa') c.scale(1.8, 1.8); else if (t.type === 'pill') c.scale(3, 3); else if (t.type === 'fuel' || t.type === 'radar') c.scale(2, 2); if (!dead && LOWERS[t.type]) { t.hk = lerp(t.hk === undefined ? 1 : t.hk, hFac(t), 0.12); c.scale(1, t.hk); } drawTarget(c, t, dead); });
   }
 }
 function drawLanding(c) {

@@ -2990,8 +2990,9 @@ function wingGun(t, w) {   // 배에서 아직 살아 있는 포 중 하나 (선
   for (const g of t.guns || []) { if (!g.alive) continue; const s = Math.abs(t.x + g.lx * SK[t.type] * dr - w.x) + (g.end ? 0 : 2000); if (s < bs) { bs = s; b = { x: t.x + g.lx * SK[t.type] * dr, y: t.y + HULL_H[t.type] + 3 }; } }
   return b;
 }
-function wingPick(w) {   // 다음 공격 목표: 적기 > 지상 시설 > 병사 > 함정 (무기가 맞는 것만)
-  let best = null, bs = 1e9; const add = (o, kind, base) => { if (w.bl && w.bl.o === o && G.t < w.bl.until) return; const behind = Math.cos(w.h) * (o.x - w.x) < 0; const s = base + Math.abs(o.x - w.x) + (behind ? (kind === 'e' ? 700 : 4000) : 0);   // 지상 목표는 가는 방향 앞쪽 것을 모두 훑은 뒤에야 돌아선다 (섬을 쭉 지나가며 공격)
+const wingSite = o => SHIPS[o.type] ? o : (o.type !== undefined && o.isl !== undefined ? (o.isl >= 0 ? 'I' + o.isl : 'free') : ((k => k >= 0 ? 'I' + k : 'free')(ISLANDS.findIndex(q => o.x > q.a && o.x < q.b))));   // 공격 단위: 섬 하나, 또는 배 한 척
+function wingPick(w, again) {   // 다음 공격 목표: 적기 > 지상 시설 > 병사 > 함정 (무기가 맞는 것만). 목표로 삼은 섬(또는 배)을 다 끝낼 때까지 다른 섬은 보지 않는다
+  let best = null, bs = 1e9; const add = (o, kind, base) => { if (w.bl && w.bl.o === o && G.t < w.bl.until) return; if (kind !== 'e' && w.site && wingSite(o) !== w.site) return; const behind = Math.cos(w.h) * (o.x - w.x) < 0; const s = base + Math.abs(o.x - w.x) + (behind ? (kind === 'e' ? 700 : 4000) : 0);   // 지상 목표는 가는 방향 앞쪽 것을 모두 훑은 뒤에야 돌아선다 (섬을 쭉 지나가며 공격)
     if (s < bs) { bs = s; best = { k: kind, o }; } };
   const dang = wingDang, weak = w.hp < WING_HP * 0.7;   // 대공 화력이 센 곳은 피한다 (다쳤으면 더)
   for (const e of ENE) if (!e.dead && Math.abs(e.x - w.x) < 1500 && w.ammo.gun > 0) add(e, 'e', -600 - (p.mode === 'air' && Math.abs(e.x - p.x) < 800 ? 1200 : 0));   // 내 비행기를 노리는 적기를 먼저 쫓아낸다
@@ -3004,6 +3005,8 @@ function wingPick(w) {   // 다음 공격 목표: 적기 > 지상 시설 > 병�
     } else if (w.ammo.rk > 0 || (w.ammo.bm > 0 && (DMG.bomb[t.type] || 0) > 0) || (w.ammo.gun > 0 && (DMG.gun[t.type] || 0) >= 0.1)) add(t, 'g', (AA_N[t.type] || t.type === 'radar' ? -150 : 0) - 70 * Math.min(4, TARGETS.reduce((n, q) => n + (q !== t && q.alive && !SHIPS[q.type] && Math.abs(q.x - t.x) < 300 ? 1 : 0), 0)) + dang(t.x) * (weak ? 700 : 60));   // 대공포·레이더를 먼저 없앤다
   }
   if (w.ammo.gun > 0) for (const o of SOLD) if (o.alive && o.st !== 'enter') add(o, 'g', 200);
+  if (!best && w.site && !again) { w.site = null; return wingPick(w, true); }   // 이 섬(배)에서 할 일이 없으면 다음 섬(배)을 고른다
+  if (best && best.k !== 'e' && !w.site) w.site = wingSite(best.o);   // 처음 고른 목표가 속한 섬(배)을 이번 임무의 목표로 정한다
   return best;
 }
 function wingStep(dt) {

@@ -3059,7 +3059,8 @@ function wingStep(dt) {
     return;
   }
   if (w.st === 'rollout') {   // 착함 후 감속하며 정위치로
-    w.vrel = Math.max(0, w.vrel - (w.wire !== undefined ? 48 : 7) * dt); w.xr += w.vrel * dt;   // 와이어에 걸리면 급감속, 아니면 바퀴 브레이크만 w.x = ship.x + w.xr; w.y = deck; w.v = ship.v + w.vrel; w.h = 0.15;
+    w.vrel = Math.max(0, w.vrel - (w.wire !== undefined ? 48 : 7) * dt); w.xr += w.vrel * dt;   // 와이어에 걸리면 급감속, 아니면 바퀴 브레이크만
+    w.x = ship.x + w.xr; w.y = deck; w.v = ship.v + w.vrel; w.h = 0.15;
     if (w.vrel <= 0.5 || w.xr > DECK_L - 30) { w.st = 'taxi'; w.goal = ELEV_C; }
     return;
   }

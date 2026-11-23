@@ -767,7 +767,7 @@ function gh(x) {
   return 0;
 }
 const HP = { aa: 4, bunker: 10, fuel: 3, radar: 4, boat: 8, runway: 14, tank: 6, cave: 14, dd: 16, tr: 10, bm: 20, bb: 44, cv: 55 };   // 소형 전함은 어뢰 1발(22), 대형 전함은 2발, 항모는 3발에 가라앉는다
-const BOX = { aa: { w: 6, h: 5 }, bunker: { w: 20, h: 9 }, fuel: { w: 30, h: 10 }, radar: { w: 12, h: 20 }, boat: { w: 26, h: 7 }, runway: { w: 60, h: 3 }, tank: { w: 9, h: 4 }, cave: { w: 8, h: 7 }, dd: { w: 44, h: 14 }, tr: { w: 36, h: 10 }, bb: { w: 84, h: 20 }, cv: { w: 96, h: 14 } };
+const BOX = { aa: { w: 6, h: 5 }, bunker: { w: 20, h: 9 }, fuel: { w: 30, h: 10 }, radar: { w: 12, h: 20 }, boat: { w: 26, h: 7 }, runway: { w: 60, h: 3 }, tank: { w: 22.5, h: 10 }, cave: { w: 8, h: 7 }, dd: { w: 44, h: 14 }, tr: { w: 36, h: 10 }, bb: { w: 84, h: 20 }, cv: { w: 96, h: 14 } };
 const SK = { boat: 1.5, dd: 2.6, tr: 3.2, bm: 2.6, bb: 2.6, cv: 2.4 }, SP = { boat: 5, dd: 9, tr: 4, bm: 6, bb: 5, cv: 7 };   // 배의 크기 배율, 순항 속도(m/s)
 Object.assign(BOX, { runway: { w: RUNWAY_L, h: 6 }, boat: { w: 40, h: 11 }, dd: { w: 115, h: 36 }, tr: { w: 115, h: 32 }, bm: { w: 260, h: 52 }, bb: { w: 390, h: 52 }, cv: { w: 230, h: 34 } });   // 전함 길이: 우리 항모(520m)의 1/2과 3/4
 const DMG = {
@@ -1563,7 +1563,7 @@ function flakStep(dt) {
     if (p.mode !== 'air') continue;
     const d = Math.hypot(p.x - t.x, p.y - t.y); if (d > (AA_R[t.type] || 1100) || d < 25) continue;
     t.flashT = G.t; if (Math.random() < 0.5) sfx('egun', { x: t.x });
-    const hy = t.y + (SHIPS[t.type] ? BOX[t.type].h * 0.7 : t.type === 'aa' ? 7 : t.type === 'pill' ? 7.1 : 4);
+    const hy = t.y + (SHIPS[t.type] ? BOX[t.type].h * 0.7 : t.type === 'aa' ? 7 : t.type === 'pill' ? 7.1 : t.type === 'tank' ? 10 : 4);
     for (let k = 0, nk = Math.ceil(AA_N[t.type] * (t.guns ? nG / t.guns.length : 1)); k < nk; k++) { const f = 0.4 + Math.random() * 0.4, err = 70 + d * 0.07; FLAK.push({ x0: t.x, y0: hy, x: p.x + p.vx * f + (Math.random() - 0.5) * err * 2, y: p.y + p.vy * f + (Math.random() - 0.5) * err, t: f, life: f }); }
   }
   for (let i = FLAK.length - 1; i >= 0; i--) {
@@ -2608,7 +2608,7 @@ function drawTargets(c) {
     if (Math.abs(t.x - cam.x) > span / 2 + BOX[t.type].w) continue;
     const sea = SHIPS[t.type], dead = !t.alive, sink = dead && sea ? clamp((G.t - t.deadT) / 9, 0, 1) : 0;
     if (sea && sink >= 1) continue;
-    world(t.x, t.y + (sea ? (dead ? -sink * 16 : Math.sin(G.t * 2 + t.x) * 0.5) : 0), () => { if (sea) { if (dead) c.rotate(-sink * 0.35); c.scale(t.dir < 0 ? -SK[t.type] : SK[t.type], SK[t.type]); } else if (t.type === 'aa') c.scale(1.8, 1.8); else if (t.type === 'pill') c.scale(3, 3); else if (t.type === 'fuel' || t.type === 'radar') c.scale(2, 2); if (!dead && LOWERS[t.type]) { t.hk = lerp(t.hk === undefined ? 1 : t.hk, hFac(t), 0.12); c.scale(1, t.hk); } drawTarget(c, t, dead); });
+    world(t.x, t.y + (sea ? (dead ? -sink * 16 : Math.sin(G.t * 2 + t.x) * 0.5) : 0), () => { if (sea) { if (dead) c.rotate(-sink * 0.35); c.scale(t.dir < 0 ? -SK[t.type] : SK[t.type], SK[t.type]); } else if (t.type === 'aa') c.scale(1.8, 1.8); else if (t.type === 'pill') c.scale(3, 3); else if (t.type === 'tank') c.scale(2.5, 2.5); else if (t.type === 'fuel' || t.type === 'radar') c.scale(2, 2); if (!dead && LOWERS[t.type]) { t.hk = lerp(t.hk === undefined ? 1 : t.hk, hFac(t), 0.12); c.scale(1, t.hk); } drawTarget(c, t, dead); });
   }
 }
 function drawLanding(c) {

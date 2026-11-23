@@ -3825,7 +3825,7 @@ function drawFwdView(m) {   // 정면 화면: 비행기가 향한 쪽 멀리(기
       const ca = Math.cos(ang), sa = Math.sin(ang); let best = null;
       for (let al = 80; al <= 2300; al += 20) { const rx = x + ca * al, ry = y + sa * al, gy = Math.max(0, gh(rx)); if (ry <= gy + 1) { best = { x: rx, y: gy + 3, al }; break; } }
       for (const e of ENE) if (!e.dead) { const ox = e.x - x, oy = e.y - y, al = ox * ca + oy * sa, pp = Math.abs(-ox * sa + oy * ca); if (al > 100 && al < 2300 && pp < 35 + al * 0.05 && (!best || al < best.al)) best = { x: e.x, y: e.y, al }; }
-      const tx = best ? best.x : x + ca * 380, ty = best ? best.y : y + sa * 380, tz = best ? clamp(960 / Math.max(150, best.al * 0.42), 2.2, 6.5) : 2.2;
+      const tx = best ? best.x : x + ca * 380, ty = best ? best.y : y + sa * 380, tz = 2 * (best ? clamp(960 / Math.max(150, best.al * 0.42), 2.2, 6.5) : 2.2);   // 확대 비율 2배
       if (!pipS) pipS = { x: tx, y: ty, z: tz }; else { pipS.x = lerp(pipS.x, tx, 0.35); pipS.y = lerp(pipS.y, ty, 0.35); pipS.z = lerp(pipS.z, tz, 0.25); }
       cam.z = pipS.z; cam.x = pipS.x; cam.y = pipS.y;
     }   // 기수가 향한 쪽 380m 앞을 본다: 조준선에 들어온 벙커가 실제로 보이는 것처럼 보인다

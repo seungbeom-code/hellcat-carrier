@@ -756,13 +756,13 @@ function mkIsland(a, w, pk, seed) {   // 섬마다 언덕의 위치·폭·높이
 function gh(x) {
   for (const s of ISLANDS) if (x > s.a && x < s.b) {
     const u = (x - s.a) / (s.b - s.a), e = Math.min(1, u / 0.07, (1 - u) / 0.07), e2 = e * e * (3 - 2 * e);
-    let h = s.pk * 0.25 * Math.pow(Math.sin(Math.PI * u), 0.7);
+    let h = s.pk * 0.17 * Math.pow(Math.sin(Math.PI * u), 0.7);
     let hh = 0; for (const q of s.hills) hh += q.h * Math.exp(-Math.pow((u - q.c) / q.w, 2));
     const cz = clamp(1 - (Math.abs(u - 0.5) - 0.07) / 0.1, 0, 1), cs = cz * cz * (3 - 2 * cz);   // 가운데 평지 정도 (0~1)
-    h += hh * (1 - 0.85 * cs);
+    h += hh * 0.55 * (1 - 0.85 * cs);   // 언덕은 예전의 55% 높이
     let base = 2 + h * e2 * 0.5;   // 섬 전체를 평탄하게 (오르내림을 절반으로)
     if (s.pads) for (const pd of s.pads) { const d = Math.max(0, pd.a - x, x - pd.b), k = d <= 0 ? 1 : d >= 26 ? 0 : 1 - d / 26, kk = k * k * (3 - 2 * k); if (kk > 0) base += (pd.h - base) * kk; }   // 건물 둘레는 평지
-    if (s.flat) { const d = Math.max(0, s.flat.a - x, x - s.flat.b), k = d <= 0 ? 1 : d >= 45 ? 0 : 1 - d / 45, kk = k * k * (3 - 2 * k); return base + (s.flat.h - base) * kk; }
+    if (s.flat) { const d = Math.max(0, s.flat.a - x, x - s.flat.b), k = d <= 0 ? 1 : d >= 110 ? 0 : 1 - d / 110, kk = k * k * (3 - 2 * k); return base + (s.flat.h - base) * kk; }   // 비행장 평지에서 110m에 걸쳐 완만하게 이어진다
     return base;
   }
   return 0;
@@ -1098,7 +1098,11 @@ function makeTargets(M) {
   const CREW_W = { barracks: 1 };   // 일본군은 병영(집)에만 산다
   M.build((type, x0) => { const k = ISLANDS.findIndex(q => x0 - OFF > q.a && x0 - OFF < q.b); if (k >= 0 && !M.custom && (type === 'bunker' || type === 'barracks' || type === 'runway')) { if (type === 'runway') rwIsl.add(k); return null; } return add(type, x0); }, P);
   // 섬마다 양 끝에서 가운데로: 콘크리트 벙커(로켓만) → 일반 벙커(로켓·폭탄) → 병영 → 비행장(있을 때) → 깃발(정중앙)
-  ISLANDS.forEach((q, k) => { q.flat = null; const rwI = M.custom ? M.cus[k].items.find(i => i.t === 'runway') : null; if (M.custom ? !!rwI : q.big && ((G.cur && G.cur.lvl) || 1) >= 6) {  const w = q.b - q.a, e = 90 / w, cx = M.custom ? q.a + w * clamp(rwI.u, 0.04, 0.96) : q.a + w * 0.5 + 60 + RUNWAY_L / 2; q.flat = { a: cx - RUNWAY_L / 2, b: cx + RUNWAY_L / 2, h: 0 }; q.flat.h = (() => { const f = q.flat; q.flat = null; const v = Math.max(gh(cx - RUNWAY_L / 2), gh(cx), gh(cx + RUNWAY_L / 2)) * 0.5 + gh(cx) * 0.5; q.flat = f; return v; })(); } });   // 적 비행장은 6레벨부터
+  ISLANDS.forEach((q, k) => { q.flat = null; const rwI = M.custom ? M.cus[k].items.find(i => i.t === 'runway') : null; if (M.custom ? !!rwI : q.big && ((G.cur && G.cur.lvl) || 1) >= 6) {  const w = q.b - q.a; let cx = M.custom ? q.a + w * clamp(rwI.u, 0.04, 0.96) : q.a + w * 0.5 + 60 + RUNWAY_L / 2;
+    const wnd = c0 => { let lo = 1e9, hi = -1e9, sum = 0, n = 0; for (let x = c0 - RUNWAY_L / 2 - 70; x <= c0 + RUNWAY_L / 2 + 70; x += 20) { const g = gh(x); lo = Math.min(lo, g); hi = Math.max(hi, g); sum += g; n++; } return { r: hi - lo, m: sum / n }; };   // 활주로 구간의 높낮이 차와 평균 높이
+    q.flat = null;
+    if (!M.custom) { const c0 = cx; let best = 1e9; for (let c = c0; c <= q.b - w * 0.1 - RUNWAY_L / 2 - 150; c += 30) { const wc = wnd(c), sc = wc.r + (c - c0) * 0.0015 + wc.m * 0.2; if (sc < best) { best = sc; cx = c; } } }   // 섬 한가운데 가까운 곳 중 가장 평평한 자리를 고른다
+    q.flat = { a: cx - RUNWAY_L / 2, b: cx + RUNWAY_L / 2, h: Math.max(5, wnd(cx).m) }; } });   // 적 비행장은 6레벨부터
   for (const t of TARGETS) if (!SHIPS[t.type]) t.y = gh(t.x);
   ISLANDS.forEach((q, k) => {
     if (M.custom) return;   // 사용자 지도: 건물은 편집기에서 놓은 자리 그대로
@@ -1110,7 +1114,7 @@ function makeTargets(M) {
     if (q.flat) { add('runway', (q.flat.a + q.flat.b) / 2 + OFF); const cxr = (q.flat.a + q.flat.b) / 2, pf = (G.HC !== null && G.HC >= cxr) ? 1 : -1; add('tower', cxr + pf * (RUNWAY_L / 2 - 55) + OFF); }   // 활주로 앞쪽 끝의 보초 타워
     { const LVt = (G.cur && G.cur.lvl) || 1, nT = clamp(1 + Math.floor(LVt / 5), 1, 4); [0.28, 0.72, 0.4, 0.6].slice(0, nT).forEach(fr => add('tower', P(k, fr))); }   // 섬 곳곳의 보초 타워
     { let bx = null, bh = -1;   // 섬의 가장 높은 곳에는 대공포를 설치한다
-      for (let x = q.a + w * 0.08; x < q.b - w * 0.08; x += 4) { if (q.flat && x > q.flat.a - 30 && x < q.flat.b + 30) continue; if (TARGETS.some(t => !SHIPS[t.type] && Math.abs(t.x - x) < BOX[t.type].w / 2 + 12)) continue; const hh = gh(x); if (hh > bh) { bh = hh; bx = x; } }
+      for (let x = q.a + w * 0.08; x < q.b - w * 0.08; x += 4) { if (q.flat && x > q.flat.a - 90 && x < q.flat.b + 90) continue; if (TARGETS.some(t => !SHIPS[t.type] && Math.abs(t.x - x) < BOX[t.type].w / 2 + 12)) continue; const hh = gh(x); if (hh > bh) { bh = hh; bx = x; } }
       if (bx !== null) { add('aa', bx + OFF); TARGETS[TARGETS.length - 1].hill = true; } }   // 고지의 대공포는 그 자리에 둔다
   });
   const CREW_N = { barracks: 5, bunker: 3, pill: 3, aa: 3, cave: 4, fuel: 3, radar: 3, tank: 3, tower: 3 };   // 건물 하나에 들어 있는 병사 수 (모두 3명 이상)
@@ -1129,7 +1133,7 @@ function makeTargets(M) {
     const near = (type, dx) => TARGETS.filter(t => t.isl === k && t.type === type).flatMap(t => [t.x - dx, t.x + dx]);
     const slots = [];
     TARGETS.filter(t => t.isl === k && t.type === 'fuel').forEach(t => { slots.push(t.x - 32, t.x + 32); });   // 연료 저장고 양옆 (2배 커졌다)
-    if (q.flat) slots.push(q.flat.a - 18, q.flat.b + 18);   // 비행장 활주로 양 끝
+    if (q.flat) slots.push(q.flat.a - 30, q.flat.b + 30);   // 비행장 활주로 양 끝
     TARGETS.filter(t => t.isl === k && t.type === 'radar').forEach(t => { slots.push(t.x - 26, t.x + 26); });   // 레이더 양옆 (2배 커졌다)
     const w = q.b - q.a, flag = q.fx;
     for (const fr of [0.3, 0.7]) { const cx = q.a + w * fr; for (let j = -1; j <= 1; j++) slots.push(cx + j * 30); }   // 3문씩 줄지은 포대
@@ -1155,7 +1159,7 @@ function makeTargets(M) {
   ISLANDS.forEach((si, k) => {   // 숲은 건물이 없는 빈 구간에만 만든다: 건물·깃발·활주로 둘레 35m는 비우고, 나무는 20~48m씩 떨어뜨려 심는다
     const w = si.b - si.a, hs = n => Math.abs(Math.sin(n * 12.9898) * 43758.5453) % 1;
     const blk = TARGETS.filter(t => !SHIPS[t.type] && t.isl === k).map(t => [t.x - BOX[t.type].w / 2 - 25, t.x + BOX[t.type].w / 2 + 25]);
-    blk.push([si.fx - 35, si.fx + 35]); if (si.flat) blk.push([si.flat.a - 35, si.flat.b + 35]);
+    blk.push([si.fx - 35, si.fx + 35]); if (si.flat) blk.push([si.flat.a - 80, si.flat.b + 80]);
     blk.sort((u, v) => u[0] - v[0]);
     si.forests = []; let cur = si.a + w * 0.07; const end = si.b - w * 0.07;
     for (const [b0, b1] of blk) { if (b0 - cur >= 50) si.forests.push([cur + 6, Math.min(b0, end) - 6]); cur = Math.max(cur, b1); }
@@ -1173,7 +1177,7 @@ function makeTargets(M) {
     for (let x = si.a + w * 0.07, i = 0; x < si.b - w * 0.07; i++) {
       const h = hs(x * 0.173 + i * 2.1), h2 = hs(x * 0.411 + i), tx = x; x += 45 + h2 * 85;
       if (fr.some(f => tx > f[0] - 18 && tx < f[1] + 18)) continue;
-      if (si.flat && tx > si.flat.a - 20 && tx < si.flat.b + 20) continue;
+      if (si.flat && tx > si.flat.a - 80 && tx < si.flat.b + 80) continue;
       if (TARGETS.some(t => !SHIPS[t.type] && Math.abs(t.x - tx) < BOX[t.type].w / 2 + 16)) continue;
       if (TREES.some(t => Math.abs(t.x - tx) < 22)) continue;
       TREES.push(Object.assign({ x: tx, y: gh(tx), hp: 3, hp0: 3, alive: true }, treeSpec(h * 0.72, h2, 3 + h * 2.5)));
@@ -2538,6 +2542,17 @@ function drawTarget(c, t, dead) {
       for (let i = 0; i < 5; i++) drum(-5.2 + i * 2.6, 0, browns[(i + Math.floor(Math.abs(t.x) * 0.1)) % 4]);
       c.fillStyle = browns[2]; c.beginPath(); c.ellipse(7.5, 1.2, 1.7, 1.17, 0, 0, 7); c.fill(); c.fillStyle = 'rgba(0,0,0,0.26)'; c.fillRect(6.4, 0.03, 0.2, 2.34); c.fillRect(8.4, 0.03, 0.2, 2.34);   // 옆에 누운 드럼통
       rect(-7.6, 0, 0.45, 0.7, '#5a4a3a'); rect(-8.4, 0, 3, 0.16, '#5a4a3a');   // 받침목
+      break;
+    }
+    case 'runway': {   // 비행장: 평평하게 고른 땅 위의 밝은 콘크리트 활주로, 흰 중앙선·가장자리 등, 양 끝 표지, 대기 중인 제로센
+      const H = RUNWAY_L / 2, pf = rwPk(t).f;
+      rect(-H - 24, -0.5, RUNWAY_L + 48, 0.9, '#8c7a58');   // 다진 흙 앞마당
+      rect(-H, -0.4, RUNWAY_L, 2.6, '#3e4248'); rect(-H, 2.2, RUNWAY_L, 0.35, '#8b9096');   // 어두운 아스팔트 포장과 밝은 윗모서리 (모래·풀과 또렷이 구분된다)
+      for (let x = -H + 14; x < H - 20; x += 30) rect(x, 0.7, 16, 0.5, '#f4f4ec');   // 흰 중앙선
+      [-H, H - 22].forEach(x0 => { for (let k = 0; k < 5; k++) rect(x0 + 2 + k * 4, 0.35, 2.2, 1.3, '#f4f4ec'); });   // 양 끝의 흰 띠
+      [-H - 3, H + 3].forEach(x0 => { rect(x0 - 0.3, 0, 0.6, 5, '#d8d8d0'); rect(x0 - 0.3, 3.2, 0.6, 0.9, '#c8402a'); rect(x0 - 0.3, 4.9, 0.6, 0.9, '#c8402a'); });   // 끝 표지 기둥
+      for (let x = -H + 8; x <= H - 4; x += 32) { const on = (Math.floor(G.t * 1.4 + x * 0.01) % 2) === 0; c.fillStyle = on ? '#ffe070' : '#a88a30'; c.fillRect(x, 2.55, 1, 1.3); }   // 가장자리 등
+      drawParked(c, t, false);
       break;
     }
     case 'tank': rect(-4.4, 0, 8.8, 0.9, '#2f3328'); rect(-4, 0.9, 8, 1.5, '#5f6a47'); rect(-1.4, 2.4, 3.4, 1.3, '#6a7650'); rect(2, 2.9, 3.4, 0.4, '#3a4030'); break;

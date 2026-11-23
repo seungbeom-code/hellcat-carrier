@@ -1800,9 +1800,11 @@ function stepProj(dt) {
       PROJ.splice(i, 1); continue;
     }
     if (q.k === 'b') { const sd = SOLD.find(o => o.alive && o.st !== 'enter' && Math.abs(q.x - o.x) < 4.5 && q.y >= o.y - 0.5 && q.y <= o.y + 8); if (sd) { killSoldier(sd); PROJ.splice(i, 1); continue; } }
-    const hit = hitTest(q.x, q.y, q.k === 'b' ? 0.5 : q.k === 'm' ? 0 : 1.5),   // 기관총도 건물·벙커·대공포·함선의 포에 피해를 준다
-      tree = q.k === 'b' || q.k === 'r' ? hitTree(q.x, q.y) : null,   // 기관총은 나무도 맞힌다 (로켓은 폭발로만 쓰러뜨린다)
+    let tree; const hit = hitTest(q.x, q.y, q.k === 'b' ? 0.5 : q.k === 'm' ? 0 : 1.5),   // 기관총도 건물·벙커·대공포·함선의 포에 피해를 준다
+      tree0 = q.k === 'b' || q.k === 'r' ? hitTree(q.x, q.y) : null,   // 기관총은 나무도 맞힌다 (로켓은 폭발로만 쓰러뜨린다)
       g = gh(q.x), ground = g > 0 && q.y <= g, sea = !ground && q.y <= 0;
+    tree = tree0;
+    if (tree && q.k === 'r') { q.pass = q.pass || new Set(); if (q.pass.has(tree)) tree = null; else if (Math.random() >= 0.2) { q.pass.add(tree); tree = null; } }   // 로켓은 나무에 닿아도 20%만 걸리고, 80%는 그 나무를 그냥 통과한다 (나무마다 한 번만 정한다)
     if (!(hit || tree || ground || sea)) { if (q.life <= 0) PROJ.splice(i, 1); continue; }
     if (q.k === 'b') {
       if (tree) treeHit(tree, 0.35);

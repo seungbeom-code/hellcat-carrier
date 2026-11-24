@@ -1800,19 +1800,26 @@ function explode(x, y, r, kind, sea) {
   if (!sea && gh(x) > 0) { dirtBurst(x, y, Math.max(2, r / 5)); if (kind !== 'none') for (const t of TREES) if (t.alive && Math.hypot(t.x - x, t.y - y) <= r) { t.alive = false; chips(t.x, t.y + 2, 10, ['#4f8a3c', '#7a5a36']); } }
   sfx('boom', { k: kind === 'rocket' ? 'rocket' : kind === 'bomb' ? 'bomb' : 'none', r, sea, x });
 }
+const DECK_ARM = { deck: 1, taxi: 1 };   // 항모 갑판 위(착함 활주·이동 중)에도 무기 버튼을 보여 준다
+const onDeckArm = () => !!DECK_ARM[p.mode] && !p.el && !G.result && G.scene === 'play';
+function deckArmOk() {   // 갑판 위에서는 기수가 수평이거나 위를 향할 때만 쏠 수 있다
+  if (!onDeckArm() || p.flip > 0) return false;
+  const pit = Math.cos(p.th) >= 0 ? angd(p.th, 0) : angd(Math.PI, p.th); return pit >= -0.01;
+}
+const fireVel = () => p.mode === 'air' ? [p.vx, p.vy] : [ship.v + (p.vr || 0), 0];   // 갑판 위에서는 배와 같이 움직이는 속도
 function fireStep(dt) {
-  const ok = p.mode === 'air' && p.turn <= 0 && !p.off;
+  const ok = (p.mode === 'air' && p.turn <= 0 && !p.off) || deckArmOk();
   if (!ok) { p.gunT = 0; return; }
   if ((touch.on.rocket > 0 || (keys.KeyC && LOAD_AMMO[G.loadout].rk > 0)) && p.ammo.rk > 0) fireRocket();
   if ((touch.on.bomb > 0 || (keys.KeyC && LOAD_AMMO[G.loadout].bm > 0)) && p.ammo.bm > 0) dropBomb();   // 폭탄 버튼(또는 C 키)을 누르고 있으면 연속 투하   // 로켓 버튼(또는 C 키)을 누르고 있으면 쿨다운마다 연속 발사
-  if ((keys.Space || keys.KeyZ || touch.on.gun > 0 || G.demoFire) && p.ammo.gun > 0) {   // 기관총: 연속 약 30초
+  if (((keys.Space && !(p.mode !== 'air' && overElev())) || keys.KeyZ || touch.on.gun > 0 || G.demoFire) && p.ammo.gun > 0) {   // 기관총: 연속 약 30초 (엘리베이터 위에서는 Space 가 엘리베이터 키)
     p.gunT -= dt;
     while (p.gunT <= 0 && p.ammo.gun > 0) {
       p.gunT += 1 / 16; p.ammo.gun = Math.max(0, p.ammo.gun - 5); G.gunFireT = G.t;
       const a = p.th + (Math.random() - 0.5) * 0.02, dx = Math.cos(a), dy = Math.sin(a);
       if (!(p.trN > 0)) p.trN = 0; const trc = --p.trN < 0; if (trc) p.trN = 4 + ((Math.random() * 4) | 0);   // 예광탄: 5~8발에 한 발
-      PROJ.push({ k: 'b', x: p.x + dx * 9, y: p.y + dy * 9 - 0.4, vx: p.vx + dx * 640, vy: p.vy + dy * 640, life: 0.95, tr: trc });
-      if (((p.ammo.gun / 5) | 0) % 2 === 0) { sfx('gun'); FX.push({ k: 'muz', x: p.x + dx * 6.5, y: p.y + dy * 6.5 - 0.4, vx: p.vx, vy: p.vy, a, s: 1.4 + Math.random() * 0.9, life: 0.05, t: 0 }); }
+      const [fvx, fvy] = fireVel(); PROJ.push({ k: 'b', x: p.x + dx * 9, y: p.y + dy * 9 - 0.4, vx: fvx + dx * 640, vy: fvy + dy * 640, life: 0.95, tr: trc });
+      if (((p.ammo.gun / 5) | 0) % 2 === 0) { sfx('gun'); FX.push({ k: 'muz', x: p.x + dx * 6.5, y: p.y + dy * 6.5 - 0.4, vx: fvx, vy: fvy, a, s: 1.4 + Math.random() * 0.9, life: 0.05, t: 0 }); }
     }
   } else p.gunT = 0;
 }
@@ -1828,11 +1835,11 @@ function fireWeapon() {   // C 키: 이번에 실은 무기 하나(로켓, 폭�
   if (cap.rk > 0) fireRocket(); else if (cap.bm > 0) dropBomb(); else if (cap.tp > 0) fireTorpedo();
 }
 function fireRocket() {
-  if (p.mode !== 'air' || p.off) return;
+  if ((p.mode !== 'air' && !deckArmOk()) || p.off) return;
   if (p.ammo.rk <= 0) return noAmmo(0);
   if (gunOn() || p.turn > 0 || G.t < p.rkT) return;
   const dx = Math.cos(p.th), dy = Math.sin(p.th); p.ammo.rk--; p.rkT = G.t + 0.25; sfx('rocket'); if (p.ammo.rk === 0) lastShot(0);
-  PROJ.push({ k: 'r', x: p.x + dx * 8, y: p.y + dy * 8 - 1, vx: p.vx + dx * 130, vy: p.vy + dy * 130, life: 14 });
+  { const [fvx, fvy] = fireVel(); PROJ.push({ k: 'r', x: p.x + dx * 8, y: p.y + dy * 8 - (p.mode === 'air' ? 1 : 0), vx: fvx + dx * 130, vy: fvy + dy * 130, life: 14 }); }
 }
 const ROCKET_RANGE = 2000, ROCKET_V = 450;   // 로켓 사거리(m)와 추진 중 최고 속도(m/s): 사거리를 넘으면 추력이 0이 된다
 const TORP_RANGE = 1500;   // 어뢰 사거리(m): 떨어뜨린 자리에서 이만큼 달리면 힘이 다한다
@@ -3502,7 +3509,7 @@ cv.addEventListener('pointerdown', e => {
   if (landBtnOn() && inR(m, LANDBTN)) { startLanding(); return; }
   if (hangarOpen()) { PICK_CARDS.forEach((r, i) => { if (inR(m, r)) pickLoad(i); }); return; }
   if (overElev() && inR(m, ELEV_BTN)) { startLift(); return; }
-  if (p.mode === 'air') for (const b of fireBtns()) if (inR(m, b)) { if (b.k === 'gun') { touch.ids[e.pointerId] = 'gun'; touch.on.gun++; try { cv.setPointerCapture(e.pointerId); } catch (_) {} } else if (b.k === 'rocket') { fireRocket(); touch.ids[e.pointerId] = 'rocket'; touch.on.rocket++; try { cv.setPointerCapture(e.pointerId); } catch (_) {} } else if (b.k === 'torp') fireTorpedo(); else { dropBomb(); touch.ids[e.pointerId] = 'bomb'; touch.on.bomb++; try { cv.setPointerCapture(e.pointerId); } catch (_) {} } return; }
+  if (p.mode === 'air' || onDeckArm()) for (const b of fireBtns()) if (inR(m, b)) { if (b.k === 'gun') { touch.ids[e.pointerId] = 'gun'; touch.on.gun++; try { cv.setPointerCapture(e.pointerId); } catch (_) {} } else if (b.k === 'rocket') { fireRocket(); touch.ids[e.pointerId] = 'rocket'; touch.on.rocket++; try { cv.setPointerCapture(e.pointerId); } catch (_) {} } else if (b.k === 'torp') fireTorpedo(); else { dropBomb(); touch.ids[e.pointerId] = 'bomb'; touch.on.bomb++; try { cv.setPointerCapture(e.pointerId); } catch (_) {} } return; }
   { const hit = DPAD.filter(d => inR(m, d)).sort((a, b) => Math.hypot(m.x - a.x - a.w / 2, m.y - a.y - a.h / 2) - Math.hypot(m.x - b.x - b.w / 2, m.y - b.y - b.h / 2))[0];
     if (hit) { touch.ids[e.pointerId] = hit.k; touch.on[hit.k]++; try { cv.setPointerCapture(e.pointerId); } catch (_) {} return; } }
   for (const b of BTN) if (inR(m, b)) { if (b.id === 'menu') { G.paused = true; G.askQuit = true; for (const k in keys) keys[k] = false; } else if (b.id === 'pause') { G.paused = true; G.askQuit = false; for (const k in keys) keys[k] = false; } else if (b.id === 'wing') G.camWing = !G.camWing; else setMuted(!sound.muted); return; }
@@ -4111,9 +4118,9 @@ function drawHUD() {
     c.fillStyle = '#fff'; c.textAlign = 'center'; L.forEach((l, i) => c.fillText(l, MSG_CX + 8, TY + 21 + i * lh)); G.toastH = ph;
   }
   if (!wv && landBtnOn()) { const b = LANDBTN; c.fillStyle = 'rgba(40,120,70,0.94)'; c.beginPath(); c.roundRect(b.x, b.y, b.w, b.h, 12); c.fill(); c.strokeStyle = '#9ef0b8'; c.lineWidth = 2; c.stroke(); c.fillStyle = '#fff'; c.font = '800 17px system-ui,sans-serif'; c.textAlign = 'center'; c.fillText('Start landing (V)', b.x + b.w / 2, b.y + 32); }
-  if (!wv && p.mode === 'air') fireBtns().forEach(b => {   // 발사 버튼
-    const n = b.k === 'gun' ? p.ammo.gun : b.k === 'rocket' ? p.ammo.rk : b.k === 'torp' ? (p.ammo.tp || 0) : p.ammo.bm, held = b.k === 'gun' && (keys.Space || keys.KeyZ || touch.on.gun > 0);
-    c.fillStyle = held ? 'rgba(230,90,60,0.9)' : n > 0 ? 'rgba(150,40,30,0.62)' : 'rgba(60,66,76,0.55)'; c.strokeStyle = 'rgba(255,255,255,0.45)'; c.lineWidth = 2; c.beginPath(); c.roundRect(b.x, b.y, b.w, b.h, 12); c.fill(); c.stroke();
+  if (!wv && (p.mode === 'air' || onDeckArm())) fireBtns().forEach(b => {   // 발사 버튼 (갑판 위에서도 보인다: 기관총·로켓은 기수가 수평 이상일 때만, 폭탄·어뢰는 날 때만)
+    const n = b.k === 'gun' ? p.ammo.gun : b.k === 'rocket' ? p.ammo.rk : b.k === 'torp' ? (p.ammo.tp || 0) : p.ammo.bm, can = p.mode === 'air' || ((b.k === 'gun' || b.k === 'rocket') && deckArmOk()), held = can && b.k === 'gun' && (keys.Space || keys.KeyZ || touch.on.gun > 0);
+    c.fillStyle = held ? 'rgba(230,90,60,0.9)' : n > 0 && can ? 'rgba(150,40,30,0.62)' : 'rgba(60,66,76,0.55)'; c.strokeStyle = 'rgba(255,255,255,0.45)'; c.lineWidth = 2; c.beginPath(); c.roundRect(b.x, b.y, b.w, b.h, 12); c.fill(); c.stroke();
     c.fillStyle = '#fff'; c.textAlign = 'center'; c.font = '800 15px system-ui,sans-serif'; c.fillText(b.label, b.x + b.w / 2, b.y + 26); c.font = '600 12px system-ui,sans-serif'; c.fillText(n + '  (' + b.key + ')', b.x + b.w / 2, b.y + 46);
   });
   if (G.tick && G.tick.length) {   // 뉴스 자막처럼: 왼쪽에 빨간 '속보' 꼬리표, 흰 글씨, 부드럽게 나타났다 사라진다

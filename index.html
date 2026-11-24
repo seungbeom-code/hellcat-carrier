@@ -494,7 +494,7 @@ function checkContact() {
     const deckVy = 3.5 * 0.7 * Math.cos(G.t * 0.7) * (1 - clamp(sinkProg() * 2, 0, 1)), relVy = p.vy - deckVy;   // 갑판도 파도에 따라 오르내린다: 갑판에 대한 상대 하강 속도로 판정
     if (relVy < -LAND_SINK) return deckFail('Landed too hard. Come down gently.');
     if (kt > LAND_KT) {   // 너무 빠르면 부서지지 않고 튕겨 오른다
-      p.vy = Math.min(12, 5 + (kt - LAND_KT) * 0.15); p.vx *= 0.96; p.y = DECK_Y + WH + 0.4; p.prevY = p.y; p.bounceT = G.t + 0.6; p.hp = Math.max(30, p.hp - 10);
+      p.vy = Math.min(12, 5 + (kt - LAND_KT) * 0.15); p.vx *= 0.96; p.y = DECK_Y + WH + 0.4; p.prevY = p.y; p.bounceT = G.t + 0.6;   // 튕겨도 체력은 줄지 않는다
       sfx('thump'); for (let i = 0; i < 10; i++) FX.push({ k: 'spark', x: p.x, y: DECK_Y + 0.3, vx: p.vx * 0.3 + (Math.random() - 0.5) * 20, vy: 3 + Math.random() * 10, life: 0.4, t: 0 });
       return;
     }
@@ -515,7 +515,7 @@ function finish() {
   else if (td.sink < 6.6) { grade = 'yellow'; note = td.kt >= 142 ? 'A little fast.' : (td.pitch <= -0.06 || td.pitch >= 0.2) ? 'A little tilted.' : 'A little hard.'; }
   else { grade = 'brown'; note = wn + '-wire. Thump! But down safely.'; }
   G.fmTask = 'elev'; p.mode = 'taxi'; p.landing = false; p.vr = 0; p.flip = 0; p.pushT = 0; p.lock = G.t + 1.6; if (grade !== 'green' && grade !== 'yellow') sfx(grade); p.relT = G.t + 0.8;
-  p.hp = Math.max(30, p.hp - ({ green: 0, yellow: 8, brown: 22 }[grade] || 0));   // 거칠게 내리면 기체가 상한다. 격납고에서 수리
+  // 착함 성적과 상관없이 체력은 줄지 않는다 (예전에는 거칠게 내리면 깎였다)
   G.stickers.push(grade); if (G.stickers.length > 12) G.stickers.shift();
   if (G.m) { G.m.landings++; if (grade === 'green') G.m.greens++; }
 }

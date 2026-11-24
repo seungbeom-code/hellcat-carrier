@@ -573,6 +573,21 @@ function sin(f0, f1, dur, vol, d, rev, type, lp) {   // 낮은 몸통·종소리
 function crackle(n, span, f, vol, d, rev) { for (let i = 0; i < n; i++) nz({ type: 'bandpass', f0: f * (0.5 + Math.random() * 1.5), q: 1.2, dur: 0.02 + Math.random() * 0.04, vol: vol * (0.4 + Math.random() * 0.6) * (1 - i / n * 0.6), d: (d || 0) + Math.pow(Math.random(), 1.6) * span, rev }); }   // 파편·불꽃 튀는 소리
 function bell(f, d, vol) { [[1, 1], [2.76, 0.35], [5.4, 0.12]].forEach(([m, a]) => sin(f * m, f * m, 1.1 / m ** 0.3, vol * a, d, 0.25)); }   // 배의 종
 function horn(f, dur, vol, d) { sin(f, f * 0.98, dur, vol, d, 0.2, 'sawtooth', 700); sin(f * 1.5, f * 1.48, dur, vol * 0.5, d, 0.2, 'sawtooth', 700); }
+// 적 화기의 발사음: 총 종류마다 다른 구조로 만들고, 멀수록 고음이 깎이고 잔향이 커지며 소리가 늦게 도착한다 (음속 340m/s)
+const GUNS = {
+  mg7:   { cr: 1, crF: 5200, crD: 0.022, bF: 1500, bD: 0.045, bV: 0.55, lo: 165, loD: 0.035, loV: 0.22, rev: 0.12 },   // 7.7mm 기관총: 짧고 날카로운 '탁'
+  rifle: { cr: 1.2, crF: 4600, crD: 0.03, bF: 1200, bD: 0.07, bV: 0.5, lo: 140, loD: 0.05, loV: 0.2, rev: 0.3 },   // 소총: 한 발 '탕' 과 긴 메아리
+  c20:   { cr: 0.9, crF: 3800, crD: 0.035, bF: 820, bD: 0.12, bV: 0.95, lo: 92, loD: 0.11, loV: 0.5, rev: 0.16, sat: 2 },   // 20mm 기관포: 묵직한 '쿵'
+  c25:   { cr: 0.8, crF: 3400, crD: 0.04, bF: 700, bD: 0.14, bV: 0.9, lo: 80, loD: 0.13, loV: 0.5, rev: 0.2, sat: 2.2, clk: 1 },   // 25mm 대공 기관포: 퉁퉁 울리는 '펑' 과 노리쇠 쇳소리
+  hvy:   { cr: 0.9, crF: 3000, crD: 0.06, bF: 520, bD: 0.45, bV: 0.7, lo: 52, loD: 0.4, loV: 0.45, rev: 0.45, sat: 2.4 }   // 큰 대공포·함포: 멀리 울리는 '쾅'
+};
+function gunShot(k, dist, j) {
+  const g = GUNS[k] || GUNS.mg7, f = clamp((dist || 0) / 900, 0, 1), d = Math.min(1.4, (dist || 0) / 340), far = 1 - 0.8 * f;
+  if (f < 0.85) nz({ type: 'highpass', f0: g.crF * j * (1 - 0.5 * f), f1: g.crF * 0.5, q: 0.8, dur: g.crD, vol: 0.7 * g.cr * (1 - f) * (1 - f), att: 0.0005, d });   // 총구의 날카로운 파열음 (멀면 사라진다)
+  nz({ brown: true, type: 'lowpass', f0: g.bF * j * far, f1: g.bF * 0.25, dur: g.bD * (1 + 0.6 * f), vol: g.bV * (1 - 0.5 * f), att: 0.001, sat: g.sat, rev: g.rev + 0.35 * f, d });   // 몸통
+  sin(g.lo * j, g.lo * 0.55, g.loD, g.loV * (1 - 0.4 * f), d);   // 낮은 압력
+  if (g.clk && f < 0.6) nz({ type: 'bandpass', f0: 2600 * j, q: 9, dur: 0.03, vol: 0.06 * (1 - f), d: d + 0.05 });   // 노리쇠
+}
 function blast(size, o) {   // 폭발 한 번: 날카로운 파열 → 몸통(갈색 잡음) → 낮은 쿵 → 파편 → 멀어지는 잔향
   const v = o.v === undefined ? 1 : o.v, hi = 0.5 + 0.5 * v, sz = size, nocrack = o.under;
   if (!nocrack) nz({ type: 'highpass', f0: 1800, dur: 0.05 + 0.04 * sz, vol: (0.35 + 0.35 * sz) * v, att: 0.001 });
@@ -604,6 +619,7 @@ function sfx(n, o) {
   if (!sound.ctx || sound.muted || sound.ctx.state !== 'running') return;
   let v = 1; if (!SFX_UI[n]) { v = hear(o && o.x !== undefined ? o.x : (p === WP && WG ? WG.x : p.x)); if (v < 0.03) return; }
   sound.out = null; sound.vk = v; if (v < 0.999) { const b = sound.ctx.createGain(); b.gain.value = v * v; b.connect(sound.master); sound.out = b; }
+  if (n === 'eshot') { const now = G.t; if (now - (sound.shT || 0) > 0.05 || now < (sound.shT || 0)) { sound.shT = now; sound.shN = 0; } if (++sound.shN > 5) { sound.out = null; sound.vk = 1; return; } o.dist = Math.hypot(o.x - p.x, (o.y === undefined ? p.y : o.y) - p.y); }   // 동시에 너무 많이 쏘면 몇 개만 낸다
   try { sfx0(n, o); } finally { sound.out = null; sound.vk = 1; }
 }
 function sfx0(n, o) {
@@ -614,6 +630,8 @@ function sfx0(n, o) {
   else if (n === 'splash') { splashX(1, 1); }
   else if (n === 'wsplash') { const sz = (o && o.s) || 0, v = (o && o.v === undefined ? 1 : o && o.v) || 1; splashX(sz === 0 ? 0.08 : sz === 1 ? 0.4 : 0.95, v * (sz === 0 ? 2.5 : sz === 1 ? 0.6 : 1)); }   // 물보라: 0 작은 탄, 1 중간, 2 큰 물기둥
   else if (n === 'die') { sin(420 * j, 190, 0.32, 0.1, 0, 0.25, 'sawtooth', 1300); nz({ type: 'bandpass', f0: 1100 * j, f1: 500, q: 1.5, dur: 0.28, vol: 0.12, att: 0.01, rev: 0.2 }); nz({ brown: true, type: 'lowpass', f0: 260, f1: 90, dur: 0.14, vol: 0.35, att: 0.002, d: 0.18 }); }   // 병사의 짧은 비명과 쓰러지는 소리
+  else if (n === 'eshot') gunShot(o.g, o.dist, j);
+  else if (n === 'snap') { nz({ type: 'highpass', f0: 3600 * j, f1: 2000, q: 0.9, dur: 0.018, vol: 0.55, att: 0.0003 }); nz({ type: 'bandpass', f0: 1300 * j, f1: 500, q: 1.4, dur: 0.12, vol: 0.12, att: 0.004 }); }   // 총알이 바로 옆을 스칠 때: 초음속 '딱' 하는 소리와 짧은 바람 소리
   else if (n === 'egun') { nz({ type: 'lowpass', f0: 4300 * j, f1: 1100, dur: 0.06, vol: 0.85, att: 0.001, rev: 0.16 }); nz({ brown: true, type: 'lowpass', f0: 880, f1: 190, dur: 0.075, vol: 1.0, att: 0.002 }); sin(185 * j, 85, 0.05, 0.4, 0); }   // 적 기관총: 아군 총소리(gun)를 살짝 높고 짧게 변형한 것
   else if (n === 'gun') { nz({ type: 'lowpass', f0: 5200 * j, f1: 900, dur: 0.07, vol: 0.9, att: 0.001, rev: 0.12 }); nz({ brown: true, type: 'lowpass', f0: 700, f1: 150, dur: 0.09, vol: 1.2, att: 0.002 }); sin(150 * j, 70, 0.06, 0.45, 0); }
   else if (n === 'hit') { nz({ type: 'bandpass', f0: 2600, f1: 900, q: 1.2, dur: 0.07, vol: 0.9, att: 0.001 }); nz({ type: 'bandpass', f0: 1500 * j, f1: 1400 * j, q: 14, dur: 0.25, vol: 0.05, att: 0.001, rev: 0.1 }); sin(190, 95, 0.09, 0.4, 0); }   // 금속에 맞는 둔탁한 소리와 울림
@@ -1278,7 +1296,7 @@ function soldierStep(dt) {
           const x0 = o.x + o.dir * 2.6, y0 = o.y + 6.3, d = Math.hypot(p.x - x0, p.y - y0), tf = d / 420, a = Math.atan2(p.y + p.vy * tf - y0, p.x + p.vx * tf - x0) + (Math.random() - 0.5) * (0.22 + d / 2500);
           EB.push({ x: x0, y: y0, vx: Math.cos(a) * 420, vy: Math.sin(a) * 420, life: 1.6, why: 'Shot down by infantry rifle fire.', dmg: 0.45, aa: true });
           FX.push({ k: 'muz', x: x0, y: y0, vx: 0, vy: 0, a, s: 1.1, life: 0.07, t: 0 }); FX.push({ k: 'smoke', x: x0, y: y0 + 0.4, vx: 0, vy: 1.5, life: 0.6, t: 0, s: 0.6 });
-          if (Math.random() < 0.5) sfx('egun', { x: x0 });
+          sfx('eshot', { g: 'rifle', x: x0, y: y0 });
         }
       }
     }
@@ -1572,7 +1590,7 @@ function enemyStep(dt) {
     if (e.y <= Math.max(1, gh(e.x)) && !nearShip) { G.selfCrash = (G.selfCrash || 0) + 1; killEnemy(e); continue; }   // 늦으면 추락한다
     if (!bomber && air && e.att && e.st === 'app' && !e.rv) {   // 사격
       const d = Math.hypot(p.x - e.x, p.y - e.y), tf = d / 560, aimA = Math.atan2(p.y + p.vy * tf - e.y, p.x + p.vx * tf - e.x);
-      if (e.bt > 0) { e.bt -= dt; e.cd -= dt; if (e.bt <= 0) e.cd = 1.6 - 0.2 * (e.rk || 3) + Math.random() * 0.6; if (e.cd <= 0) { e.cd = 0.12; if (Math.random() < 0.35) sfx('egun', { x: e.x }); const a = e.h + clamp(angd(aimA, e.h), -0.16, 0.16) + (Math.random() - 0.5) * (0.14 - 0.02 * (e.rk || 3)); FX.push({ k: 'muz', x: e.x + Math.cos(e.h) * 6, y: e.y + Math.sin(e.h) * 6, vx: Math.cos(e.h) * e.v, vy: Math.sin(e.h) * e.v, a: e.h, s: 1.4 + Math.random() * 0.9, life: 0.06, t: 0 }); EB.push({ x: e.x + Math.cos(e.h) * 8, y: e.y + Math.sin(e.h) * 8, vx: Math.cos(a) * 480 + Math.cos(e.h) * e.v, vy: Math.sin(a) * 480 + Math.sin(e.h) * e.v, life: 0.8, tr: (e.trN = (e.trN > 0 ? e.trN : 0) - 1) < 0 && ((e.trN = 4 + ((Math.random() * 4) | 0)), true) }); } }   // 예광탄: 5~8발에 한 발
+      if (e.bt > 0) { e.bt -= dt; e.cd -= dt; if (e.bt <= 0) e.cd = 1.6 - 0.2 * (e.rk || 3) + Math.random() * 0.6; if (e.cd <= 0) { e.cd = 0.12; e.sn = (e.sn || 0) + 1; sfx('eshot', { g: e.type === 'd4y' || e.type === 'b6n' ? 'mg7' : e.sn % 3 === 0 ? 'c20' : 'mg7', x: e.x, y: e.y }); const a = e.h + clamp(angd(aimA, e.h), -0.16, 0.16) + (Math.random() - 0.5) * (0.14 - 0.02 * (e.rk || 3)); FX.push({ k: 'muz', x: e.x + Math.cos(e.h) * 6, y: e.y + Math.sin(e.h) * 6, vx: Math.cos(e.h) * e.v, vy: Math.sin(e.h) * e.v, a: e.h, s: 1.4 + Math.random() * 0.9, life: 0.06, t: 0 }); EB.push({ x: e.x + Math.cos(e.h) * 8, y: e.y + Math.sin(e.h) * 8, vx: Math.cos(a) * 480 + Math.cos(e.h) * e.v, vy: Math.sin(a) * 480 + Math.sin(e.h) * e.v, life: 0.8, tr: (e.trN = (e.trN > 0 ? e.trN : 0) - 1) < 0 && ((e.trN = 4 + ((Math.random() * 4) | 0)), true) }); } }   // 예광탄: 5~8발에 한 발
       else { e.cd -= dt; if (e.cd <= 0 && d < 650 && Math.abs(angd(aimA, e.h)) < 0.16) { e.bt = 0.45 + 0.12 * (e.rk || 3); e.cd = 0; } }
       if ((e.bt <= 0 || d < 90) && (d < 130 || (d < 600 && Math.abs(angd(Math.atan2(p.y - e.y, p.x - e.x), e.h)) > 2.0))) { e.st = 'ext'; e.up = e.y >= p.y; e.xt = 2.4 + Math.random() * 1.6; e.att = false; e.cd = 1.7 - 0.2 * (e.rk || 3); e.bt = 0; if ((e.rk || 1) >= 4 && !e.mv && (e.mvCd || 0) <= 0 && e.y - gA > 110 && e.y < MAX_ALT - 230 && Math.random() < 0.45) mvStart(e, 'imm'); }
     }
@@ -1583,6 +1601,7 @@ function enemyStep(dt) {
 function ebStep(dt) {
   for (let i = EB.length - 1; i >= 0; i--) {
     const b = EB[i]; b.life -= dt; b.x += b.vx * dt; b.y += b.vy * dt;
+    if (!b.sn && p.mode === 'air' && Math.abs(b.x - p.x) < 16 && Math.abs(b.y - p.y) < 12) { b.sn = 1; if (G.t - (G.snapT || 0) > 0.06) { G.snapT = G.t; sfx('snap', { x: p.x }); } }   // 스쳐 가는 총알 소리
     if (p.mode === 'air' && Math.abs(b.x - p.x) < 6 && Math.abs(b.y - p.y) < 2.6) { hurt((b.dmg || 3) * (b.aa ? altDmgK() : 1), b.why || 'Shot down by enemy fighters.'); EB.splice(i, 1); continue; }
     if (b.life <= 0 || b.y <= gh(b.x)) EB.splice(i, 1);
   }
@@ -1609,8 +1628,8 @@ function towerStep(dt) {   // 보초 타워의 병사가 기관총으로 쏜다 
     const want = p.mode === 'air' && d < 750 ? clamp(Math.atan2(p.y + p.vy * tf - gy, p.x + p.vx * tf - gx), -0.4, Math.PI + 0.4) : 0.9;
     t.aim = t.aim === undefined ? want : t.aim + clamp(angd(want, t.aim), -1.6 * dt, 1.6 * dt);
     t.tcd = (t.tcd === undefined ? Math.random() * 3 : t.tcd) - dt; t.tb = (t.tb || 0) - dt;
-    if (t.tb <= 0 && t.tcd <= 0 && p.mode === 'air' && d < 650 && d > 30 && Math.abs(angd(want, t.aim)) < 0.14) { t.tb = 0.8; t.tcd = 3 + Math.random() * 2.5; t.te = (Math.random() - 0.5) * (0.22 + d / 3500); alarmFauna(gx, gy, 220); sfx('egun', { x: t.x }); }
-    if (t.tb > 0) { t.tt = (t.tt || 0) - dt; while (t.tt <= 0) { t.tt += 1 / 11; const a = t.aim + (t.te || 0) + (Math.random() - 0.5) * 0.1; EB.push({ x: gx + Math.cos(t.aim) * 3, y: gy + Math.sin(t.aim) * 3, vx: Math.cos(a) * 520, vy: Math.sin(a) * 520, life: 2, why: 'Shot down by a guard-tower machine gun.', dmg: 0.7, aa: true }); t.qf = G.t; } }
+    if (t.tb <= 0 && t.tcd <= 0 && p.mode === 'air' && d < 650 && d > 30 && Math.abs(angd(want, t.aim)) < 0.14) { t.tb = 0.8; t.tcd = 3 + Math.random() * 2.5; t.te = (Math.random() - 0.5) * (0.22 + d / 3500); alarmFauna(gx, gy, 220); }
+    if (t.tb > 0) { t.tt = (t.tt || 0) - dt; while (t.tt <= 0) { t.tt += 1 / 11; sfx('eshot', { g: 'mg7', x: gx, y: gy }); const a = t.aim + (t.te || 0) + (Math.random() - 0.5) * 0.1; EB.push({ x: gx + Math.cos(t.aim) * 3, y: gy + Math.sin(t.aim) * 3, vx: Math.cos(a) * 520, vy: Math.sin(a) * 520, life: 2, why: 'Shot down by a guard-tower machine gun.', dmg: 0.7, aa: true }); t.qf = G.t; } }
   }
 }
 function quadStep(dt) {   // 일반 벙커의 4연장 기관포: 포신이 내 비행기를 따라 돌고, 맞춰지면 짧게 연사한다 (탄은 보이지 않는다)
@@ -1620,8 +1639,8 @@ function quadStep(dt) {   // 일반 벙커의 4연장 기관포: 포신이 내 �
     const want = p.mode === 'air' && d < 700 ? clamp(Math.atan2(p.y + p.vy * tf - gy, p.x + p.vx * tf - gx), 0.05, Math.PI - 0.05) : 0.9;
     t.aim = t.aim === undefined ? want : t.aim + clamp(angd(want, t.aim), -1.4 * dt, 1.4 * dt);
     t.qcd = (t.qcd === undefined ? Math.random() * 3 : t.qcd) - dt; t.burst = (t.burst || 0) - dt;
-    if (t.burst <= 0 && t.qcd <= 0 && p.mode === 'air' && d < 500 && d > 40 && Math.abs(angd(want, t.aim)) < 0.12) { t.burst = 0.5; alarmFauna(gx, gy, 220); t.qcd = 6.5 + Math.random() * 2; t.qn = 0; t.qe = (Math.random() - 0.5) * (0.2 + d / 4500); sfx('egun', { x: t.x }); }
-    if (t.burst > 0) { t.qt = (t.qt || 0) - dt; while (t.qt <= 0) { t.qt += 1 / 12; t.qn = (t.qn || 0) + 1; const a = t.aim + t.qe + (Math.random() - 0.5) * 0.12, k = t.qn % 4; const sd = pl ? (k % 2 ? 1 : -1) * 0.9 : 0; EB.push({ x: gx + Math.cos(t.aim) * off - Math.sin(t.aim) * sd, y: gy + Math.sin(t.aim) * off + Math.cos(t.aim) * sd + (pl ? 0 : (k - 1.5) * 0.4), vx: Math.cos(a) * 520, vy: Math.sin(a) * 520, life: 2.2, why: 'Shot down by bunker cannon fire.', dmg: pl ? 2 : 1, aa: true }); t.qf = G.t; } }
+    if (t.burst <= 0 && t.qcd <= 0 && p.mode === 'air' && d < 500 && d > 40 && Math.abs(angd(want, t.aim)) < 0.12) { t.burst = 0.5; alarmFauna(gx, gy, 220); t.qcd = 6.5 + Math.random() * 2; t.qn = 0; t.qe = (Math.random() - 0.5) * (0.2 + d / 4500); }
+    if (t.burst > 0) { t.qt = (t.qt || 0) - dt; while (t.qt <= 0) { t.qt += 1 / 12; t.qn = (t.qn || 0) + 1; if (t.qn % 2) sfx('eshot', { g: 'c25', x: gx, y: gy }); const a = t.aim + t.qe + (Math.random() - 0.5) * 0.12, k = t.qn % 4; const sd = pl ? (k % 2 ? 1 : -1) * 0.9 : 0; EB.push({ x: gx + Math.cos(t.aim) * off - Math.sin(t.aim) * sd, y: gy + Math.sin(t.aim) * off + Math.cos(t.aim) * sd + (pl ? 0 : (k - 1.5) * 0.4), vx: Math.cos(a) * 520, vy: Math.sin(a) * 520, life: 2.2, why: 'Shot down by bunker cannon fire.', dmg: pl ? 2 : 1, aa: true }); t.qf = G.t; } }
   }
 }
 function shellStep(dt) {   // 벙커의 곡사포: 내 비행기가 갈 곳을 내다보고 포물선으로 쏜다, 가까이에서 터지면 피해
@@ -1665,7 +1684,7 @@ function myAAStep(dt) {   // 우리 항모의 대공포: 다가오는 폭격기�
     for (let k = 0; k < 2; k++) { const gx = ship.x + DECK_L * (0.2 + Math.random() * 0.6), gy = DECK_Y + 5, f = 0.5 + d / 900, err = 45 + d * 0.06;
       const bx = e.x + Math.cos(e.h) * e.v * f + (Math.random() - 0.5) * err * 2, by = e.y + Math.sin(e.h) * e.v * f + (Math.random() - 0.5) * err;
       AAT.push({ x0: gx, y0: gy, x: bx, y: Math.max(by, DECK_Y + 25), t: f, life: f }); }
-    if (Math.random() < 0.5) sfx('egun', { x: cx });
+    sfx('eshot', { g: 'hvy', x: cx, y: DECK_Y });
   }
   for (let i = AAT.length - 1; i >= 0; i--) {
     const q = AAT[i]; q.t -= dt; if (q.t > 0) continue;
@@ -1682,7 +1701,7 @@ function flakStep(dt) {
     t.fire -= dt; if (t.fire > 0) continue; t.fire = 4.2;   // 4초에 한 번
     if (p.mode !== 'air') continue;
     const d = Math.hypot(p.x - t.x, p.y - t.y); if (d > (AA_R[t.type] || 1100) || d < 25) continue;
-    t.flashT = G.t; if (Math.random() < 0.5) sfx('egun', { x: t.x });
+    t.flashT = G.t; sfx('eshot', { g: SHIPS[t.type] || t.type === 'aa' || t.type === 'cave' ? 'hvy' : 'c25', x: t.x, y: t.y });
     const hy = t.y + (SHIPS[t.type] ? BOX[t.type].h * 0.7 : t.type === 'aa' ? 7 : t.type === 'pill' ? 7.1 : t.type === 'tank' ? 10 : 4);
     for (let k = 0, nk = Math.ceil(AA_N[t.type] * (t.guns ? nG / t.guns.length : 1)); k < nk; k++) { const f = 0.4 + Math.random() * 0.4, err = 70 + d * 0.07; FLAK.push({ x0: t.x, y0: hy, x: p.x + p.vx * f + (Math.random() - 0.5) * err * 2, y: p.y + p.vy * f + (Math.random() - 0.5) * err, t: f, life: f }); }
   }
@@ -1894,7 +1913,7 @@ function stepProj(dt) {
         const dr = t.dir < 0 ? -1 : 1, gun = t.guns.find(g => g.end && g.alive && Math.abs(t.x + g.lx * SK[t.type] * dr - q.x) < 280);
         if (!gun) continue;
         gun.fl = G.t; if (q.kill === undefined) q.kill = G.t + 0.7 + Math.random() * 0.5;
-        if (Math.random() < dt * 14) { sfx('egun', { x: q.x }); FX.push({ k: 'splash', x: q.x + (Math.random() - 0.5) * 8, y: 0, vx: 0, vy: 0, life: 0.3, t: 0 }); }
+        if (Math.random() < dt * 14) { sfx('eshot', { g: 'mg7', x: q.x, y: 4 }); FX.push({ k: 'splash', x: q.x + (Math.random() - 0.5) * 8, y: 0, vx: 0, vy: 0, life: 0.3, t: 0 }); }
         if (G.t >= q.kill) { FX.push({ k: 'splash', x: q.x, y: 0, vx: 0, vy: 0, life: 0.8, t: 0 }); explode(q.x, 0, 8, 'none', true); G.toast = { text: 'Ship machine guns shot down your torpedo — knock out the bow and stern guns first', grade: 'yellow', until: G.t + 3.5 }; PROJ.splice(i, 1); q.dead = true; }
         break;
       }

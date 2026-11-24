@@ -2724,7 +2724,7 @@ function drawZero(c, type) {
 const FIRE_KEY = { rocket: 'rk', bomb: 'bm', torp: 'tp' };
 function fireBtns() {   // 화면의 발사 버튼: 기관총과, 이번에 실은 무기 하나 (늘 같은 자리에 크게)
   const cap = LOAD_AMMO[G.loadout], w = FIRE.find(b => b.k !== 'gun' && cap[FIRE_KEY[b.k]] > 0);
-  return w ? [{ ...FIRE[0], x: 788, y: 432, w: 150, h: 84 }, { ...w, x: 788, y: 338, w: 150, h: 84 }] : [{ ...FIRE[0], x: 788, y: 432, w: 150, h: 84 }];   // 오른쪽 아래: 기관총 + 이번에 실은 무기 하나
+  return w ? [{ ...FIRE[0], x: 22, y: 432, w: 150, h: 84 }, { ...w, x: 22, y: 338, w: 150, h: 84 }] : [{ ...FIRE[0], x: 22, y: 432, w: 150, h: 84 }];   // 왼쪽 아래: 기관총 + 이번에 실은 무기 하나
 }
 const SMOKY = { air: 1, deck: 1, taxi: 1, lift: 1, slide: 1, dslide: 1 };   // 연기·체력바가 보이는 상태 (추락 중에는 제외)
 const ENEMY_NAME = { zero: 'Zero', ace: 'Ace Zero', n1k: 'N1K Shiden', d4y: 'D4Y Dive Bomber', b6n: 'B6N Torpedo Bomber' }, ENEMY_NAME_KO = { zero: '제로센', ace: '에이스 제로센', n1k: 'N1K 시덴', d4y: 'D4Y 급강하 폭격기', b6n: 'B6N 뇌격기' };
@@ -3389,16 +3389,21 @@ addEventListener('keydown', e => {
   if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault();
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
-// 방향 조종: 왼쪽 아래의 원. 원 가운데에서 터치한 곳까지의 방향과 거리로 기수(위·아래)와 좌우(진행/반대)를 정한다
-const STICK = { x: 128, y: 402, R: 92, dead: 0.16 };
+// 방향키: 오른쪽 아래에 십자(+) 모양. 가운데 칸은 비워 둔다
+const PAD_C = { x: 818, y: 408 }, PAD_S = 76, PAD_G = 80;   // 십자 가운데 좌표, 버튼 크기, 버튼 사이 거리
+const DPAD = [
+  { k: 'up', x: PAD_C.x - PAD_S / 2, y: PAD_C.y - PAD_S / 2 - PAD_G, w: PAD_S, h: PAD_S, label: '▲' },
+  { k: 'left', x: PAD_C.x - PAD_S / 2 - PAD_G, y: PAD_C.y - PAD_S / 2, w: PAD_S, h: PAD_S, label: '◀' },
+  { k: 'right', x: PAD_C.x - PAD_S / 2 + PAD_G, y: PAD_C.y - PAD_S / 2, w: PAD_S, h: PAD_S, label: '▶' },
+  { k: 'down', x: PAD_C.x - PAD_S / 2, y: PAD_C.y - PAD_S / 2 + PAD_G, w: PAD_S, h: PAD_S, label: '▼' }
+];
 const BTN = [{ id: 'menu', x: 14, y: 12, w: 64, h: 34, label: 'Ops' }, { id: 'snd', x: 14, y: 54, w: 64, h: 34, label: 'Sound' }, { id: 'pause', x: 14, y: 96, w: 64, h: 34, label: 'Pause' }, { id: 'wing', x: 14, y: 138, w: 64, h: 34, label: 'Wingman' }];
-const touch = { ids: {}, on: { up: 0, down: 0, left: 0, right: 0, gun: 0, rocket: 0, bomb: 0 }, stick: null };   // stick: { id, dx, dy } 길이 1 이하로 정규화
+const touch = { ids: {}, on: { up: 0, down: 0, left: 0, right: 0, gun: 0, rocket: 0, bomb: 0 } };
 let keyIn = 0, prevRev = false;
 function readKeys(dt) {
-  const st = touch.stick, sd = st ? Math.hypot(st.dx, st.dy) : 0, sv = st && sd > STICK.dead ? -st.dy : 0, sh = st && sd > STICK.dead ? st.dx : 0;   // 위쪽이 +
-  ctl.up = !!keys.ArrowUp || sv > 0.22; ctl.down = !!keys.ArrowDown || sv < -0.22;
-  ctl.left = !!keys.ArrowLeft || sh < -0.3; ctl.right = !!keys.ArrowRight || sh > 0.3;
-  const tgt = (keys.ArrowUp || keys.ArrowDown) ? (keys.ArrowUp ? 1 : -1) : Math.abs(sv) > 0.22 ? clamp(Math.sign(sv) * (Math.abs(sv) - 0.1) / 0.8, -1, 1) : 0;   // 원 가운데에서 멀수록 더 크게 오르내린다
+  ctl.up = !!keys.ArrowUp || touch.on.up > 0; ctl.down = !!keys.ArrowDown || touch.on.down > 0;
+  ctl.left = !!keys.ArrowLeft || touch.on.left > 0; ctl.right = !!keys.ArrowRight || touch.on.right > 0;
+  const tgt = ctl.up ? 1 : ctl.down ? -1 : 0;
   keyIn += (tgt - keyIn) * Math.min(1, dt * 9);   // 키 입력을 부드럽게 (기수가 덜컥거리지 않게)
   p.in = keyIn;
   const rev = p.s > 0 ? ctl.left : ctl.right;
@@ -3415,13 +3420,12 @@ cv.addEventListener('pointerdown', e => {
   if (hangarOpen()) { PICK_CARDS.forEach((r, i) => { if (inR(m, r)) pickLoad(i); }); return; }
   if (overElev() && inR(m, ELEV_BTN)) { startLift(); return; }
   if (p.mode === 'air') for (const b of fireBtns()) if (inR(m, b)) { if (b.k === 'gun') { touch.ids[e.pointerId] = 'gun'; touch.on.gun++; try { cv.setPointerCapture(e.pointerId); } catch (_) {} } else if (b.k === 'rocket') { fireRocket(); touch.ids[e.pointerId] = 'rocket'; touch.on.rocket++; try { cv.setPointerCapture(e.pointerId); } catch (_) {} } else if (b.k === 'torp') fireTorpedo(); else { dropBomb(); touch.ids[e.pointerId] = 'bomb'; touch.on.bomb++; try { cv.setPointerCapture(e.pointerId); } catch (_) {} } return; }
-  if (!touch.stick && Math.hypot(m.x - STICK.x, m.y - STICK.y) < STICK.R * 1.45) { touch.stick = { id: e.pointerId, dx: 0, dy: 0 }; stickMove(m); try { cv.setPointerCapture(e.pointerId); } catch (_) {} return; }
+  { const hit = DPAD.filter(d => inR(m, d)).sort((a, b) => Math.hypot(m.x - a.x - a.w / 2, m.y - a.y - a.h / 2) - Math.hypot(m.x - b.x - b.w / 2, m.y - b.y - b.h / 2))[0];
+    if (hit) { touch.ids[e.pointerId] = hit.k; touch.on[hit.k]++; try { cv.setPointerCapture(e.pointerId); } catch (_) {} return; } }
   for (const b of BTN) if (inR(m, b)) { if (b.id === 'menu') { G.paused = true; G.askQuit = true; for (const k in keys) keys[k] = false; } else if (b.id === 'pause') { G.paused = true; G.askQuit = false; for (const k in keys) keys[k] = false; } else if (b.id === 'wing') G.camWing = !G.camWing; else setMuted(!sound.muted); return; }
   if (G.result && m.y > 150 && m.y < 400 && m.x > 250 && m.x < 710) afterCrash();
 });
-function stickMove(m) { const st = touch.stick; if (!st) return; let dx = (m.x - STICK.x) / STICK.R, dy = (m.y - STICK.y) / STICK.R; const l = Math.hypot(dx, dy); if (l > 1) { dx /= l; dy /= l; } st.dx = dx; st.dy = dy; }
-cv.addEventListener('pointermove', e => { if (touch.stick && touch.stick.id === e.pointerId) { e.preventDefault(); stickMove(pos(e)); } });
-const up = e => { if (touch.stick && touch.stick.id === e.pointerId) touch.stick = null; const k = touch.ids[e.pointerId]; if (k) { touch.on[k] = Math.max(0, touch.on[k] - 1); delete touch.ids[e.pointerId]; } };
+const up = e => { const k = touch.ids[e.pointerId]; if (k) { touch.on[k] = Math.max(0, touch.on[k] - 1); delete touch.ids[e.pointerId]; } };
 cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
 
 // 출력, 바퀴, 후크를 알아서 맞춘다
@@ -3990,12 +3994,13 @@ function drawHUD() {
     if (far) { panel(250, 10, 100, 36); c.fillStyle = '#fff'; c.textAlign = 'center'; { const ct = (d < 0 ? '◀ ' : '') + 'Carrier ' + Math.round(Math.abs(d)) + 'm' + (d > 0 ? ' ▶' : ''); fitFont(c, ct, 14, '700', 92); c.fillText(ct, 300, 33); } }
   }
   c.restore();
-  // 방향 조종 원: 바깥 원, 가운데 작은 원, 손가락 위치를 따라 움직이는 손잡이
-  if (!wv) { const S = STICK, st = touch.stick, kx = S.x + (st ? st.dx * S.R : 0), ky = S.y + (st ? st.dy * S.R : 0);
-    c.fillStyle = 'rgba(8,20,34,0.34)'; c.beginPath(); c.arc(S.x, S.y, S.R, 0, 7); c.fill(); c.strokeStyle = 'rgba(255,255,255,0.55)'; c.lineWidth = 2.5; c.stroke();
-    c.strokeStyle = 'rgba(255,255,255,0.22)'; c.lineWidth = 1.5; c.beginPath(); c.arc(S.x, S.y, S.R * S.dead * 1.4, 0, 7); c.stroke(); c.beginPath(); c.moveTo(S.x - S.R, S.y); c.lineTo(S.x + S.R, S.y); c.moveTo(S.x, S.y - S.R); c.lineTo(S.x, S.y + S.R); c.stroke();
-    c.fillStyle = 'rgba(255,255,255,0.75)'; c.font = '800 22px system-ui,sans-serif'; c.textAlign = 'center'; [['▲', 0, -1], ['▼', 0, 1], ['◀', -1, 0], ['▶', 1, 0]].forEach(([t, ux, uy]) => c.fillText(t, S.x + ux * (S.R - 16), S.y + uy * (S.R - 16) + 8));
-    c.fillStyle = st ? 'rgba(255,210,63,0.92)' : 'rgba(255,255,255,0.5)'; c.beginPath(); c.arc(kx, ky, 26, 0, 7); c.fill(); c.strokeStyle = 'rgba(8,20,34,0.7)'; c.lineWidth = 2; c.stroke(); }
+  // 방향 버튼
+  if (!wv) { c.fillStyle = 'rgba(8,20,34,0.3)'; c.beginPath(); c.arc(PAD_C.x, PAD_C.y, PAD_S / 2 - 6, 0, 7); c.fill();   // 십자 가운데
+    for (const d of DPAD) {
+      c.fillStyle = ctl[d.k] ? 'rgba(255,210,63,0.85)' : 'rgba(8,20,34,0.42)'; c.beginPath(); c.roundRect(d.x, d.y, d.w, d.h, 14); c.fill();
+      c.strokeStyle = 'rgba(255,255,255,0.55)'; c.lineWidth = 2; c.stroke();
+      c.fillStyle = ctl[d.k] ? '#111' : '#fff'; c.font = '800 34px system-ui,sans-serif'; c.textAlign = 'center'; c.fillText(d.label, d.x + d.w / 2, d.y + d.h / 2 + 12);
+    } }
   for (const b of BTN) {
     c.fillStyle = 'rgba(26,60,110,0.85)'; c.beginPath(); c.roundRect(b.x, b.y, b.w, b.h, 9); c.fill();
     c.fillStyle = '#fff'; c.font = '800 13px system-ui,sans-serif'; c.textAlign = 'center';

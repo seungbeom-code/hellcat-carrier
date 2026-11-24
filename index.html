@@ -2724,7 +2724,7 @@ function drawZero(c, type) {
 const FIRE_KEY = { rocket: 'rk', bomb: 'bm', torp: 'tp' };
 function fireBtns() {   // 화면의 발사 버튼: 기관총과, 이번에 실은 무기 하나 (늘 같은 자리에 크게)
   const cap = LOAD_AMMO[G.loadout], w = FIRE.find(b => b.k !== 'gun' && cap[FIRE_KEY[b.k]] > 0);
-  return w ? [{ ...FIRE[0], x: 22, y: 432, w: 150, h: 84 }, { ...w, x: 22, y: 338, w: 150, h: 84 }] : [{ ...FIRE[0], x: 22, y: 432, w: 150, h: 84 }];   // 왼쪽 아래: 기관총 + 이번에 실은 무기 하나
+  return w ? [{ ...FIRE[0], x: 788, y: 432, w: 150, h: 84 }, { ...w, x: 788, y: 338, w: 150, h: 84 }] : [{ ...FIRE[0], x: 788, y: 432, w: 150, h: 84 }];   // 오른쪽 아래: 기관총 + 이번에 실은 무기 하나
 }
 const SMOKY = { air: 1, deck: 1, taxi: 1, lift: 1, slide: 1, dslide: 1 };   // 연기·체력바가 보이는 상태 (추락 중에는 제외)
 const ENEMY_NAME = { zero: 'Zero', ace: 'Ace Zero', n1k: 'N1K Shiden', d4y: 'D4Y Dive Bomber', b6n: 'B6N Torpedo Bomber' }, ENEMY_NAME_KO = { zero: '제로센', ace: '에이스 제로센', n1k: 'N1K 시덴', d4y: 'D4Y 급강하 폭격기', b6n: 'B6N 뇌격기' };
@@ -3389,8 +3389,8 @@ addEventListener('keydown', e => {
   if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault();
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
-// 방향키: 오른쪽 아래에 십자(+) 모양. 가운데 칸은 비워 둔다
-const PAD_C = { x: 818, y: 408 }, PAD_S = 76, PAD_G = 80;   // 십자 가운데 좌표, 버튼 크기, 버튼 사이 거리
+// 방향키: 왼쪽 아래에 십자(+) 모양. 가운데 칸은 비워 둔다
+const PAD_C = { x: 150, y: 408 }, PAD_S = 76, PAD_G = 80;   // 십자 가운데 좌표, 버튼 크기, 버튼 사이 거리
 const DPAD = [
   { k: 'up', x: PAD_C.x - PAD_S / 2, y: PAD_C.y - PAD_S / 2 - PAD_G, w: PAD_S, h: PAD_S, label: '▲' },
   { k: 'left', x: PAD_C.x - PAD_S / 2 - PAD_G, y: PAD_C.y - PAD_S / 2, w: PAD_S, h: PAD_S, label: '◀' },
@@ -3426,6 +3426,11 @@ cv.addEventListener('pointerdown', e => {
   if (G.result && m.y > 150 && m.y < 400 && m.x > 250 && m.x < 710) afterCrash();
 });
 const up = e => { const k = touch.ids[e.pointerId]; if (k) { touch.on[k] = Math.max(0, touch.on[k] - 1); delete touch.ids[e.pointerId]; } };
+const PADK = { up: 1, down: 1, left: 1, right: 1 };
+cv.addEventListener('pointermove', e => {   // 방향키를 누른 채 손가락을 다른 방향키로 옮기면, 누르던 키는 떼지고 옮겨 간 키가 눌린다
+  const k = touch.ids[e.pointerId]; if (!k || !PADK[k] || G.scene !== 'play') return; e.preventDefault();
+  const m = pos(e), hit = DPAD.find(d => inR(m, d)); if (hit && hit.k !== k) { touch.on[k] = Math.max(0, touch.on[k] - 1); touch.on[hit.k]++; touch.ids[e.pointerId] = hit.k; }
+});
 cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
 
 // 출력, 바퀴, 후크를 알아서 맞춘다

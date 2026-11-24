@@ -3121,6 +3121,7 @@ function drawScene() {
 // ───────── 한 걸음 ─────────
 // ───────── 동료기: 항모에서 스스로 이륙·공격·착함·재무장을 되풀이한다 (단순화한 비행, 맞아도 격추되지 않는다) ─────────
 let WG = null;
+const WING_ON = false;   // 동료기 출격 여부: 지금은 꺼 둔다 (true 로 바꾸면 다시 출격)
 const W_CRUISE = 135, W_PARK_XR = 440;
 const WP = { mode: 'air', turn: 0, off: false, gear: false, s: 1, th: 0, hp: 100, x: 0, y: 0, vx: 0, vy: 0, tookOff: true, stalled: false };   // 적 화기가 쏘는 대상으로 쓰는 동료기 대역
 const WING_HP = 100;   // 내 비행기와 같은 체력
@@ -3181,7 +3182,7 @@ function wingPick(w, again) {   // 다음 공격 목표: 적기 > 지상 시설 
   return best;
 }
 function wingStep(dt) {
-  if (G.scene !== 'play') { WG = null; return; }
+  if (G.scene !== 'play' || !WING_ON) { WG = null; G.camWing = false; return; }
   if (!WG || WG.m !== G.m) WG = newWing();
   if (WG.st === 'wreck') {   // 격추: 불타며 떨어진다
     const w = WG; w.vy -= GRAV * dt; w.vx *= 1 - 0.15 * dt; w.x += w.vx * dt; w.y += w.vy * dt; w.h = Math.atan2(w.vy, w.vx); w.s = w.vx >= 0 ? 1 : -1;
@@ -3440,7 +3441,7 @@ const DPAD = [
   { k: 'right', x: PAD_C.x - PAD_S / 2 + PAD_G, y: PAD_C.y - PAD_S / 2, w: PAD_S, h: PAD_S, label: '▶' },
   { k: 'down', x: PAD_C.x - PAD_S / 2, y: PAD_C.y - PAD_S / 2 + PAD_G, w: PAD_S, h: PAD_S, label: '▼' }
 ];
-const BTN = [{ id: 'menu', x: 14, y: 12, w: 64, h: 34, label: 'Ops' }, { id: 'snd', x: 14, y: 54, w: 64, h: 34, label: 'Sound' }, { id: 'pause', x: 14, y: 96, w: 64, h: 34, label: 'Pause' }, { id: 'wing', x: 14, y: 138, w: 64, h: 34, label: 'Wingman' }];
+const BTN = [{ id: 'menu', x: 14, y: 12, w: 64, h: 34, label: 'Ops' }, { id: 'snd', x: 14, y: 54, w: 64, h: 34, label: 'Sound' }, { id: 'pause', x: 14, y: 96, w: 64, h: 34, label: 'Pause' }, { id: 'wing', x: 14, y: 138, w: 64, h: 34, label: 'Wingman' }].filter(b => b.id !== 'wing' || WING_ON);   // 동료기를 끄면 윙맨 보기 버튼도 숨긴다
 const touch = { ids: {}, on: { up: 0, down: 0, left: 0, right: 0, gun: 0, rocket: 0, bomb: 0 } };
 let keyIn = 0, prevRev = false;
 function readKeys(dt) {

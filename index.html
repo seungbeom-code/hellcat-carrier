@@ -3844,7 +3844,7 @@ function pullUpWarn() {   // 지금 ▲ 를 눌러야 땅·바다에 부딪치�
     clr = Math.min(clr, y - ground);
     if (g >= 0.2) break;
   }
-  return clr < 14 + 0.8 * Math.max(0, -p.vy);   // 내려가는 속도에 비례해 여유를 더 둔다 (알아채고 누르는 데 걸리는 시간)
+  return clr < 25 + 1.5 * Math.max(0, -p.vy);   // 내려가는 속도에 비례해 여유를 더 둔다 (알아채고 누르는 데 걸리는 시간)
 }
 function drawFwdView(m) {   // 정면 화면: 비행기가 향한 쪽 멀리(기수 방향 380m 앞, 조준선 포함)를 작은 창으로 보여준다. 내 비행기나 윙맨이 날고 있을 때만
   const wv = G.camWing && WG && G.scene === 'play'; let x, y, dir, ang;

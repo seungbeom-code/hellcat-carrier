@@ -2847,6 +2847,8 @@ function drawEnemies(c) {
 function drawProj(c) {
   for (const q of AAT) { const k = 1 - q.t / q.life, x = q.x0 + (q.x - q.x0) * k, y = q.y0 + (q.y - q.y0) * k, L = Math.hypot(q.x - q.x0, q.y - q.y0) || 1, ux = (q.x - q.x0) / L, uy = (q.y - q.y0) / L;   // 우리 대공포 예광탄
     c.lineCap = 'round'; c.strokeStyle = 'rgba(255,190,70,0.75)'; c.lineWidth = Math.max(1.4, 0.45 * cam.z); c.beginPath(); c.moveTo(sx(x), sy(y)); c.lineTo(sx(x - ux * 14), sy(y - uy * 14)); c.stroke(); c.lineCap = 'butt'; }
+  for (const b of EB) if (!b.tr) { const sp = Math.hypot(b.vx, b.vy) || 1; c.lineCap = 'round'; c.strokeStyle = b.aa ? 'rgba(255,225,150,0.85)' : 'rgba(255,200,170,0.85)'; c.lineWidth = Math.max(1.4, 0.35 * cam.z); c.beginPath(); c.moveTo(sx(b.x), sy(b.y)); c.lineTo(sx(b.x - b.vx / sp * 7), sy(b.y - b.vy / sp * 7)); c.stroke(); c.lineCap = 'butt'; }   // 모든 적 탄환이 짧은 빛줄기로 보인다 (예광탄은 더 길고 굵게)
+  for (const q of FLAK) { if (q.x0 === undefined) continue; const k = 1 - q.t / q.life, x = q.x0 + (q.x - q.x0) * k, y = q.y0 + (q.y - q.y0) * k; c.fillStyle = 'rgba(255,170,60,0.95)'; c.beginPath(); c.arc(sx(x), sy(y), Math.max(1.6, 0.6 * cam.z), 0, 7); c.fill(); }   // 적 대공포탄: 날아가는 포탄이 보인다
   for (const b of EB) if (b.tr) { const x2 = b.x - b.vx * 0.05, y2 = b.y - b.vy * 0.05; c.lineCap = 'round'; c.strokeStyle = 'rgba(255,60,40,0.55)'; c.lineWidth = Math.max(1.5, 0.55 * cam.z); c.beginPath(); c.moveTo(sx(b.x), sy(b.y)); c.lineTo(sx(x2), sy(y2)); c.stroke(); c.strokeStyle = '#ffd0c0'; c.lineWidth = Math.max(0.8, 0.25 * cam.z); c.beginPath(); c.moveTo(sx(b.x), sy(b.y)); c.lineTo(sx(b.x - b.vx * 0.035), sy(b.y - b.vy * 0.035)); c.stroke(); c.lineCap = 'butt'; }   // 적 전투기 예광탄
   for (const q of PROJ) {
     if (q.k === 'b') {   // 보통 탄은 보이지 않고, 예광탄만 밝은 줄로 보인다

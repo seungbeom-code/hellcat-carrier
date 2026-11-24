@@ -1135,7 +1135,7 @@ function makeTargets(M) {
     { const LVt = (G.cur && G.cur.lvl) || 1, nT = clamp(1 + Math.floor(LVt / 5), 1, 4); [0.28, 0.72, 0.4, 0.6].slice(0, nT).forEach(fr => add('tower', P(k, fr))); }   // 섬 곳곳의 보초 타워
     { let bx = null, bh = -1;   // 섬의 가장 높은 곳에는 대공포를 설치한다
       for (let x = q.a + w * 0.08; x < q.b - w * 0.08; x += 4) { if (q.flat && x > q.flat.a - 90 && x < q.flat.b + 90) continue; if (TARGETS.some(t => !SHIPS[t.type] && Math.abs(t.x - x) < BOX[t.type].w / 2 + 12)) continue; const hh = gh(x); if (hh > bh) { bh = hh; bx = x; } }
-      if (bx !== null) { add('aa', bx + OFF); TARGETS[TARGETS.length - 1].hill = true; } }   // 고지의 대공포는 그 자리에 둔다
+      if (bx !== null) { const h = add('aa', bx + OFF); if (h) h.hill = true; } }   // (대공포 진지를 뺐으므로 지금은 아무것도 세우지 않는다)   // 고지의 대공포는 그 자리에 둔다
   });
   const CREW_N = { barracks: 5, bunker: 3, pill: 3, aa: 3, cave: 4, fuel: 3, radar: 3, tank: 3, tower: 3 };   // 건물 하나에 들어 있는 병사 수 (모두 3명 이상)
   for (const t of TARGETS) if (!SHIPS[t.type] && t.isl >= 0 && CREW_N[t.type]) t.crew = CREW_N[t.type];

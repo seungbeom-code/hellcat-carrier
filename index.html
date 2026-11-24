@@ -2644,6 +2644,7 @@ function fireBtns() {   // 화면의 발사 버튼: 기관총과, 이번에 실�
   return w ? [{ ...FIRE[0], x: 788, y: 432, w: 150, h: 84 }, { ...w, x: 788, y: 338, w: 150, h: 84 }] : [{ ...FIRE[0], x: 788, y: 432, w: 150, h: 84 }];   // 오른쪽 아래: 기관총 + 이번에 실은 무기 하나
 }
 const SMOKY = { air: 1, deck: 1, taxi: 1, lift: 1, slide: 1, dslide: 1 };   // 연기·체력바가 보이는 상태 (추락 중에는 제외)
+const ENEMY_NAME = { zero: 'Zero', ace: 'Ace Zero', n1k: 'N1K Shiden', d4y: 'D4Y Dive Bomber', b6n: 'B6N Torpedo Bomber' }, ENEMY_NAME_KO = { zero: '제로센', ace: '에이스 제로센', n1k: 'N1K 시덴', d4y: 'D4Y 급강하 폭격기', b6n: 'B6N 뇌격기' };
 const enemyCol = fr => { const k = clamp(fr, 0, 1); return 'rgb(' + Math.round(20 + 215 * k) + ',' + Math.round(4 + 46 * k) + ',' + Math.round(4 + 41 * k) + ')'; };   // 적 체력바: 빨강 → 체력이 줄수록 검정
 function hpBar(c, X, Y, bw, fr, col) {   // 체력바: 물체보다 좁고, 화면 확대율에 따라 같이 커지고 작아진다
   bw = Math.max(8, bw); const bh = Math.max(2.5, bw * 0.14);
@@ -2658,6 +2659,8 @@ function drawEnemyHp(c) {   // 적기 위에 항상 보이는 체력바
   for (const e of ENE) {
     if (e.dead || Math.abs(e.x - cam.x) > W / cam.z / 2 + 40) continue;
     e.hpM = Math.max(e.hpM || 0, e.hp, (ES[e.type] || {}).hp || 0); { const fe = clamp(e.hp / e.hpM, 0, 1); hpBar(c, sx(e.x), sy(e.y + 7) - 3 * cam.z, 10.4 * cam.z, fe, enemyCol(fe)); }
+    const nm = (LANG === 'ko' ? ENEMY_NAME_KO : ENEMY_NAME)[e.type];   // 체력바 위에 적기 종류를 쓴다
+    if (nm) { const fs0 = clamp(3.4 * cam.z, 9, 15), by = sy(e.y + 7) - 3 * cam.z; c.save(); c.font = '700 ' + fs0 + 'px system-ui,sans-serif'; c.textAlign = 'center'; c.textBaseline = 'alphabetic'; c.lineJoin = 'round'; c.lineWidth = 3; c.strokeStyle = 'rgba(8,12,20,0.85)'; c.strokeText(nm, sx(e.x), by - 4); c.fillStyle = e.type === 'ace' || e.type === 'n1k' ? '#ffd23f' : '#f2f4f8'; c.fillText(nm, sx(e.x), by - 4); c.restore(); }
   }
 }
 const ARMED = { pill: 1, aa: 1, bunker: 1, cave: 1, tower: 1, tank: 1 };
@@ -2694,7 +2697,7 @@ function drawEnemyMarks(c) {
     const X = sx(e.x), Y = sy(e.y), bomber = e.type === 'd4y' || e.type === 'b6n', col = bomber ? '#ffb020' : '#ff3b30';
     const m = 26, on = X > m && X < W - m && Y > 70 && Y < H - m;
     if (on) {
-      const bob = Math.sin(G.t * 6) * 2.5, top = Y - Math.max(16, 10 * cam.z) - 8 + bob;
+      const bob = Math.sin(G.t * 6) * 2.5, top = Y - Math.max(16, 10 * cam.z) - 8 - (G.scene === 'play' ? 17 : 0) + bob;   // 화살표는 체력바와 종류 이름 위로 올린다
       c.fillStyle = col; c.strokeStyle = 'rgba(0,0,0,0.65)'; c.lineWidth = 2;
       c.beginPath(); c.moveTo(X, top + 10); c.lineTo(X - 8, top); c.lineTo(X - 3, top); c.lineTo(X - 3, top - 7); c.lineTo(X + 3, top - 7); c.lineTo(X + 3, top); c.lineTo(X + 8, top); c.closePath(); c.stroke(); c.fill();
     } else {

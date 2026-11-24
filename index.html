@@ -1565,6 +1565,10 @@ function enemyStep(dt) {
     e.x += (e.rv ? e.rv.f0 * Math.cos(e.rv.a) * Math.cos(Math.atan2(Math.sin(e.h), Math.abs(Math.cos(e.h)))) : Math.cos(e.h)) * e.v * dt; e.y += Math.sin(e.h) * e.v * dt;
     if (e.y > MAX_ALT) e.y = MAX_ALT;   // 적기도 600m 위로는 못 올라간다
     if (!isFinite(e.x + e.y + e.h + e.v + e.wh)) { G.nanGuard = (G.nanGuard || 0) + 1; if (isFinite(e.x + e.y)) { e.h = fwd > 0 ? 0 : Math.PI; e.v = S.v; e.wh = 0; e.rv = null; e.mv = null; } else { ENE.splice(i, 1); continue; } }   // 안전장치: 계산이 어긋나 좌표가 깨지면 바로잡거나 치운다
+    { const tg = (e.fl !== undefined ? e.fl : Math.cos(e.h) < 0) ? Math.PI : 0;   // 화면에 보이는 옆굴림: 뒤집힌 방향이 바뀌면 그림이 휙 뒤집히지 않고 실제처럼 굴러서 선다
+      if (e.ra === undefined || e.rv) { e.ra = tg; delete e.raB; }
+      else if (e.mv === 'brl') { if (e.raB === undefined) e.raB = e.ra; e.ra = angd(e.raB + e.mvT * 13, 0); }
+      else { delete e.raB; const d = angd(tg, e.ra), st = (3.2 + 0.5 * (e.rk || 1)) * dt; e.ra = Math.abs(d) <= st ? tg : angd(e.ra + (d >= 0 ? st : -st), 0); } }
     if (e.y <= Math.max(1, gh(e.x)) && !nearShip) { G.selfCrash = (G.selfCrash || 0) + 1; killEnemy(e); continue; }   // 늦으면 추락한다
     if (!bomber && air && e.att && e.st === 'app' && !e.rv) {   // 사격
       const d = Math.hypot(p.x - e.x, p.y - e.y), tf = d / 560, aimA = Math.atan2(p.y + p.vy * tf - e.y, p.x + p.vx * tf - e.x);
@@ -2837,10 +2841,23 @@ function drawEnemyMarks(c) {
   }
   c.restore();
 }
+const ZPAL = {};
+function zeroPal(type) {   // 적기 입체 모형의 색: 위는 짙은 녹색, 아래는 회백색, 검은 엔진 덮개, 붉은 히노마루
+  if (ZPAL[type]) return ZPAL[type];
+  const top = type === 'd4y' ? '#5d6f58' : type === 'b6n' ? '#44524a' : type === 'n1k' ? '#566452' : '#6f8062';
+  return (ZPAL[type] = { body: top, belly: '#c5cbb8', cowl: '#2b2f33', top: top, topE: '#4c5a42', bot: '#c5cbb8', botE: '#a3a996', tail: top, mark: '#c8262c' });
+}
 function drawEnemies(c) {
   const span = W / cam.z;
   for (const e of ENE) {
     if (Math.abs(e.x - cam.x) > span / 2 + 40 || Math.abs(e.y - cam.y) > H / cam.z) continue;
+    if (!e.dead) { world(e.x, e.y, () => {   // 방향을 바꿀 때는 입체 모형으로: 수평으로 돌 때는 기수가 화면 안쪽/바깥쪽을 거쳐 돌고, 뒤집혔을 때는 옆으로 굴러 바로 선다
+      const inv = e.fl !== undefined ? e.fl : Math.cos(e.h) < 0, s3 = 0.85 * ({ zero: 1, ace: 1, n1k: 1.1, d4y: 1.2, b6n: 1.3 }[e.type] || 1), pal = zeroPal(e.type);
+      if (e.rv) { const gm = Math.atan2(Math.sin(e.h), Math.abs(Math.cos(e.h))), ph = (e.rv.f0 > 0 ? 0 : Math.PI) + e.rv.a; c.rotate(gm * Math.cos(ph)); c.scale(s3, s3); drawPlane3D(ph, Math.sin(e.rv.a) * 0.9, false, pal); return; }
+      c.rotate(e.h); const ra = e.ra === undefined ? (inv ? Math.PI : 0) : e.ra;
+      if (Math.abs(angd(ra, inv ? Math.PI : 0)) > 0.04) { c.scale(s3, s3); drawPlane3D(0, ra, false, pal); return; }
+      if (inv) c.scale(1, -1); c.scale(1, 1 - 0.3 * Math.abs(e.bank || 0)); drawZero(c, e.type);
+    }); continue; }
     world(e.x, e.y, () => { c.rotate(e.h); if (e.fl !== undefined ? e.fl : Math.cos(e.h) < 0) c.scale(1, -1); let rs = 1; if (e.mv === 'brl') { rs = Math.cos(e.mvT * 13); if (Math.abs(rs) < 0.12) rs = rs < 0 ? -0.12 : 0.12; } if (e.rv) c.scale(Math.max(0.3, Math.abs(Math.cos(e.rv.a))), 1 + 0.3 * Math.sin(e.rv.a)); c.scale(1, (1 - 0.3 * Math.abs(e.bank || 0)) * rs); drawZero(c, e.type); });   // 선회할 때 날개를 기울인다
   }
 }
@@ -3563,7 +3580,9 @@ function drawPlane(o) {   // 원점: 기체 중심, 오른쪽이 기수, 단위 
 }
 
 // 선회 중에는 기체를 간단한 입체 모형으로 그린다 (yaw: 수직축 회전, bank: 왼쪽 기울기)
-function drawPlane3D(yaw, bank, gear) {
+const PAL_F6F = { body: '#3f72b8', belly: '#e9edf0', cowl: '#2a4d84', top: '#3b68ab', topE: '#2e5896', bot: '#dfe5ea', botE: '#b9c2cb', tail: '#33649f', mark: null };
+function drawPlane3D(yaw, bank, gear, pal) {
+  pal = pal || PAL_F6F;
   const c = ctx, cy = Math.cos(yaw), sn = Math.sin(yaw), cb = Math.cos(-bank), sb = Math.sin(-bank);
   const T = (x, y, z) => { const y1 = y * cb - z * sb, z1 = y * sb + z * cb; return [x * cy + z1 * sn, y1, -x * sn + z1 * cy]; };
   const parts = [], dn = T(0, -1, 0), topSeen = dn[2] < 0;
@@ -3571,18 +3590,18 @@ function drawPlane3D(yaw, bank, gear) {
     c.beginPath(); q.forEach((a, i) => i ? c.lineTo(a[0], a[1]) : c.moveTo(a[0], a[1])); c.closePath(); c.fillStyle = fill; c.fill(); c.strokeStyle = edge || fill; c.lineWidth = 0.4; c.lineJoin = 'round'; c.stroke(); } }); };
   const ball = (x, y, r, col, belly, z) => { const a = T(x, y, z || 0); parts.push({ d: a[2], f: () => {
     c.fillStyle = col; c.beginPath(); c.arc(a[0], a[1], r, 0, 7); c.fill();
-    if (belly) { const k = r * (0.95 - 0.8 * dn[2]); c.save(); c.clip(); c.fillStyle = '#e9edf0'; c.beginPath(); c.arc(a[0] + dn[0] * k, a[1] + dn[1] * k, r * 0.85, 0, 7); c.fill(); c.restore(); } } }); };
+    if (belly) { const k = r * (0.95 - 0.8 * dn[2]); c.save(); c.clip(); c.fillStyle = pal.belly; c.beginPath(); c.arc(a[0] + dn[0] * k, a[1] + dn[1] * k, r * 0.85, 0, 7); c.fill(); c.restore(); } } }); };
   const ring = (cx, cyy, cz, r, plane, fill) => { const pts = []; for (let i = 0; i < 14; i++) { const a = i / 14 * 6.283; pts.push(plane === 'yz' ? [cx, cyy + Math.cos(a) * r, cz + Math.sin(a) * r] : [cx + Math.cos(a) * r, cyy, cz + Math.sin(a) * r]); } poly(pts, fill); };
   const prof = [[-8.8, 0.9, 0.5], [-7.2, 0.8, 0.85], [-5.4, 0.6, 1.25], [-3.6, 0.4, 1.6], [-1.8, 0.3, 1.9], [0, 0.3, 2.1], [1.8, 0.2, 2.2], [3.6, 0.1, 2.1], [5.2, 0, 1.95]];
-  for (let i = 0; i < prof.length - 1; i++) for (let k = 0; k < 4; k++) { const a = prof[i], b = prof[i + 1], u = k / 4; ball(lerp(a[0], b[0], u), lerp(a[1], b[1], u), lerp(a[2], b[2], u), '#3f72b8', true); }
-  ball(6.9, 0, 1.75, '#2a4d84'); ball(1.3, 2.3, 1.45, '#bfe3f2'); ball(8.9, 0, 0.6, '#c9ced4');
-  const wingCol = topSeen ? '#3b68ab' : '#dfe5ea', wingEdge = topSeen ? '#2e5896' : '#b9c2cb';
+  for (let i = 0; i < prof.length - 1; i++) for (let k = 0; k < 4; k++) { const a = prof[i], b = prof[i + 1], u = k / 4; ball(lerp(a[0], b[0], u), lerp(a[1], b[1], u), lerp(a[2], b[2], u), pal.body, true); }
+  ball(6.9, 0, 1.75, pal.cowl); ball(1.3, 2.3, 1.45, '#bfe3f2'); ball(8.9, 0, 0.6, '#c9ced4');
+  const wingCol = topSeen ? pal.top : pal.bot, wingEdge = topSeen ? pal.topE : pal.botE;
   [1, -1].forEach(m => {
     poly([[3.4, -0.6, 0], [1.9, -0.4, 10.8 * m], [-0.5, -0.4, 10.8 * m], [-2.4, -0.6, 0]], wingCol, wingEdge);
     poly([[-6.4, 0.9, 0], [-7.3, 0.9, 4.2 * m], [-8.9, 0.9, 4.2 * m], [-9.4, 0.9, 0]], wingCol, wingEdge);
-    if (topSeen) ring(0.5, -0.38, 7.4 * m, 1.3, 'xz', '#f4f6f8');
+    if (pal.mark) ring(0.5, topSeen ? -0.38 : -0.42, 7.4 * m, 1.3, 'xz', pal.mark); else if (topSeen) ring(0.5, -0.38, 7.4 * m, 1.3, 'xz', '#f4f6f8');   // 적기는 위·아래 모두 붉은 히노마루
   });
-  poly([[-6.2, 1.2, 0], [-9.3, 5.2, 0], [-10.2, 5.2, 0], [-9.6, 0.8, 0]], '#33649f');
+  poly([[-6.2, 1.2, 0], [-9.3, 5.2, 0], [-10.2, 5.2, 0], [-9.6, 0.8, 0]], pal.tail);
   if (gear) {   // 내려와 있는 바퀴
     [2.7, -2.7].forEach(z => { poly([[1.6, -0.8, z], [2.1, -0.8, z], [2.5, -2.5, z], [2.1, -2.5, z]], '#9aa3ad'); ball(2.3, -2.5, 0.8, '#222', false, z); });
     ball(-7.6, -1.2, 0.42, '#222');

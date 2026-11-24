@@ -4059,15 +4059,15 @@ function drawHUD() {
     const b = ELEV_BTN; c.fillStyle = 'rgba(26,90,150,0.92)'; c.beginPath(); c.roundRect(b.x, b.y, b.w, b.h, 12); c.fill(); c.strokeStyle = '#9fd0ff'; c.lineWidth = 2; c.stroke();
     c.fillStyle = '#fff'; c.font = '800 17px system-ui,sans-serif'; c.textAlign = 'center'; c.fillText('Elevator down (Space)', b.x + b.w / 2, b.y + 34);
   }
-  G.toastH = 0;
+  G.toastH = 0; const pipOn = !wv && p.mode === 'air' && !G.paused, TY = pipOn ? 270 : 138; G.toastY = TY;   // 날고 있으면 작은 확대창(위쪽 92~218) 아래에 띄운다 (안내 한 줄 228, 그 아래 메시지)
   if (G.toast && G.t < G.toast.until) {   // 착함 결과
     const col = { green: '#59d37a', yellow: '#ffd23f', brown: '#a9793f' }[G.toast.grade] || '#fff';
     // 긴 글은 두 줄로 나눈다
     let L = [tr(G.toast.text)]; c.font = '800 16px system-ui,sans-serif';
     if (c.measureText(G.toast.text).width > MSG_W - 70) { const t = tr(G.toast.text), mid = t.length / 2; let k = -1; for (let i = 0; i < t.length; i++) if (t[i] === ' ' && (k < 0 || Math.abs(i - mid) < Math.abs(k - mid))) k = i; if (k > 0) L = [t.slice(0, k), t.slice(k + 1)]; }
     const tw = Math.max(...L.map(l => fitFont(c, l, 16, '800', MSG_W - 70))), lh = 21, ph = 12 + L.length * lh;
-    panel(MSG_CX - tw / 2 - 34, 138, tw + 68, ph, 0.8); c.fillStyle = col; c.beginPath(); c.arc(MSG_CX - tw / 2 - 14, 138 + ph / 2, 8, 0, 7); c.fill();
-    c.fillStyle = '#fff'; c.textAlign = 'center'; L.forEach((l, i) => c.fillText(l, MSG_CX + 8, 159 + i * lh)); G.toastH = ph;
+    panel(MSG_CX - tw / 2 - 34, TY, tw + 68, ph, 0.8); c.fillStyle = col; c.beginPath(); c.arc(MSG_CX - tw / 2 - 14, TY + ph / 2, 8, 0, 7); c.fill();
+    c.fillStyle = '#fff'; c.textAlign = 'center'; L.forEach((l, i) => c.fillText(l, MSG_CX + 8, TY + 21 + i * lh)); G.toastH = ph;
   }
   if (!wv && landBtnOn()) { const b = LANDBTN; c.fillStyle = 'rgba(40,120,70,0.94)'; c.beginPath(); c.roundRect(b.x, b.y, b.w, b.h, 12); c.fill(); c.strokeStyle = '#9ef0b8'; c.lineWidth = 2; c.stroke(); c.fillStyle = '#fff'; c.font = '800 17px system-ui,sans-serif'; c.textAlign = 'center'; c.fillText('Start landing (V)', b.x + b.w / 2, b.y + 32); }
   if (!wv && p.mode === 'air') fireBtns().forEach(b => {   // 발사 버튼
@@ -4076,7 +4076,7 @@ function drawHUD() {
     c.fillStyle = '#fff'; c.textAlign = 'center'; c.font = '800 15px system-ui,sans-serif'; c.fillText(b.label, b.x + b.w / 2, b.y + 26); c.font = '600 12px system-ui,sans-serif'; c.fillText(n + '  (' + b.key + ')', b.x + b.w / 2, b.y + 46);
   });
   if (G.tick && G.tick.length) {   // 뉴스 자막처럼: 왼쪽에 빨간 '속보' 꼬리표, 흰 글씨, 부드럽게 나타났다 사라진다
-    const T = G.tick[0], el = T.t0 === undefined ? 0 : G.t - T.t0, al = clamp(Math.min(el / 0.4, (6 - el) / 0.5), 0, 1), by = (G.toastH ? 146 + G.toastH : 160) + (1 - clamp(el / 0.4, 0, 1)) * 30;
+    const T = G.tick[0], el = T.t0 === undefined ? 0 : G.t - T.t0, al = clamp(Math.min(el / 0.4, (6 - el) / 0.5), 0, 1), by = (G.toastH ? G.toastY + 8 + G.toastH : G.toastY + 22) + (1 - clamp(el / 0.4, 0, 1)) * 30;
     c.globalAlpha = al; const tw = fitFont(c, T.text, 19, '700', MSG_W - 140), fs19 = c.font, bw = tw + 140, bx = MSG_CX - bw / 2;
     c.fillStyle = 'rgba(12,22,38,0.9)'; c.fillRect(bx, by, bw, 40); c.fillStyle = '#c62828'; c.fillRect(bx, by, 76, 40);
     c.fillStyle = '#fff'; c.font = '800 17px system-ui,sans-serif'; c.textAlign = 'center'; c.fillText('NEWS', bx + 38, by + 26);
@@ -4092,7 +4092,7 @@ function drawHUD() {
     c.textAlign = 'left';
   }
   const hm = G.paused || wv ? '' : hint();
-  if (hm) { const tw = fitFont(c, hm, 16, '700', MSG_W - 30); panel(MSG_CX - tw / 2 - 14, 96, tw + 28, 34, 0.7); c.fillStyle = '#fff'; c.textAlign = 'center'; c.fillText(hm, MSG_CX, 119); }
+  if (hm) { const tw = fitFont(c, hm, 16, '700', MSG_W - 30); const hy = pipOn ? 228 : 96; panel(MSG_CX - tw / 2 - 14, hy, tw + 28, 34, 0.7); c.fillStyle = '#fff'; c.textAlign = 'center'; c.fillText(hm, MSG_CX, hy + 23); }
   // 결과
   if (G.result && ((G.result.kind !== 'crash' && G.result.kind !== 'wreck') || G.t - G.result.at > 2.6)) {
     const r = G.result; panel(250, 150, 460, 250, 0.86); c.textAlign = 'center';

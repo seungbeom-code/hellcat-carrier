@@ -22,17 +22,18 @@
 'use strict';
 // ───────── 상수 (단위: m, m/s) ─────────
 const W = 960, H = 540, KT = 1.944;
-const GRAV = 9.8, KL = 0.004375, KD0 = 0.000276, AMAX = 10, PWR = 2500;   // 바퀴·플랩은 모양일 뿐, 비행에는 영향이 없다 (항상 같은 날개·항력)
+const GRAV = 9.8, KL = 0.004375, KD0 = 0.000276, AMAX = 6.5, PWR = 2500;
+const CL_FLAP = 0.15, DRAG_GEAR = 3.5;   // 바퀴(와 플랩)를 내리면 양력이 늘어 낮은 속도에서도 날 수 있지만, 항력이 크게 늘어 속도가 빨리 줄어든다
 const CL_MAX = 1.17, CL_BASE = 0.35;   // 실속 속도 약 85노트 (그 아래에서는 날개가 양력을 못 낸다)
 const SHIP_V = 11;                 // 갑판 맞바람 30노트
 let DECK_Y = 20, shipBob = 0; const DECK_Y0 = 20, DECK_L = 520, WH = 3.2, CS = DECK_L / 260, ISL_DX = 124;   // 갑판 길이는 예전의 2배 (선체 그림은 가로로 2배로 늘이고, 함교는 그대로 두고 자리만 옮긴다)   // 갑판 높이, 길이, 바퀴 밑까지 거리
 const ZONE_B = 196, ZONE_A = 85, ZONE_L = ZONE_B - ZONE_A;   // 어레스팅 와이어 구역: 와이어 3개 (예전 4개에서 선미 쪽 하나를 줄여 함 중앙 쪽으로 좁혔다)
 const WIRES = [0, 1, 2].map(i => ZONE_A + 10 + i * (ZONE_L - 20) / 2);
 const TURN_T = 3.2;   // 선회에 걸리는 시간(초): 예전의 2배라 회전 반경도 2배
-const HOOK_BACK = 7.5, CRUISE_KT = 270, SLOW_KT = 200;   // 후크 끝 위치, 손을 뗐을 때 순항 속도, 항모 근처 접근 속도
-const MIN_KT = 200;   // 날고 있을 때(바퀴를 올린 상태) 속도는 이 아래로 떨어지지 않는다. 방향 전환 중에도 마찬가지
-const TAKEOFF_KT = 100, TURN_KT = 100;   // 이륙과 선회에 필요한 최소 속도
-const LAND_KT = 215, LAND_SINK = 8, LAND_PITCH = 0.22;   // 착함 허용 한계: 속도, 가라앉는 속도, 기울기
+const HOOK_BACK = 7.5, CRUISE_KT = 270, SLOW_KT = 180, APP_KT = 98;   // 후크 끝 위치, 손을 뗐을 때 순항 속도, 항모 근처 접근 속도
+const MIN_KT = 150;   // 날고 있을 때(바퀴를 올린 상태) 속도는 이 아래로 떨어지지 않는다. 방향 전환 중에도 마찬가지
+const TAKEOFF_KT = 85, ROTATE_KT = 78, TURN_KT = 100;   // 이륙과 선회에 필요한 최소 속도
+const LAND_KT = 135, LAND_SINK = 6.5, LAND_PITCH = 0.22, LAND_PITCH_HI = 0.30, LAND_PITCH_LO = -0.12;   // 착함 허용 한계: 속도, 가라앉는 속도, 기울기
 const MAX_ALT = 600;   // 최고 고도: 나도 적기도 이 위로는 못 올라간다
 const CEIL = 500;   // 지도에서 고도를 그리는 기준(m). 실제 고도 제한은 없고 높이 올라가면 실속한다
 const SINK_T = 18, SINK_DEPTH = 74;   // 항모가 가라앉는 데 걸리는 시간(초), 마지막에 함교 꼭대기까지 잠기는 깊이
@@ -106,24 +107,23 @@ function reset() {
 const kts = () => (p.turn > 0 ? Math.max(Math.hypot(p.vx, p.vy), Math.abs(p.v0 || 0) * lerp(1, 0.85, clamp(1 - p.turn / TURN_T, 0, 1)), p.gear ? 0 : MIN_KT / KT) : Math.hypot(p.vx, p.vy)) * KT;   // 선회 중에는 경로를 따라 나는 속도
 
 // ───────── 비행 물리 ─────────
-function aero(V, alpha) {
-  let CL = 5 * alpha + p.s * CL_BASE;
-  CL = clamp(CL, -CL_MAX, CL_MAX);
-  const q = KL * V * V;
-  const kd = KD0;
-  const thr = p.fuel > 0 ? p.thr : 0, dn = airDen();   // 높이 올라갈수록 공기가 희박해 엔진 힘과 날개 양력이 줄어든다
-  return { aL: q * CL * (0.25 + 0.75 * dn), aD: kd * V * V + q * CL * CL * 0.06, aT: thr * dn * Math.min(AMAX, PWR / Math.max(V, 1)) };
+function clMax() { return CL_MAX + (p.gear ? CL_FLAP : 0); }
+function aero(V, alpha) {   // 앞쪽 기준(오른쪽·왼쪽을 보든 같다): alpha > 0 이면 기수가 비행 경로보다 위
+  const cl0 = CL_BASE + (p.gear ? CL_FLAP : 0), cm = clMax(), as = (cm - cl0) / 5;
+  const CL = alpha > as ? Math.max(0.5, cm - 2.8 * (alpha - as)) : Math.max(-cm, 5 * alpha + cl0);   // 임계 받음각을 넘으면 양력이 갑자기 줄어든다(실속)
+  const q = KL * V * V, thr = p.fuel > 0 ? p.thr : 0, dn = airDen();   // 높이 올라갈수록 공기가 희박해 엔진 힘과 날개 양력이 줄어든다
+  return { aL: q * CL * (0.25 + 0.75 * dn), aD: KD0 * V * V * (p.gear ? DRAG_GEAR : 1) + q * CL * CL * 0.06, aT: thr * dn * Math.min(AMAX, PWR / Math.max(V, 1)) };
 }
 function airDenAt(y) { return clamp(1 - Math.max(0, y - 250) / 400, 0.1, 1); }
 function airDen() { return airDenAt(p.y); }
-function stallKt() { return Math.sqrt(GRAV / (KL * CL_MAX * (0.25 + 0.75 * airDen()))) * KT; }   // 높이 올라갈수록 실속 속도가 올라간다
+function stallKt() { return Math.sqrt(GRAV / (KL * clMax() * (0.25 + 0.75 * airDen()))) * KT; }   // 높이 올라갈수록 실속 속도가 올라간다
 
 function liftLoss() {   // 속도가 느릴수록 양력이 모자란다: 실속 속도의 1.6배부터 서서히 늘어 실속 속도에서 1
   const st = stallKt(), full = st * 1.6, k = kts(); return clamp((full - k) / (full - st), 0, 1);
 }
+function surfaceUnder() { const xr = p.x - ship.x; return xr > -10 && xr < DECK_L + 10 ? DECK_Y + WH : Math.max(0, gh(p.x)); }
 function airStep(dt) {
   p.prevY = p.y;
-  let V = Math.hypot(p.vx, p.vy) || 0.01;
   if (p.turnPend) p.in = 0;   // 선회 대기 중에는 ▲▼ 를 받지 않는다
   if (p.off) {                            // 갑판에서 떨어지는 중: 조종 불가
     p.vy -= 11 * dt; p.vx *= 1 - 0.4 * dt; p.th += -p.s * 0.9 * dt;
@@ -137,46 +137,40 @@ function airStep(dt) {
     if (f >= 0.5 && !p.flipped) { p.s = -p.s; p.a = -p.a; p.flipped = true; }
     p.tp = (p.tp || 0) + (clamp(Math.atan2(p.vy, Math.max(Math.abs(p.v0) * 0.85, 25)), -0.6, 0.6) - p.tp) * Math.min(1, 4 * dt);   // 선회 중 기수 각도: 오르내리는 만큼 부드럽게 따라간다
     p.th = p.s > 0 ? p.tp : Math.PI - p.tp;
-    if (p.turn <= 0) { p.vx = -Math.sign(p.v0) * Math.max(Math.abs(p.v0) * 0.85, p.gear ? 0 : MIN_KT / KT); p.turn = 0; p.turnEndT = G.t; p.holdG = null; if (p.slowTurn) { p.stalled = true; p.slowTurn = false; G.msg = { text: 'Stalled by turning too slowly! Falling until you gain speed', until: G.t + 2.5 }; sfx('stall'); } }
+    if (p.turn <= 0) { p.vx = -Math.sign(p.v0) * Math.max(Math.abs(p.v0) * 0.85, p.gear ? 0 : MIN_KT / KT); p.turn = 0; p.turnEndT = G.t; p.gh = null; p.aw = 0; if (p.slowTurn) { p.stalled = true; p.slowTurn = false; G.msg = { text: 'Stalled by turning too slowly! Falling until you gain speed', until: G.t + 2.5 }; sfx('stall'); } }
     p.x += p.vx * dt; p.y = Math.min(MAX_ALT, p.y + p.vy * dt);
     return;
   }
-  const g = Math.atan2(p.vy, p.vx);
-  if (p.s * Math.cos(g) < -0.3 && Math.abs(p.in) < 0.2) { p.s = -p.s; p.a = -p.a; }   // 뒤집힌 채 놓으면 바로 선다
-  const aTrim = clamp((GRAV * 0.985 / (KL * V * V) - CL_BASE) / 5, -0.25, 0.25);   // 키를 안 눌러도 속도에 맞춰 수평에 가깝게 맞춰 준다
-  const pg = clamp(Math.pow(60 / V, 1.6), 0.3, 2.0);                                  // 빠를수록 같은 입력에 덜 꺾이게 해서 조작감을 같게 한다
-  let aCmd = p.s * clamp(aTrim + p.in * (p.in > 0 ? 0.6 : 0.48) * pg, -0.62, 0.62);   // 상승·하강 반응을 2배로 (조금만 눌러도 잘 오르내린다)
-  const recov = Math.max(TURN_KT + 20, stallKt() * 1.35);   // 이만큼 속도가 붙어야 실속에서 벗어난다
-  const climbA = Math.atan2(p.vy, Math.abs(p.vx));
-  if (!p.stalled && climbA > Math.PI / 3) { p.stalled = true; G.msg = { text: 'Climbed too steeply and stalled! The nose drops', until: G.t + 2.5 }; sfx('stall'); }   // 60도 넘게 오르면 실속
-  if (p.stalled && V * KT >= recov && climbA < 0.35) { p.stalled = false; G.msg = { text: 'Speed regained, out of the stall', until: G.t + 1.8 }; }
-  if (p.stalled || V * KT < stallKt()) { aCmd = p.s * -0.12; p.vy -= 6 * dt; }   // 실속: 조종이 듣지 않고 기수가 떨어진다
-  p.a += (aCmd - p.a) * Math.min(1, dt * 9);
-  p.th = g + p.a;
-  const f = aero(V, p.a), ux = p.vx / V, uy = p.vy / V;
-  p.vx += (f.aT * Math.cos(p.th) - f.aD * ux - f.aL * uy) * dt;
-  p.vy += (f.aT * Math.sin(p.th) - f.aD * uy + f.aL * ux - GRAV) * dt;
-  const lossD = liftLoss(); if (lossD > 0 && !p.stalled) p.vy -= 5.5 * lossD * lossD * dt * 1.0 + 1.2 * lossD * dt;   // 느리면 양력이 모자라 서서히 가라앉는다
-  if (p.neutral) {   // 손을 뗀 상태: 흔들림 없이 천천히 내려가고 속도도 안정된다
-    // 손을 뗀 상태: 항모 근처든 아니든 똑같이 난다 (갑판에 맞춰 주는 보정은 없다)
-    const hold = p.holdG !== null && p.holdG !== undefined && G.t - p.liftT >= 5;
-    if (hold && p.holdG > 0 && V * KT < stallKt() * 1.15) { p.holdG -= 0.3 * dt; if (p.holdG <= 0) p.holdG = null; }   // 너무 느려지면 기수가 서서히 내려간다
-    let vt = G.t - p.liftT < 5 ? 3 : hold ? Math.tan(p.holdG) * Math.abs(p.vx) : -2.5;   // 오르거나 내려가던 중에 손을 떼면 그 방향 그대로 부드럽게 난다
-    vt -= 4 * lossD;   // 느릴수록 더 빨리 가라앉는다
-    if (p.stalled || V * KT < stallKt()) vt = Math.min(vt, -8);   // 실속: 가라앉는다
-    p.vy += (vt - p.vy) * Math.min(1, 4 * dt);
-    const kV = clamp((p.y - 45) / 90, 0, 1);   // 낮을수록 천천히, 높을수록 빠르게 (위치와는 상관없다)
-    const Vt = (p.gear ? lerp(SLOW_KT, CRUISE_KT, kV) : Math.max(MIN_KT, lerp(SLOW_KT, CRUISE_KT, kV))) / KT;   // 손을 떼면 낮을수록 천천히 난다
-    p.vx += Math.sign(p.vx) * clamp((Vt - V) * 1.6, -12, 9 * airDen()) * dt;
-  }
-  if (!p.gear) { const Vm = MIN_KT / KT, V1 = Math.hypot(p.vx, p.vy); if (V1 < Vm && V1 > 0.01) { const kk = 1 + Math.min(1, 12 * dt) * (Vm / V1 - 1); p.vx *= kk; p.vy *= kk; } }   // 바퀴를 올리고 날 때는 150kt 아래로 느려지지 않는다
-  if (p.turnPend) {   // 선회 대기: 부드럽게 수평으로 돌아온 다음 선회한다
-    p.vy += (0 - p.vy) * Math.min(1, 2.2 * dt);
-    if (Math.abs(Math.atan2(p.vy, Math.abs(p.vx))) < 0.5) startTurn();
-  }
-  if (G.t - p.liftT < 4) p.vy = Math.min(p.vy, 1 + (G.t - p.liftT) * 3);
-  if (p.y > MAX_ALT - 80 && p.vy > 0) { p.vy = Math.min(p.vy, Math.max(0, MAX_ALT - p.y) * 0.4); }   // 600m 가까이 가면 부드럽게 멈춘다
+  if (p.s * Math.cos(Math.atan2(p.vy, p.vx)) < -0.3 && Math.abs(p.in) < 0.2) { p.s = -p.s; p.a = -p.a; }   // 뒤집힌 채 놓으면 바로 선다
+  const s = p.s;
+  let vf = p.vx * s, vy = p.vy;   // 앞쪽(기수 쪽) 속도와 수직 속도
+  const V = Math.max(1, Math.hypot(vf, vy)), gam = Math.atan2(vy, vf), kt = V * KT;   // 비행 경로각
+  const Vs = stallKt() / KT;
+  // 실속: 지금 속도로는 날개가 몸무게를 못 받친다(또는 너무 가파르게 올라 속도가 다 빠졌다). 조종이 듣지 않고 기수가 떨어진다
+  if (!p.stalled && (gam > 1.05 || V < Vs)) { p.stalled = true; p.gh = null; G.msg = { text: gam > 1.05 ? 'Climbed too steeply and stalled! The nose drops' : 'Stalling! Lower the nose and build speed', until: G.t + 2.5 }; sfx('stall'); }
+  if (p.stalled && kt >= Math.max(TURN_KT + 20, stallKt() * 1.35) && gam < 0.35) { p.stalled = false; p.gh = clamp(gam, -0.1, 0.05); G.msg = { text: 'Speed regained, out of the stall', until: G.t + 1.8 }; }
+  const dn = airDen(), df = 0.25 + 0.75 * dn, q = KL * V * V, cl0 = CL_BASE + (p.gear ? CL_FLAP : 0), cm = clMax(), as = (cm - cl0) / 5;
+  // 손을 떼면 그 순간의 비행 경로를 그대로 유지한다 (진짜 비행기가 자세를 유지하는 것과 같다). 바퀴를 내린 접근 중에는 완만한 활공 경사(약 -3도)를 유지한다
+  if (p.gh === undefined || p.gh === null) p.gh = gam;
+  if (Math.abs(p.in) > 0.05) p.gh = gam;
+  else if (p.turnPend) p.gh = 0;
+  else if (p.gear && p.neutral && G.t - p.liftT > 6) p.gh = Math.max(-0.055, p.gh - 0.15 * dt);
+  // 조종은 '몇 g로 당기는가'로 한다: 경로가 휘는 만큼 양력이 필요하고, 느릴수록 낼 수 있는 g가 작아진다 (속도가 모자라면 아무리 당겨도 안 올라간다)
+  let nCmd = Math.cos(gam) + clamp(8 * (p.gh - gam), -1.2, 1.2) + (p.in > 0 ? p.in * Math.min(3.2, 0.3 * V / GRAV) : p.in * Math.min(2.4, 0.22 * V / GRAV));   // 당기는 세기에도 한계: 느릴 때는 기수가 너무 빨리 돌지 않는다
+  nCmd = Math.max(-0.6, nCmd);
+  let aCmd = clamp(((nCmd * GRAV / (q * df)) - cl0) / 5, (-cm * 0.8 - cl0) / 5, as * 0.96);   // 그 g를 내는 데 필요한 받음각 (실속 받음각 아래로 제한)
+  if (p.stalled) aCmd = -0.14;
+  // 기수 회전에는 관성이 있다: 조종간을 당기면 기수가 먼저 들리고, 그 다음에 진행 방향이 따라 휜다
+  let al = s * p.a, aw = p.aw || 0;
+  aw += (42 * (aCmd - al) - 11 * aw) * dt; al = clamp(al + aw * dt, -0.6, 0.6); p.aw = aw;
+  const f = aero(V, al), h = p.y - surfaceUnder(), ge = 1 + 0.1 * clamp(1 - Math.max(0, h) / 8, 0, 1);   // 땅(갑판)에 가까우면 지면 효과로 양력이 조금 늘어난다
+  const th = gam + al, ux = vf / V, uy = vy / V, aL = f.aL * ge;
+  vf += (f.aT * Math.cos(th) - f.aD * ux - aL * uy) * dt;
+  vy += (f.aT * Math.sin(th) - f.aD * uy + aL * ux - GRAV) * dt;
+  if (p.y > MAX_ALT - 80 && vy > 0) { vy = Math.min(vy, Math.max(0, MAX_ALT - p.y) * 0.4); }   // 600m 가까이 가면 부드럽게 멈춘다
   if (p.y > 250 && kts() < stallKt() * 1.08 && (!G.toast || G.toast.until < G.t)) G.toast = { text: p.y > 420 ? 'Air too thin, stalling! Lower the nose and build speed' : 'Stalling! Lower the nose and build speed', grade: 'yellow', until: G.t + 2.5 };   // 고도 제한 대신 실속
+  const thF = Math.atan2(vy, vf) + al;
+  p.vx = vf * s; p.vy = vy; p.a = s * al; p.th = s > 0 ? thF : Math.PI - thF;
   p.x += p.vx * dt; p.y += p.vy * dt;
 }
 // 수평선에 대한 기수 각도 (어느 쪽을 보고 날든 같은 기준)
@@ -207,25 +201,30 @@ function deckStep(dt) {
     if (p.vr === 0) finish();
     return;
   }
-  // 이륙 활주: ◀·▶ 어느 쪽이든 바라보는 방향 키를 누르고 있으면 점점 빨라지고, 꼬리가 들리고, 갑판 끝에서 뜬다
-  const d = p.s > 0 ? 1 : -1, V = Math.abs(p.vr + ship.v), fwdK = d > 0 ? ctl.right : ctl.left, backK = d > 0 ? ctl.left : ctl.right;
+  // 이륙 활주: ◀·▶ 어느 쪽이든 바라보는 방향 키를 누르고 있으면 점점 빨라지고, 꼬리가 들리고, 기수를 들고(로테이션), 양력이 몸무게를 넘으면 떠오른다
+  const d = p.s > 0 ? 1 : -1, V = Math.abs(p.vr + ship.v), fwdK = d > 0 ? ctl.right : ctl.left, backK = d > 0 ? ctl.left : ctl.right, Vkt = V * KT;
   p.rollT = fwdK ? (p.rollT || 0) + dt : 0;
+  const cl0 = CL_BASE + CL_FLAP, cm = CL_MAX + CL_FLAP;
   {
-    const f = aero(V, 0.035 + Math.max(0, p.in) * 0.19);
-    let acc = (f.aT * 1.55 * LOADS[G.loadout].accel - f.aD - 0.4) * clamp(0.3 + p.rollT / 2.5, 0.3, 1);   // 처음엔 천천히, 누르고 있을수록 힘차게
+    let acc = 10.5 * p.thr * LOADS[G.loadout].accel * clamp(0.3 + p.rollT / 2.5, 0.3, 1) - KD0 * V * V * DRAG_GEAR - 0.4;   // 처음엔 천천히, 누르고 있을수록 힘차게
     if (!fwdK) acc = -4;    // 키를 놓으면 천천히 선다
     if (backK) acc = -12;   // 반대 키: 브레이크
     const sp = Math.max(0, p.vr * d + acc * dt); p.vr = sp * d;
     if (backK ? sp <= 0 : sp < TAXI_V && !fwdK) { p.mode = 'taxi'; p.go = false; p.lock = 0; if (backK) p.vr = 0; }   // 반대 키로 완전히 멈추면(돌아설 차례) 또는 손을 떼고 느려지면 갑판 이동으로
-    const tail = tailSit(V) + Math.max(0, p.in) * 0.12; p.th = d > 0 ? tail : Math.PI - tail;   // 빨라지면 꼬리가 들린다
+    const tail = tailSit(V);
+    if (!fwdK || p.pit === undefined) p.pit = tail;
+    let tgt = tail;   // 꼬리가 들린 뒤 로테이션 속도가 되면 기수를 든다 (▲ 로 조금 일찍·더 들 수 있고, ▼ 로 누를 수 있다)
+    if (fwdK && p.in >= -0.3 && Vkt >= ROTATE_KT - (p.in > 0.3 ? 10 : 0)) tgt = 0.17 + Math.max(0, p.in) * 0.05;
+    p.pit += clamp(tgt - p.pit, -0.5 * dt, 0.3 * dt);
+    p.th = d > 0 ? p.pit : Math.PI - p.pit;
   }
   p.xr += p.vr * dt;
   p.x = ship.x + p.xr; p.y = DECK_Y + WH; p.vx = p.vr + ship.v; p.vy = 0;
-  { const Vm = p.vr + ship.v;   // 150노트를 넘으면 갑판 중간에서도 떠오른다
-    if (p.xr > 0 && p.xr < DECK_L && Math.abs(Vm) * KT >= 150 && Math.sign(Vm) === d) { p.mode = 'air'; p.vx = Vm; p.vy = 0.5; p.a = 0.06 * d; p.tookOff = true; p.liftT = G.t; p.y = DECK_Y + WH + 0.05; p.x = ship.x + p.xr; p.turnPend = false; p.stalled = false; p.slowTurn = false; return; } }
-  if (p.xr > DECK_L + 1 || p.xr < -1) {   // 갑판 끝: 속도가 충분하면 떠오르고, 모자라면 떨어진다
-    const V2 = p.vr + ship.v;
-    if (Math.abs(V2) * KT >= TAKEOFF_KT && Math.sign(V2) === d) { p.mode = 'air'; p.vx = V2; p.vy = 0.5; p.a = 0.06 * d; p.tookOff = true; p.liftT = G.t; p.y = DECK_Y + WH + 0.05; p.x = ship.x + p.xr; p.turnPend = false; p.stalled = false; p.slowTurn = false; }
+  const Vm = p.vr + ship.v, liftOff = (vy0) => { p.mode = 'air'; p.vx = Vm; p.vy = vy0; p.a = d * Math.max(0.06, p.pit); p.aw = 0; p.gh = 0.08; p.tookOff = true; p.liftT = G.t; p.y = DECK_Y + WH + 0.05; p.x = ship.x + p.xr; p.turnPend = false; p.stalled = false; p.slowTurn = false; };
+  const aLg = KL * V * V * clamp(5 * Math.max(0, p.pit) + cl0, 0, cm) * 1.08;   // 지금 자세에서 날개가 내는 양력
+  if (p.xr > 0 && p.xr < DECK_L && Math.sign(Vm) === d && aLg >= GRAV * 1.03 && p.pit > 0.1) { liftOff(0.4); return; }
+  if (p.xr > DECK_L + 1 || p.xr < -1) {   // 갑판 끝: 속도가 충분하면 뱃머리에서 조금 가라앉았다가 떠오르고, 모자라면 떨어진다
+    if (Math.sign(Vm) === d && Vkt >= 72) { p.pit = Math.max(p.pit, 0.12); liftOff(Vkt >= TAKEOFF_KT ? 0.2 : -1.6); }
     else { p.mode = 'air'; p.a = 0.035; p.vy = -2; p.off = true; p.offWhy = 'Not enough takeoff speed, dropped off the end of the deck.'; }
   }
 }
@@ -238,9 +237,9 @@ function lsoSignal() {
   if (!((p.vx > 0 && xr < DECK_L) || (p.vx < 0 && xr > 0))) return null;
   const ahead = p.vx > 0 ? -xr : xr - DECK_L;   // 갑판 끝까지 남은 거리 (뒤에서 다가올 때)
   if (ahead > 0 && p.y - WH - DECK_Y < ahead * 0.03 + 1.5) return 'UNDER';
-  if (kts() > LAND_KT * 0.94) return 'FAST';
+  if (kts() > LAND_KT * 0.9) return 'FAST';
   if (p.vy < -LAND_SINK * 0.75) return 'LOW';
-  if (Math.abs(levelPitch()) > LAND_PITCH * 0.75) return 'HIGH';
+  if (levelPitch() > LAND_PITCH_HI * 0.8 || levelPitch() < LAND_PITCH_LO * 0.8) return 'HIGH';
   return 'ROGER';
 }
 
@@ -492,14 +491,15 @@ function checkContact() {
     if (p.turn > 0) return deckFail('A wing hit the deck mid-turn. You cannot land while turning.');
     const kt = kts(), pitch = levelPitch();
     if (!p.gear || p.s * p.vx <= 0) return deckFail('Touched down on something other than the wheels.');
-    if (p.vy < -LAND_SINK) return deckFail('Landed too hard. Come down gently.');
+    const deckVy = 3.5 * 0.7 * Math.cos(G.t * 0.7) * (1 - clamp(sinkProg() * 2, 0, 1)), relVy = p.vy - deckVy;   // 갑판도 파도에 따라 오르내린다: 갑판에 대한 상대 하강 속도로 판정
+    if (relVy < -LAND_SINK) return deckFail('Landed too hard. Come down gently.');
     if (kt > LAND_KT) {   // 너무 빠르면 부서지지 않고 튕겨 오른다
       p.vy = Math.min(12, 5 + (kt - LAND_KT) * 0.15); p.vx *= 0.96; p.y = DECK_Y + WH + 0.4; p.prevY = p.y; p.bounceT = G.t + 0.6; p.hp = Math.max(30, p.hp - 10);
       sfx('thump'); for (let i = 0; i < 10; i++) FX.push({ k: 'spark', x: p.x, y: DECK_Y + 0.3, vx: p.vx * 0.3 + (Math.random() - 0.5) * 20, vy: 3 + Math.random() * 10, life: 0.4, t: 0 });
       return;
     }
-    if (Math.abs(pitch) > LAND_PITCH) return deckFail('Not level. Nose too ' + (pitch > 0 ? 'high.' : 'low.'));
-    p.td = { kt, sink: -p.vy, pitch }; sfx('thump');
+    if (pitch > LAND_PITCH_HI || pitch < LAND_PITCH_LO) return deckFail('Not level. Nose too ' + (pitch > 0 ? 'high.' : 'low.'));
+    p.td = { kt, sink: -relVy, pitch }; sfx('thump');
     p.ld = p.s > 0 ? 1 : -1; const hx0 = xr - p.ld * HOOK_BACK;   // 후크가 처음 닿을 와이어: 진행 방향 앞쪽 첫 번째
     p.wx = p.ld > 0 ? (WIRES.find(w => w >= hx0) ?? null) : ([...WIRES].reverse().find(w => w <= hx0) ?? null);
     p.eng = false; p.relT = 0; p.gaArm = false;
@@ -511,8 +511,8 @@ function finish() {
   let grade, note;
   const wn = p.wx === null ? 0 : (p.ld > 0 ? WIRES.indexOf(p.wx) + 1 : WIRES.length - WIRES.indexOf(p.wx));
   if (wn === 0) { grade = 'brown'; note = 'Stopped on wheel brakes alone, no wire.'; }
-  else if (td.sink < 5.6 && td.kt < 112 && Math.abs(td.pitch) < 0.12) { grade = 'green'; note = wn + '-wire. Smooth and level. Perfect!'; }
-  else if (td.sink < 7) { grade = 'yellow'; note = td.kt >= 112 ? 'A little fast.' : Math.abs(td.pitch) >= 0.12 ? 'A little tilted.' : 'A little hard.'; }
+  else if (td.sink < 4.5 && td.kt < 118 && td.pitch > -0.04 && td.pitch < 0.2) { grade = 'green'; note = wn + '-wire. Smooth and level. Perfect!'; }
+  else if (td.sink < 5.8) { grade = 'yellow'; note = td.kt >= 118 ? 'A little fast.' : (td.pitch <= -0.04 || td.pitch >= 0.2) ? 'A little tilted.' : 'A little hard.'; }
   else { grade = 'brown'; note = wn + '-wire. Thump! But down safely.'; }
   G.fmTask = 'elev'; p.mode = 'taxi'; p.landing = false; p.vr = 0; p.flip = 0; p.pushT = 0; p.lock = G.t + 1.6; if (grade !== 'green' && grade !== 'yellow') sfx(grade); p.relT = G.t + 0.8;
   p.hp = Math.max(30, p.hp - ({ green: 0, yellow: 8, brown: 22 }[grade] || 0));   // 거칠게 내리면 기체가 상한다. 격납고에서 수리
@@ -2777,6 +2777,7 @@ function demoBot(dt) {
   const steer = a => { const pt = clamp(dir > 0 ? angd(a, 0) : angd(Math.PI, a), p.y - ground < 130 ? -0.06 : -0.36, 0.8), now = dir > 0 ? angd(p.th, 0) : angd(Math.PI, p.th), er = pt - now; return er > 0.012 ? 1 : er < -0.012 ? -1 : 0; };   // 위가 +: 왼쪽으로 날 때도 기수를 들면 +   // 급강하는 피한다: 내려다보는 각도에 한계를 둔다 (땅이 가까우면 더 작게)
   if (ld && ld.dist < 1000) u = steer(ld.ang);   // 적기가 있으면 선두 각도로 기수를 맞춘다
   else if (tgt && !en && Math.abs(tgt.x - p.x) < 750 && p.y - tgt.y > 20) u = steer(Math.atan2(tgt.y + 2 - p.y, tgt.x - p.x));   // 표적이 가까우면 기수를 표적에 맞춘다 (땅이 가까워지면 아래에서 다시 올라간다)
+  { const gm = Math.atan2(p.vy, Math.abs(p.vx)), room = clamp((kts() - stallKt() * 1.25) / 90 * 0.6, 0, 0.5); if (u > 0 && gm > room) u = gm > room + 0.12 ? -1 : 0; }   // 에너지 관리: 속도 여유가 적으면 가파르게 오르지 않고 속도를 붙인다 (진짜 비행기처럼)
   if (p.y - ground < (torpRun ? 17 : 50) || (p.vy < (torpRun ? -6 : -10) && p.y - ground < (torpRun ? 60 : 140)) || (p.vy < -25 && p.y - ground < 220) || (p.vy < -30 && p.y - ground < 80 - p.vy * 3.2)) u = 1;   // 빨리 내려가고 있으면 회복할 시간(약 3초)만큼 높을 때 미리 올린다
   else if (p.vy < -45) u = Math.max(u, 0);   // 너무 가파르게 내려가지 않는다           // 땅이 가까우면 올라간다
   const aim = (x, y, tol) => Math.abs(angd(Math.atan2(y - p.y, x - p.x), p.th)) < (tol || 0.03);   // 조준이 충분히 맞았을 때만 쏜다
@@ -3344,17 +3345,20 @@ function autoFly(dt) {
   else if (p.mode === 'air') {
     if (p.turn > 0) tgt = 0.2;                 // 선회 중에는 출력이 줄어든다
     else if (fwd) tgt = 1;                     // 가는 방향 키: 출력 최대
-    else if (ctl.up) tgt = 0.85;               // 올라갈 때는 출력을 보탠다
-    else if (ctl.down) tgt = 0.1;
+    else if (ctl.up && !p.gear) tgt = 0.85;    // 올라갈 때는 출력을 보탠다 (바퀴를 내린 접근 중에는 속도 유지 장치가 맡는다)
+    else if (ctl.down && !p.gear) tgt = 0.1;
     else tgt = 0.25;
     const nn = p.turn <= 0 && !fwd && !ctl.up && !ctl.down;
-    if (nn && !p.neutral && p.mode === 'air') { const gm = Math.atan2(p.vy, Math.abs(p.vx)); p.holdG = Math.abs(gm) > 0.05 && G.t - (p.turnEndT || -9) > 0.6 ? gm : null; }   // 선회 직후에는 기억하지 않는다   // 손을 뗀 순간의 비행 방향을 기억한다 (수평에 가까우면 예전처럼 천천히 내려간다)
     p.neutral = nn;
+    if (p.turn <= 0 && !fwd && (p.gear || nn)) {   // 손을 뗐다: 목표 속도(바퀴를 내렸으면 접근 속도, 아니면 순항, 낮을수록 느리게)를 지키도록 추력을 맞춘다
+      const kV = clamp((p.y - 45) / 90, 0, 1), Vt = (p.gear ? APP_KT : lerp(SLOW_KT, CRUISE_KT, kV)) / KT, V = Math.hypot(p.vx, p.vy), gm = Math.atan2(p.vy, Math.abs(p.vx));
+      tgt = clamp((KD0 * V * V * (p.gear ? DRAG_GEAR : 1) * 1.2 + GRAV * Math.sin(gm)) / (AMAX * Math.max(0.2, airDen())) + 0.06 * (Vt - V), 0.05, 1);
+    }
     const far = Math.abs(p.x - ship.x - DECK_L / 2);   // 바퀴는 항모 가까이에서 낮게 날 때만 내린다
     const since = G.t - p.liftT;   // 이륙한 지 몇 초째인가
     const climbed = since > 2.5 && since < 15 && p.y > DECK_Y + WH + 15;   // 이륙하고 어느 정도 날아오른 뒤에 바퀴를 접는다
-    if (p.gear && (climbed || far > APP_R + 150 || p.y > 100)) { p.gear = false; }
-    if (!p.gear && since > 15 && far < APP_R && p.y < 80) { p.gear = true; }   // 항모 주변(500m 안)에서 낮게 날 때만 내린다
+    if (p.gear && (climbed || far > APP_R + 650 || p.y > 110)) { p.gear = false; }
+    if (!p.gear && since > 15 && far < APP_R + 500 && p.y < 110) { p.gear = true; }   // 항모 주변에서 낮게 날 때만 내린다. 바퀴·플랩의 항력이 커서 갑판에 닿기 전에 접근 속도까지 줄어든다
   }
   if (p.mode !== 'air') p.neutral = false;
   p.thr += (tgt - p.thr) * Math.min(1, dt * 9);

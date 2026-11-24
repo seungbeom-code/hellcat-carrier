@@ -840,7 +840,7 @@ function drawCustomShip(c, t, U) {
   c.restore();
 }
 const BUSH = [];   // 덤불: 숲 바닥을 채우는 장식 (부딪히지 않는다)
-const TARGETS = [], PROJ = [], TREES = [], ENE = [], EB = [], FLAK = [], SOLD = [];
+const TARGETS = [], PROJ = [], TREES = [], ENE = [], EB = [], FLAK = [], SOLD = [], AAT = [];   // AAT: 우리 항모 대공포탄 (예광탄이 날아가 터진다)
 const ES = { zero: { v: 149, n: 6.5, hp: 3 }, ace: { v: 162, n: 7.5, hp: 6 }, n1k: { v: 167, n: 7.0, hp: 7 }, d4y: { v: 105, n: 2.6, hp: 6 }, b6n: { v: 100, n: 2.2, hp: 7 } };   // 속도(m/s), 견딜 수 있는 선회 g, 체력
 const TINTS = { day: ['#4f9ad6', '#bfe4f5'], dawn: ['#3b5f99', '#f0b49a'], dusk: ['#4a4f8c', '#f2a65a'], night: ['#0b1430', '#2a3f66'] };
 const ZR = 'zero', OFF = 3000;   // 작전 배치 좌표에서 3km를 빼서 섬을 항모에 가깝게 둔다
@@ -1038,7 +1038,7 @@ function startMission(i) {
   G.m = { t: 0, kills: 0, zeros: 0, ace: false, landings: 0, greens: 0, crashes: 0, wave: 0, hits: [], done: false, obj: false, flag: 0, runwayFirst: false, revived: 0 };
   G.gunHint = 0; G.gunHintT = 0; G.camWing = false;
   G.loadout = M.goal === 'fleet' ? 2 : 0;   // 시작 무장: 함대 공격은 어뢰, 나머지는 로켓
-  ENE.length = 0; EB.length = 0; FLAK.length = 0; FX.length = 0; PROJ.length = 0; SOLD.length = 0; SHELL.length = 0; WRECKS.length = 0; G.tick = []; G.fmx = undefined; G.depX = undefined; G.fmTask = undefined; G.fmDir = 1;
+  ENE.length = 0; EB.length = 0; FLAK.length = 0; AAT.length = 0; FX.length = 0; PROJ.length = 0; SOLD.length = 0; SHELL.length = 0; WRECKS.length = 0; G.tick = []; G.fmx = undefined; G.depX = undefined; G.fmTask = undefined; G.fmDir = 1;
   ship.x = -500; G.t = 0;
   // 섬은 1.5배 길게, 섬과 섬 사이 바다는 4.5배 넓게 (원래 배치 좌표를 새 좌표로 옮기는 구간별 직선)
   const SC = 1.5, GAP = 4.5, BP = [];
@@ -1519,7 +1519,6 @@ function enemyStep(dt) {
     const fwd = Math.cos(e.h) >= 0 ? 1 : -1; let gA = 0; for (let k = 0; k <= 8; k++) gA = Math.max(gA, gh(e.x + fwd * k * 70));
     const diving = e.st === 'dive';
     if (!diving) ty = Math.max(ty, gA + (bomber && e.type === 'b6n' ? 22 : 70));
-    if (bomber && Math.abs(e.x - cx) < 900) e.hp -= dt * 1.6;   // 항모의 대공포
     if (e.hp <= 0) { killEnemy(e); continue; }
     // 비행 역학: 목표 쪽으로 단숨에 꺾지 않는다. 기수 변화 속도(e.wh)가 서서히 붙고(조종 지연), 올리는 쪽은 g 한계, 내리는 쪽은 그보다 약하다.
     // 방향을 뒤집을 때는 위아래로 한 바퀴 도는 대신 수평 선회를 한다 (옆에서 보면 기체가 짧아졌다가 반대쪽으로 나온다).
@@ -1652,6 +1651,26 @@ function altDmgK() {   // 지상·해상 대공화기의 피해 배율: 저공�
   return h <= 40 ? 1.8 : h <= 150 ? lerp(1.8, 1.0, (h - 40) / 110) : h <= 350 ? lerp(1.0, 0.35, (h - 150) / 200) : lerp(0.35, 0.12, clamp((h - 350) / 200, 0, 1));
 }
 const FLAK_R = 38, FLAK_MAX = 5;   // 대공포탄 파편이 닿는 거리(m)와 바로 옆에서 터졌을 때 피해
+const MYAA_R = 1100, MYAA_HIT = 0.35;   // 우리 항모 대공포: 사거리(m), 포탄이 가까이에서 터졌을 때 실제로 파편에 맞을 확률
+function myAAStep(dt) {   // 우리 항모의 대공포: 다가오는 폭격기에 예광탄을 쏘고, 하늘에서 터진 포탄 근처에 있으면 확률적으로 조금 피해를 준다
+  const cx = ship.x + DECK_L / 2, ok = G.scene === 'play' || G.scene === 'title';
+  if (ok && G.carrierHp > 0) for (const e of ENE) {
+    if (e.dead || (e.type !== 'd4y' && e.type !== 'b6n')) continue;
+    const d = Math.hypot(e.x - cx, e.y - DECK_Y); if (d > MYAA_R) continue;
+    e.aaT = (e.aaT === undefined ? Math.random() * 0.8 : e.aaT) - dt; if (e.aaT > 0) continue; e.aaT = 0.9 + Math.random() * 0.5;
+    for (let k = 0; k < 2; k++) { const gx = ship.x + DECK_L * (0.2 + Math.random() * 0.6), gy = DECK_Y + 5, f = 0.5 + d / 900, err = 45 + d * 0.06;
+      const bx = e.x + Math.cos(e.h) * e.v * f + (Math.random() - 0.5) * err * 2, by = e.y + Math.sin(e.h) * e.v * f + (Math.random() - 0.5) * err;
+      AAT.push({ x0: gx, y0: gy, x: bx, y: Math.max(by, DECK_Y + 25), t: f, life: f }); }
+    if (Math.random() < 0.5) sfx('egun', { x: cx });
+  }
+  for (let i = AAT.length - 1; i >= 0; i--) {
+    const q = AAT[i]; q.t -= dt; if (q.t > 0) continue;
+    FX.push({ k: 'flak', x: q.x, y: q.y, vx: 0, vy: 1, life: 1.1, t: 0 }); if (Math.random() < 0.4) sfx('boom', { k: 'flak', x: q.x });
+    for (const e of ENE) { if (e.dead || (e.type !== 'd4y' && e.type !== 'b6n')) continue; const fd = Math.hypot(e.x - q.x, e.y - q.y);
+      if (fd < 32 && Math.random() < MYAA_HIT) { e.hp -= 0.4 + 1.2 * (1 - fd / 32); if (e.hp <= 0) killEnemy(e); } }   // 맞아도 대부분은 작은 파편 피해
+    AAT.splice(i, 1);
+  }
+}
 function flakStep(dt) {
   for (const t of TARGETS) {
     if (!t.alive || !AA_N[t.type] || (t.type === 'cave' && !isOpen(t))) continue;
@@ -2826,6 +2845,8 @@ function drawEnemies(c) {
   }
 }
 function drawProj(c) {
+  for (const q of AAT) { const k = 1 - q.t / q.life, x = q.x0 + (q.x - q.x0) * k, y = q.y0 + (q.y - q.y0) * k, L = Math.hypot(q.x - q.x0, q.y - q.y0) || 1, ux = (q.x - q.x0) / L, uy = (q.y - q.y0) / L;   // 우리 대공포 예광탄
+    c.lineCap = 'round'; c.strokeStyle = 'rgba(255,190,70,0.75)'; c.lineWidth = Math.max(1.4, 0.45 * cam.z); c.beginPath(); c.moveTo(sx(x), sy(y)); c.lineTo(sx(x - ux * 14), sy(y - uy * 14)); c.stroke(); c.lineCap = 'butt'; }
   for (const b of EB) if (b.tr) { const x2 = b.x - b.vx * 0.05, y2 = b.y - b.vy * 0.05; c.lineCap = 'round'; c.strokeStyle = 'rgba(255,60,40,0.55)'; c.lineWidth = Math.max(1.5, 0.55 * cam.z); c.beginPath(); c.moveTo(sx(b.x), sy(b.y)); c.lineTo(sx(x2), sy(y2)); c.stroke(); c.strokeStyle = '#ffd0c0'; c.lineWidth = Math.max(0.8, 0.25 * cam.z); c.beginPath(); c.moveTo(sx(b.x), sy(b.y)); c.lineTo(sx(b.x - b.vx * 0.035), sy(b.y - b.vy * 0.035)); c.stroke(); c.lineCap = 'butt'; }   // 적 전투기 예광탄
   for (const q of PROJ) {
     if (q.k === 'b') {   // 보통 탄은 보이지 않고, 예광탄만 밝은 줄로 보인다
@@ -3377,7 +3398,7 @@ function update(dt) {
   if (p.mode === 'deck' || p.mode === 'taxi' || p.mode === 'dslide') { const xr = p.x - ship.x; if (xr > -4 && xr < DECK_L + 4) p.y = Math.max(p.y, DECK_Y + WH - (p.mode === 'dslide' ? 0.4 : 0)); }   // 바퀴가 갑판에 닿아 있으면 출렁이는 갑판 높이에 맞춰 갑판 밑으로 내려가지 않는다
   if (p.mode === 'air' || (p.mode === 'deck' && !p.held)) p.fuel = Math.max(0, p.fuel - (0.03 + 0.25 * p.thr) * dt);
   G.lso = lsoSignal(); fireStep(dt); stepProj(dt); missionStep(dt); wingStep(dt);
-  { const rp = p; p = foePick(); try { enemyStep(dt); ebStep(dt); flakStep(dt); shellStep(dt); quadStep(dt); towerStep(dt); shipMgStep(dt); } finally { p = rp; } }
+  { const rp = p; p = foePick(); try { enemyStep(dt); ebStep(dt); flakStep(dt); myAAStep(dt); shellStep(dt); quadStep(dt); towerStep(dt); shipMgStep(dt); } finally { p = rp; } }
   stepFx(dt);
 }
 

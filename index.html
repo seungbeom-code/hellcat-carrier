@@ -27,13 +27,13 @@ const CL_FLAP = 0.15, DRAG_GEAR = 3.5;   // 바퀴(와 플랩)를 내리면 양�
 const CL_MAX = 1.17, CL_BASE = 0.35;   // 실속 속도 약 85노트 (그 아래에서는 날개가 양력을 못 낸다)
 const SHIP_V = 11;                 // 갑판 맞바람 30노트
 let DECK_Y = 20, shipBob = 0; const DECK_Y0 = 20, DECK_L = 520, WH = 3.2, CS = DECK_L / 260, ISL_DX = 124;   // 갑판 길이는 예전의 2배 (선체 그림은 가로로 2배로 늘이고, 함교는 그대로 두고 자리만 옮긴다)   // 갑판 높이, 길이, 바퀴 밑까지 거리
-const ZONE_B = 196, ZONE_A = 85, ZONE_L = ZONE_B - ZONE_A;   // 어레스팅 와이어 구역: 와이어 3개 (예전 4개에서 선미 쪽 하나를 줄여 함 중앙 쪽으로 좁혔다)
+const ZONE_B = 240, ZONE_A = 85, ZONE_L = ZONE_B - ZONE_A;   // 어레스팅 와이어 구역: 와이어 3개 (예전 4개에서 선미 쪽 하나를 줄여 함 중앙 쪽으로 좁혔다)
 const WIRES = [0, 1, 2].map(i => ZONE_A + 10 + i * (ZONE_L - 20) / 2);
 const TURN_T = 3.2;   // 선회에 걸리는 시간(초): 예전의 2배라 회전 반경도 2배
-const HOOK_BACK = 7.5, CRUISE_KT = 270, SLOW_KT = 180, APP_KT = 98;   // 후크 끝 위치, 손을 뗐을 때 순항 속도, 항모 근처 접근 속도
+const HOOK_BACK = 7.5, CRUISE_KT = 270, SLOW_KT = 180, APP_KT = 120;   // 후크 끝 위치, 손을 뗐을 때 순항 속도, 항모 근처 접근 속도
 const MIN_KT = 150;   // 날고 있을 때(바퀴를 올린 상태) 속도는 이 아래로 떨어지지 않는다. 방향 전환 중에도 마찬가지
-const TAKEOFF_KT = 112, ROTATE_KT = 108, TURN_KT = 100;   // 이륙과 선회에 필요한 최소 속도
-const LAND_KT = 135, LAND_SINK = 6.5, LAND_PITCH = 0.22, LAND_PITCH_HI = 0.30, LAND_PITCH_LO = -0.12;   // 착함 허용 한계: 속도, 가라앉는 속도, 기울기
+const TAKEOFF_KT = 138, ROTATE_KT = 132, TURN_KT = 100;   // 이륙과 선회에 필요한 최소 속도
+const LAND_KT = 160, LAND_SINK = 7.5, LAND_PITCH = 0.22, LAND_PITCH_HI = 0.30, LAND_PITCH_LO = -0.12;   // 착함 허용 한계: 속도, 가라앉는 속도, 기울기
 const MAX_ALT = 600;   // 최고 고도: 나도 적기도 이 위로는 못 올라간다
 const CEIL = 500;   // 지도에서 고도를 그리는 기준(m). 실제 고도 제한은 없고 높이 올라가면 실속한다
 const SINK_T = 18, SINK_DEPTH = 74;   // 항모가 가라앉는 데 걸리는 시간(초), 마지막에 함교 꼭대기까지 잠기는 깊이
@@ -206,7 +206,7 @@ function deckStep(dt) {
   p.rollT = fwdK ? (p.rollT || 0) + dt : 0;
   const cl0 = CL_BASE + CL_FLAP, cm = CL_MAX + CL_FLAP;
   {
-    let acc = 14.5 * p.thr * LOADS[G.loadout].accel * clamp(0.3 + p.rollT / 2.5, 0.3, 1) - KD0 * V * V * DRAG_GEAR - 0.4;   // 처음엔 천천히, 누르고 있을수록 힘차게
+    let acc = 20 * p.thr * LOADS[G.loadout].accel * clamp(0.3 + p.rollT / 2.5, 0.3, 1) - KD0 * V * V * DRAG_GEAR - 0.4;   // 처음엔 천천히, 누르고 있을수록 힘차게
     if (!fwdK) acc = -4;    // 키를 놓으면 천천히 선다
     if (backK) acc = -12;   // 반대 키: 브레이크
     const sp = Math.max(0, p.vr * d + acc * dt); p.vr = sp * d;
@@ -224,7 +224,7 @@ function deckStep(dt) {
   const aLg = KL * V * V * clamp(5 * Math.max(0, p.pit) + cl0, 0, cm) * 1.08;   // 지금 자세에서 날개가 내는 양력
   if (p.xr > 0 && p.xr < DECK_L && Math.sign(Vm) === d && aLg >= GRAV * 1.03 && p.pit > 0.1) { liftOff(0.4); return; }
   if (p.xr > DECK_L + 1 || p.xr < -1) {   // 갑판 끝: 속도가 충분하면 뱃머리에서 조금 가라앉았다가 떠오르고, 모자라면 떨어진다
-    if (Math.sign(Vm) === d && Vkt >= 92) { p.pit = Math.max(p.pit, 0.12); liftOff(Vkt >= TAKEOFF_KT ? 0.2 : -1.6); }
+    if (Math.sign(Vm) === d && Vkt >= 112) { p.pit = Math.max(p.pit, 0.12); liftOff(Vkt >= TAKEOFF_KT ? 0.2 : -1.6); }
     else { p.mode = 'air'; p.a = 0.035; p.vy = -2; p.off = true; p.offWhy = 'Not enough takeoff speed, dropped off the end of the deck.'; }
   }
 }
@@ -511,8 +511,8 @@ function finish() {
   let grade, note;
   const wn = p.wx === null ? 0 : (p.ld > 0 ? WIRES.indexOf(p.wx) + 1 : WIRES.length - WIRES.indexOf(p.wx));
   if (wn === 0) { grade = 'brown'; note = 'Stopped on wheel brakes alone, no wire.'; }
-  else if (td.sink < 4.5 && td.kt < 118 && td.pitch > -0.04 && td.pitch < 0.2) { grade = 'green'; note = wn + '-wire. Smooth and level. Perfect!'; }
-  else if (td.sink < 5.8) { grade = 'yellow'; note = td.kt >= 118 ? 'A little fast.' : (td.pitch <= -0.04 || td.pitch >= 0.2) ? 'A little tilted.' : 'A little hard.'; }
+  else if (td.sink < 5.2 && td.kt < 142 && td.pitch > -0.06 && td.pitch < 0.2) { grade = 'green'; note = wn + '-wire. Smooth and level. Perfect!'; }
+  else if (td.sink < 6.6) { grade = 'yellow'; note = td.kt >= 142 ? 'A little fast.' : (td.pitch <= -0.06 || td.pitch >= 0.2) ? 'A little tilted.' : 'A little hard.'; }
   else { grade = 'brown'; note = wn + '-wire. Thump! But down safely.'; }
   G.fmTask = 'elev'; p.mode = 'taxi'; p.landing = false; p.vr = 0; p.flip = 0; p.pushT = 0; p.lock = G.t + 1.6; if (grade !== 'green' && grade !== 'yellow') sfx(grade); p.relT = G.t + 0.8;
   p.hp = Math.max(30, p.hp - ({ green: 0, yellow: 8, brown: 22 }[grade] || 0));   // 거칠게 내리면 기체가 상한다. 격납고에서 수리

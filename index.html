@@ -1233,7 +1233,7 @@ function drawParked(c, t, burnt) {
     c.restore();
   });
 }
-function spawnEnemy(type, x, y) { ENE.push({ type, x, y, h: Math.PI, v: ES[type].v, bank: 0, att: false, xt: 0, seeT: 0, sx: x, sy: y, svx: 0, svy: 0, ex: 0, ey: 0, hp: ES[type].hp, st: 'app', tm: 0, bt: 0, cd: 1 + Math.random() * 2, rel: false, dead: false, vx: 0, vy: 0, btm: 0 }); }
+function spawnEnemy(type, x, y, rank) { const ftr = type !== 'd4y' && type !== 'b6n', rk = ftr ? (rank || enemyRank(type, (G.cur && G.cur.lvl) || 1)) : 0; ENE.push({ rk, vk: ftr ? RK_V[rk] : 1, nk: ftr ? RK_G[rk] : 1, type, x, y, h: Math.PI, v: ES[type].v, bank: 0, att: false, xt: 0, seeT: 0, sx: x, sy: y, svx: 0, svy: 0, ex: 0, ey: 0, hp: ES[type].hp * (ftr ? RK_HP[rk] : 1), hpM: ES[type].hp * (ftr ? RK_HP[rk] : 1), st: 'app', tm: 0, bt: 0, cd: 1 + Math.random() * 2, rel: false, dead: false, vx: 0, vy: 0, btm: 0 }); }
 function spawnWave(l) { const m = G.m; (m.queue = m.queue || []).push(...l); }
 function hitCarrier(d) { if (G.sink) return; G.carrierHp = Math.max(0, G.carrierHp - d); explode(ship.x + 60 + Math.random() * (DECK_L - 120), DECK_Y + 2, 18, 'none', false); G.toast = { text: 'The carrier is hit!', grade: 'brown', until: G.t + 3 }; }
 function hurt(d, why) {
@@ -1385,11 +1385,84 @@ function missionStep(dt) {
     }
   }
 }
+// ===== 적기 계급(1~5단계)과 특수 기동 =====
+const RANK_COL = ['', '#cfd6df', '#8fd0ff', '#7be07f', '#ffd23f', '#ff6b4a'];   // 신참 · 정규 · 베테랑 · 에이스 · 달인
+const RK_HP = [0, 0.85, 1, 1.15, 1.3, 1.5], RK_ERR = [0, 1.5, 1.2, 1, 0.75, 0.5], RK_V = [0, 0.96, 1, 1.03, 1.06, 1.09], RK_G = [0, 0.85, 0.95, 1, 1.07, 1.15];   // 체력·조준 오차·속도·선회력 배율
+const MV = { bnz: { n: 'Boom & Zoom', k: '붐 앤 줌' }, lyy: { n: 'Low Yo-Yo', k: '로우 요요' }, hyy: { n: 'High Yo-Yo', k: '하이 요요' }, ssp: { n: 'Split-S', k: '스플릿 S' }, imm: { n: 'Immelmann', k: '이멜만 턴' }, scs: { n: 'Scissors', k: '시저스' }, brl: { n: 'Barrel Roll', k: '배럴 롤' }, hin: { n: 'Hineri-komi', k: '힌네리코미' }, ham: { n: 'Hammerhead', k: '해머헤드' }, luf: { n: 'Lufbery Circle', k: '루프베리 서클' } };
+function enemyRank(type, L) {   // 임무 레벨 4단계마다 한 계급씩 오르고, 개체마다 ±1 차이가 난다 (에이스·시덴은 한 계급 위)
+  let r = clamp(Math.ceil(L / 4), 1, 5);
+  if (L >= 3) { const q = Math.random(); if (q < 0.25) r++; else if (q > 0.85 && r > 1) r--; }
+  if (type === 'ace' || type === 'n1k') r++;
+  return clamp(r, 1, 5);
+}
+function mvStart(e, k) {
+  e.mv = k; e.mvT = 0; e.mvPh = 0; e.mvA = 0; e.mvLast = k; e.mvD = Math.cos(e.h) >= 0 ? 1 : -1; delete e.fl;
+  if (k === 'ssp') e.fl = e.mvD > 0; else if (k === 'imm' || k === 'hin' || k === 'scs') e.fl = e.mvD < 0;   // 뒤집힌 채/연속 회전하는 동안 기체 그림이 튀지 않게 방향을 고정
+  if (k === 'ssp' || k === 'scs' || k === 'hin') e.att = false;
+}
+function mvEnd(e) {
+  const k = e.mv; e.mv = null; e.mvCd = (10 - 1.3 * (e.rk || 1)) * (0.7 + Math.random() * 0.7); e.mvShow = G.t + 1.1; delete e.fl; e.h = Math.atan2(Math.sin(e.h), Math.cos(e.h));
+  if (k === 'bnz') { e.st = 'ext'; e.up = true; e.xt = 2.6; e.att = false; e.cd = 1.3; e.bt = 0; }   // 한 번 쏘고 속도로 다시 솟구친다
+  else if (k === 'ssp') { e.st = 'ext'; e.up = false; e.xt = 1.4; e.att = false; }
+  else if (k === 'imm') { e.st = 'app'; e.att = false; }
+  else if (k === 'scs' || k === 'hin' || k === 'ham') { e.st = 'app'; e.att = true; }
+}
+function mvStep(e, dt, c) {   // 특수 기동을 시작·진행한다. 돌려주는 값: { tx, ty, wm } 목표점 바꾸기 / { rate } 정해진 각속도로 직접 회전 / null 평소대로
+  const rk = e.rk || 1; if (rk < 2) return null;
+  const S = c.S, dP = Math.hypot(p.x - e.x, p.y - e.y), hgt = e.y - c.gA, pd = Math.cos(p.th) >= 0 ? 1 : -1;
+  if (e.mv && e.mv !== 'imm' && e.st !== 'app') { mvEnd(e); return null; }
+  if (!e.mv) {
+    e.mvCd = (e.mvCd === undefined ? 3 + Math.random() * 3 : e.mvCd) - dt;
+    if (e.mvCd > 0 || e.stall || G.scene === 'result') return null;
+    if (e.st !== 'app') return null;
+    const tailed = dP < 450 && Math.abs(angd(Math.atan2(e.y - p.y, e.x - p.x), p.th)) < 0.5, L = [];
+    if (tailed) {   // 뒤를 잡혔을 때의 방어 기동
+      if (rk >= 3 && hgt > 240) L.push('ssp');
+      if (rk >= 4 && hgt > 100 && e.y < MAX_ALT - 300) L.push('scs');
+      if (rk >= 5 && hgt > 150 && e.y < MAX_ALT - 250) L.push('hin');
+      if (L.length && Math.random() < dt * 1.4) { mvStart(e, L[(Math.random() * L.length) | 0]); }
+    } else if (e.att) {   // 공격 기동
+      if (rk >= 2 && dP > 900 && dP < 2400 && e.y < p.y + 260 && e.y < MAX_ALT - 340) L.push('bnz');
+      if (rk >= 3 && dP > 650 && dP < 1700 && e.y > p.y + 10 && hgt > 200) L.push('lyy');
+      if (rk >= 4 && dP > 140 && dP < 480 && e.v > S.v * 0.8 && e.y < MAX_ALT - 300) L.push('hyy');
+      if (rk >= 5 && dP > 450 && dP < 1100) L.push('brl');
+      if (rk >= 5 && dP > 400 && dP < 1200 && e.y < MAX_ALT - 340 && hgt > 130) L.push('ham');
+      if (L.length && Math.random() < dt * 0.45) mvStart(e, L[(Math.random() * L.length) | 0]);
+    }
+    if (!e.mv) return null;
+  }
+  e.mvT += dt; const k = e.mv, rot = (sgn, rate, tot) => { if (e.mvA >= tot - 1e-6) return null; const st = Math.min(rate * dt, tot - e.mvA); e.mvA += st; return { rate: sgn * st / dt }; };
+  if (k === 'ssp' || k === 'imm' || k === 'hin') {
+    if ((k !== 'imm' && hgt < 50 && Math.sin(e.h) < -0.3) || e.mvT > 6) { mvEnd(e); return null; }   // 땅이 가까우면 중단
+    const r = k === 'ssp' ? rot(-e.mvD, 1.9, Math.PI) : k === 'imm' ? rot(e.mvD, 1.6, Math.PI) : rot(e.mvD, 2.0, 2 * Math.PI);
+    if (!r) { mvEnd(e); return null; } return r;
+  }
+  if (k === 'scs') {   // 위로 한 번, 반대쪽으로 한 번 연달아 뒤집어 상대가 앞으로 튀어나가게 한다
+    if (e.mvT > 7) { mvEnd(e); return null; }
+    const r = rot(e.mvPh === 0 ? e.mvD : -e.mvD, 2.4, Math.PI); if (r) return r;
+    if (e.mvPh === 0) { e.mvPh = 1; e.mvA = 0; return { rate: 0 }; } mvEnd(e); return null;
+  }
+  if (k === 'bnz') {
+    if (e.mvPh === 0) { if (e.y > p.y + 190 || e.mvT > 4.5 || dP < 420) { e.mvPh = 1; e.mvT = 0; } else return { tx: p.x - pd * 350, ty: Math.min(p.y + 300, MAX_ALT - 40), wm: 1.1 }; }   // 먼저 높이 올라 에너지를 모은다
+    if (dP < 150 || e.mvT > 5) { mvEnd(e); return null; }
+    const tl = clamp(dP / (e.v + 60), 0.4, 1.6); return { tx: e.sx + e.svx * tl + e.ex, ty: e.sy + e.svy * tl + e.ey + 4 };   // 그다음 위에서 곧장 내리꽂는다
+  }
+  if (k === 'lyy') { if (e.mvT > 1.4 || !e.att) { mvEnd(e); return null; } return { tx: p.x, ty: Math.max(p.y - 140, c.gA + 90) }; }   // 아래로 파고들어 속도를 얻은 뒤 올라붙는다
+  if (k === 'hyy') { if (e.mvT > 1.3) { mvEnd(e); return null; } return { tx: e.x + e.mvD * 300, ty: e.y + 260, wm: 1.25 }; }   // 위로 솟아 속도를 죽이고 다시 내려온다
+  if (k === 'brl') { if (e.mvT > 2.4 || dP < 230 || !e.att) { mvEnd(e); return null; } return { tx: c.tx, ty: c.ty + Math.sin(e.mvT * 6.5) * 90, wm: 1.3 }; }   // 나선을 그리며 접근
+  if (k === 'ham') {
+    if (e.mvPh === 0) { const a = angd(Math.PI / 2, e.h); if (Math.abs(a) < 0.08 || e.mvT > 2.2) { e.mvPh = 1; e.mvT = 0; } else return { rate: Math.sign(a) * 1.7 }; }
+    if (e.mvPh === 1) { if (e.mvT > 1.3) { e.mvPh = 2; e.mvT = 0; } else { e.h = Math.PI / 2; return { rate: 0 }; } }   // 수직 상승하다 속도가 죽으면
+    const a = angd(Math.atan2(p.y - e.y, p.x - e.x), e.h); if (Math.abs(a) < 0.25 || e.mvT > 1.6) { mvEnd(e); return null; }
+    return { rate: Math.sign(a) * 2.5 };   // 기수를 뒤집어 내 쪽으로 급강하
+  }
+  mvEnd(e); return null;
+}
 function enemyStep(dt) {
   let att = 0; for (const e of ENE) if (!e.dead && e.att) att++;
   const lvlN = (G.cur && G.cur.lvl) || 1, attMax = lvlN >= 8 ? 3 : 2, aggr = clamp(0.4 + lvlN / 40, 0.4, 0.9);   // 레벨이 오를수록 더 많이, 더 정확하게 덤빈다
   for (let i = ENE.length - 1; i >= 0; i--) {
-    const e = ENE[i], S = ES[e.type]; e.tm += dt;
+    const e = ENE[i], S0 = ES[e.type], S = e.vk && e.vk !== 1 ? { v: S0.v * e.vk, n: S0.n * e.nk, hp: S0.hp } : S0; e.tm += dt;
     if (e.dead) {
       if (e.slide) {   // 섬에 떨어진 적기: 관성으로 미끄러지며 나무·병사·건물을 들이받는다
         const g0 = gh(e.x); e.x += e.vx * dt; const g1 = gh(e.x); e.slT += dt;
@@ -1415,7 +1488,7 @@ function enemyStep(dt) {
     let tx, ty;
     if (!bomber) {
       e.seeT -= dt;
-      if (e.seeT <= 0) { e.seeT = 0.12; e.sx = p.x; e.sy = p.y; e.svx = p.vx; e.svy = p.vy; e.ex = (Math.random() - 0.5) * (60 - 40 * aggr); e.ey = (Math.random() - 0.5) * (36 - 24 * aggr); }   // 0.5초마다 내 위치를 새로 본다 (오차 포함)
+      if (e.seeT <= 0) { e.seeT = 0.12; e.sx = p.x; e.sy = p.y; e.svx = p.vx; e.svy = p.vy; const ek = RK_ERR[e.rk || 3]; e.ex = (Math.random() - 0.5) * (60 - 40 * aggr) * ek; e.ey = (Math.random() - 0.5) * (36 - 24 * aggr) * ek; }   // 0.5초마다 내 위치를 새로 본다 (오차 포함)
       const dP = Math.hypot(p.x - e.x, p.y - e.y);
       e.jk = (e.jk || 0) - dt;   // 내가 쏘는 사선 안에 들어오면 위아래로 번갈아 흔들며 피한다
       if (air && e.st === 'app' && dP < 850 && dP > 60 && gunOn() && Math.abs(angd(Math.atan2(e.y - p.y, e.x - p.x), p.th)) < 0.1 && e.jk < -0.5) { e.jk = 0.9; e.jd = Math.random() < 0.5 ? 1 : -1; }
@@ -1424,9 +1497,9 @@ function enemyStep(dt) {
       else if (e.st === 'ext' || e.st === 'evd') { tx = e.x + Math.cos(e.h) * 800; ty = e.y + (e.up ? 140 : -110); if (e.st === 'evd' && e.xt > (e.xt0 || 0) - 1.4) { tx = e.x + Math.cos(e.h) * 150; ty = e.y + (e.up ? 1 : -1) * 500; }   // 처음 1.4초는 급선회로 벗어난다
           e.xt -= dt; if (e.xt <= 0) { if (e.st === 'evd') { e.evCool = 7; e.turnSum = 0; e.engT = 0; } e.st = 'app'; } }   // 공격 뒤·회피 중에는 한 방향으로 곧게 빠져나간다   // 공격 뒤에는 멀리 빠져나간다
       else {
-        if (!e.att && att < attMax && dP < 2400) { e.att = true; att++; }   // 동시에 덤비는 수는 레벨에 따라 2~4기
+        if (!e.att && !e.mv && att < attMax && dP < 2400) { e.att = true; att++; }   // 동시에 덤비는 수는 레벨에 따라 2~4기
         if (e.att) {   // 공격: 멀 때는 내 뒤쪽 높은 자리(6시 방향)를 잡고, 가까워지면 급강하로 덮친다. 둘 이상이면 위아래로 갈라 협공한다
-          const tl = clamp(dP / (e.v + 60), 0.4, 1.6), pd = Math.cos(p.th) >= 0 ? 1 : -1, side = i % 2 ? 1 : -1;
+          const tl = clamp(dP / (e.v + 60), 0.4, 1.6) * ((e.rk || 3) <= 2 ? 0.45 : 1), pd = Math.cos(p.th) >= 0 ? 1 : -1, side = i % 2 ? 1 : -1;
           const px = e.sx + e.svx * tl + e.ex, py = e.sy + e.svy * tl + e.ey;
           if (dP > 900) { tx = e.sx - pd * 420 + e.ex; ty = e.sy + 150 + side * 40; }   // 에너지를 모으며 뒤를 노린다
           else if (dP > 330) { tx = px - pd * 60; ty = py + (e.v > S.v * 0.8 ? 55 : 15); }
@@ -1452,16 +1525,20 @@ function enemyStep(dt) {
     const wmax = clamp(S.n * 9.8 / Math.max(e.v, 40), 0.15, 1.5) * (e.v < S.v * 0.55 ? 0.35 : 1);
     if (e.y > 230) ty = Math.min(ty, e.y);
     ty = Math.min(ty, MAX_ALT - 30);   // 높은 곳에서는 더 오르려 하지 않는다
-    const dh = e.stall ? 0 : clamp(angd(Math.atan2(ty - e.y, tx - e.x), e.h), -wmax * dt, wmax * dt);
+    let mv = null; if (!bomber) { if (air) mv = mvStep(e, dt, { tx, ty, gA, S }); else if (e.mv) mvEnd(e); }
+    if (mv && mv.tx !== undefined) { tx = mv.tx; ty = Math.min(mv.ty, MAX_ALT - 30); }
+    if (e.mv) e.stall = false;
+    const wm = wmax * ((mv && mv.wm) || 1), scr = mv && mv.rate !== undefined;
+    const dh = scr ? mv.rate * dt : e.stall ? 0 : clamp(angd(Math.atan2(ty - e.y, tx - e.x), e.h), -wm * dt, wm * dt);
     e.h += dh; e.bank += (clamp(dh / (wmax * dt), -1, 1) - e.bank) * Math.min(1, 4 * dt);
     if (!bomber && air && e.st === 'app' && e.att) {   // 꼬리물기가 끝없이 이어지지 않게: 오래 돌았거나 내가 뒤를 잡으면 한동안 곧게 회피한다
       const dd = Math.hypot(p.x - e.x, p.y - e.y); e.evCool = (e.evCool || 0) - dt;
       if (dd < 600) { e.turnSum = (e.turnSum || 0) + Math.abs(dh); e.engT = (e.engT || 0) + dt; } else { e.turnSum = Math.max(0, (e.turnSum || 0) - dt * 0.8); e.engT = 0; }
       const tailed = dd < 420 && Math.abs(angd(Math.atan2(e.y - p.y, e.x - p.x), p.th)) < 0.45;
-      if (e.evCool <= 0 && (e.turnSum > 5.2 || e.engT > 11 || (tailed && Math.random() < dt * 0.9))) { e.st = 'evd'; e.xt = 4 + Math.random() * 2; e.xt0 = e.xt; e.up = e.y < 120; e.att = false; }
+      if (!e.mv && e.evCool <= 0 && (e.turnSum > 5.2 || e.engT > 11 || (tailed && Math.random() < dt * 0.9))) { e.st = 'evd'; e.xt = 4 + Math.random() * 2; e.xt0 = e.xt; e.up = e.y < 120; e.att = false; }
     }
     const edn = airDenAt(e.y);   // 적기도 높이 올라가면 공기가 희박해 엔진 힘이 줄고 실속한다
-    e.v += (-9.8 * Math.sin(e.h) * 0.8 + (S.v * (0.6 + 0.4 * edn) - e.v) * 0.45 * edn - Math.abs(dh / dt) * e.v * 0.12) * dt;   // 오르면 느려지고 내려가면 빨라지고, 급선회하면 속도를 잃는다
+    e.v += (-9.8 * Math.sin(e.h) * 0.8 + (S.v * (0.6 + 0.4 * edn) - e.v) * 0.45 * edn - Math.abs(dh / dt) * (scr ? 0.45 : 1) * e.v * 0.12) * dt;   // 오르면 느려지고 내려가면 빨라지고, 급선회하면 속도를 잃는다
     if (!e.stall && e.y > 250 && e.v < S.v * (0.5 + 0.25 * (1 - edn))) e.stall = true; else if (e.stall && (e.v > S.v * 0.85 || e.y < 200)) e.stall = false;
     if (e.stall) { e.h += clamp(angd(Math.cos(e.h) >= 0 ? -0.7 : Math.PI + 0.7, e.h), -1.5 * dt, 1.5 * dt); }   // 실속: 기수를 떨어뜨려 속도를 되찾는다
     e.v = clamp(e.v, S.v * 0.45, S.v * 1.5);
@@ -1472,9 +1549,9 @@ function enemyStep(dt) {
     if (e.y <= Math.max(1, gh(e.x)) && !nearShip) { G.selfCrash = (G.selfCrash || 0) + 1; killEnemy(e); continue; }   // 늦으면 추락한다
     if (!bomber && air && e.att && e.st === 'app') {   // 사격
       const d = Math.hypot(p.x - e.x, p.y - e.y), tf = d / 560, aimA = Math.atan2(p.y + p.vy * tf - e.y, p.x + p.vx * tf - e.x);
-      if (e.bt > 0) { e.bt -= dt; e.cd -= dt; if (e.cd <= 0) { e.cd = 0.12; if (Math.random() < 0.35) sfx('egun', { x: e.x }); const a = e.h + clamp(angd(aimA, e.h), -0.16, 0.16) + (Math.random() - 0.5) * 0.08; FX.push({ k: 'muz', x: e.x + Math.cos(e.h) * 6, y: e.y + Math.sin(e.h) * 6, vx: Math.cos(e.h) * e.v, vy: Math.sin(e.h) * e.v, a: e.h, s: 1.4 + Math.random() * 0.9, life: 0.06, t: 0 }); EB.push({ x: e.x + Math.cos(e.h) * 8, y: e.y + Math.sin(e.h) * 8, vx: Math.cos(a) * 480 + Math.cos(e.h) * e.v, vy: Math.sin(a) * 480 + Math.sin(e.h) * e.v, life: 0.8, tr: (e.trN = (e.trN > 0 ? e.trN : 0) - 1) < 0 && ((e.trN = 4 + ((Math.random() * 4) | 0)), true) }); } }   // 예광탄: 5~8발에 한 발
-      else { e.cd -= dt; if (e.cd <= 0 && d < 650 && Math.abs(angd(aimA, e.h)) < 0.16) { e.bt = 0.8; e.cd = 0; } }
-      if ((e.bt <= 0 || d < 90) && (d < 130 || (d < 600 && Math.abs(angd(Math.atan2(p.y - e.y, p.x - e.x), e.h)) > 2.0))) { e.st = 'ext'; e.up = e.y >= p.y; e.xt = 2.4 + Math.random() * 1.6; e.att = false; e.cd = 1.2; e.bt = 0; }
+      if (e.bt > 0) { e.bt -= dt; e.cd -= dt; if (e.cd <= 0) { e.cd = 0.12; if (Math.random() < 0.35) sfx('egun', { x: e.x }); const a = e.h + clamp(angd(aimA, e.h), -0.16, 0.16) + (Math.random() - 0.5) * (0.14 - 0.02 * (e.rk || 3)); FX.push({ k: 'muz', x: e.x + Math.cos(e.h) * 6, y: e.y + Math.sin(e.h) * 6, vx: Math.cos(e.h) * e.v, vy: Math.sin(e.h) * e.v, a: e.h, s: 1.4 + Math.random() * 0.9, life: 0.06, t: 0 }); EB.push({ x: e.x + Math.cos(e.h) * 8, y: e.y + Math.sin(e.h) * 8, vx: Math.cos(a) * 480 + Math.cos(e.h) * e.v, vy: Math.sin(a) * 480 + Math.sin(e.h) * e.v, life: 0.8, tr: (e.trN = (e.trN > 0 ? e.trN : 0) - 1) < 0 && ((e.trN = 4 + ((Math.random() * 4) | 0)), true) }); } }   // 예광탄: 5~8발에 한 발
+      else { e.cd -= dt; if (e.cd <= 0 && d < 650 && Math.abs(angd(aimA, e.h)) < 0.16) { e.bt = 0.45 + 0.12 * (e.rk || 3); e.cd = 0; } }
+      if ((e.bt <= 0 || d < 90) && (d < 130 || (d < 600 && Math.abs(angd(Math.atan2(p.y - e.y, p.x - e.x), e.h)) > 2.0))) { e.st = 'ext'; e.up = e.y >= p.y; e.xt = 2.4 + Math.random() * 1.6; e.att = false; e.cd = 1.7 - 0.2 * (e.rk || 3); e.bt = 0; if ((e.rk || 1) >= 4 && !e.mv && (e.mvCd || 0) <= 0 && e.y - gA > 110 && e.y < MAX_ALT - 230 && Math.random() < 0.45) mvStart(e, 'imm'); }
     }
     if (e.att && (!air || Math.hypot(p.x - e.x, p.y - e.y) > 2200)) e.att = false;
     if ((bomber && e.rel && Math.abs(e.x - cx) > 4500) || (Math.abs(e.x - p.x) > 14000 && Math.abs(e.x - cx) > 14000)) ENE.splice(i, 1);
@@ -2657,11 +2734,15 @@ function drawPlayerHp(c) {   // 내 비행기 위에 항상 보이는 체력바
   hpBar(c, sx(p.x), sy(p.y + 8) - 3 * cam.z, 11.7 * cam.z, clamp(p.hp / 100, 0, 1));
 }
 function drawEnemyHp(c) {   // 적기 위에 항상 보이는 체력바
+  let lufN = 0; for (const e of ENE) if (!e.dead && e.rk >= 4 && !e.att && e.st === 'app' && !e.mv) lufN++;
   for (const e of ENE) {
     if (e.dead || Math.abs(e.x - cam.x) > W / cam.z / 2 + 40) continue;
-    e.hpM = Math.max(e.hpM || 0, e.hp, (ES[e.type] || {}).hp || 0); { const fe = clamp(e.hp / e.hpM, 0, 1); hpBar(c, sx(e.x), sy(e.y + 7) - 3 * cam.z, 10.4 * cam.z, fe, enemyCol(fe)); }
-    const nm = (LANG === 'ko' ? ENEMY_NAME_KO : ENEMY_NAME)[e.type];   // 체력바 위에 적기 종류를 쓴다
-    if (nm) { const fs0 = clamp(3.4 * cam.z, 9, 15), by = sy(e.y + 7) - 3 * cam.z; c.save(); c.font = '700 ' + fs0 + 'px system-ui,sans-serif'; c.textAlign = 'center'; c.textBaseline = 'alphabetic'; c.lineJoin = 'round'; c.lineWidth = 3; c.strokeStyle = 'rgba(8,12,20,0.85)'; c.strokeText(nm, sx(e.x), by - 4); c.fillStyle = e.type === 'ace' || e.type === 'n1k' ? '#ffd23f' : '#f2f4f8'; c.fillText(nm, sx(e.x), by - 4); c.restore(); }
+    e.hpM = Math.max(e.hpM || 0, e.hp); { const fe = clamp(e.hp / e.hpM, 0, 1); hpBar(c, sx(e.x), sy(e.y + 7) - 3 * cam.z, 10.4 * cam.z, fe, enemyCol(fe)); }
+    const nm0 = (LANG === 'ko' ? ENEMY_NAME_KO : ENEMY_NAME)[e.type], nm = nm0 && (e.rk ? nm0 + ' Lv.' + e.rk : nm0);   // 체력바 위에 적기 종류와 계급(Lv.1~5)을 쓴다
+    if (nm) { const fs0 = clamp(3.4 * cam.z, 9, 15), by = sy(e.y + 7) - 3 * cam.z; c.save(); c.font = '700 ' + fs0 + 'px system-ui,sans-serif'; c.textAlign = 'center'; c.textBaseline = 'alphabetic'; c.lineJoin = 'round'; c.lineWidth = 3; c.strokeStyle = 'rgba(8,12,20,0.85)'; c.strokeText(nm, sx(e.x), by - 4); c.fillStyle = e.rk ? RANK_COL[e.rk] : '#f2f4f8'; c.fillText(nm, sx(e.x), by - 4);
+      const mk = e.mv || (G.t < (e.mvShow || 0) ? e.mvLast : null) || (lufN >= 2 && e.rk >= 4 && !e.att && e.st === 'app' && p.mode === 'air' ? 'luf' : null);   // 특수 기동 중에는 이름을 한 줄 더 띄운다
+      if (mk) { const cap = '◆ ' + (LANG === 'ko' ? MV[mk].k : MV[mk].n); c.font = '800 ' + (fs0 + 1) + 'px system-ui,sans-serif'; c.strokeText(cap, sx(e.x), by - 5 - fs0 * 1.25); c.fillStyle = '#ff9d3c'; c.fillText(cap, sx(e.x), by - 5 - fs0 * 1.25); }
+      c.restore(); }
   }
 }
 const ARMED = { pill: 1, aa: 1, bunker: 1, cave: 1, tower: 1, tank: 1 };
@@ -2716,7 +2797,7 @@ function drawEnemies(c) {
   const span = W / cam.z;
   for (const e of ENE) {
     if (Math.abs(e.x - cam.x) > span / 2 + 40 || Math.abs(e.y - cam.y) > H / cam.z) continue;
-    world(e.x, e.y, () => { c.rotate(e.h); if (Math.cos(e.h) < 0) c.scale(1, -1); c.scale(1, 1 - 0.3 * Math.abs(e.bank || 0)); drawZero(c, e.type); });   // 선회할 때 날개를 기울인다
+    world(e.x, e.y, () => { c.rotate(e.h); if (e.fl !== undefined ? e.fl : Math.cos(e.h) < 0) c.scale(1, -1); let rs = 1; if (e.mv === 'brl') { rs = Math.cos(e.mvT * 13); if (Math.abs(rs) < 0.12) rs = rs < 0 ? -0.12 : 0.12; } c.scale(1, (1 - 0.3 * Math.abs(e.bank || 0)) * rs); drawZero(c, e.type); });   // 선회할 때 날개를 기울인다
   }
 }
 function drawProj(c) {
@@ -2759,7 +2840,7 @@ function demoBot(dt) {
   if (G.result) { K(0); D.ct += dt; if (D.ct > 2.5) startDemo(); return; }
   if (D.t > 110) { startDemo(); return; }
   p.hp = 100; p.fuel = p.fuelMax; if (p.ammo.rk < 3) p.ammo.rk = 30; if (p.ammo.bm < 3) p.ammo.bm = 30; if (!(p.ammo.tp > 0)) p.ammo.tp = 6; if (p.ammo.gun < 300) p.ammo.gun = 3000;
-  if (D.t > 16 && !D.z) { D.z = 1; spawnEnemy('zero', ship.x + 10100, 260); spawnEnemy('zero', ship.x + 10400, 200); }
+  if (D.t > 16 && !D.z) { D.z = 1; spawnEnemy('zero', ship.x + 10100, 260, 3); spawnEnemy('zero', ship.x + 10400, 200, 4); }
   if (D.salvo > 0 && p.mode === 'air' && G.t >= (D.salvoT || 0)) { dropBomb(); D.salvo--; D.salvoT = G.t + 0.14; }   // 폭탄 연속 투하
   if (p.mode === 'taxi' || p.mode === 'deck') { K(p.mode === 'deck' && kts() >= TAKEOFF_KT ? 1 : 0, 0, 1); return; }
   if (p.mode !== 'air') { K(0); return; }

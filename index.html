@@ -53,7 +53,7 @@ const LOADS = [   // 무장: 기관총 9600발에 로켓·폭탄·어뢰 중 하
 const cv = document.getElementById('c'), ctx0 = cv.getContext('2d'); let ctx = ctx0, hudCv = null, hudCx = null;
 // ── 언어: 브라우저 언어가 한국어면 한국어, 그 외에는 영어. 주소 끝에 ?lang=ko / ?lang=en 으로 강제할 수 있다.
 const LANG = (() => { try { const q = /[?&]lang=([a-z]+)/.exec(location.search); if (q) return q[1].toLowerCase().slice(0, 2); } catch (e) {} const nv = typeof navigator === 'undefined' ? {} : navigator; return ((nv.languages && nv.languages[0]) || nv.language || 'en').toLowerCase().slice(0, 2); })() === 'ko' ? 'ko' : 'en';
-const KO = {"Hangar — supply":"격납고 — 보급","Refuel and repair are free · gun and 9,600 rounds are free":"급유·수리 무료 · 기관총과 탄 9,600발 무료","Aboard ":"실은 수 "," each":" / 개","Fill":"가득","Payload":"적재량","This visit ":"이번 구입 ","Take off (Space)":"출격 (Space)","1 / 2: +rockets / +bombs · 3 / 4: fill · Backspace: undo · Space: take off":"1 / 2: 로켓·폭탄 추가 · 3 / 4: 가득 · Backspace: 취소 · Space: 출격","Not enough money":"돈이 모자랍니다","The plane is full":"더 실을 수 없습니다","Refueled, repaired, rearmed":"급유·수리·보급 완료","Not enough money — earn more in operations":"돈이 모자랍니다 — 작전에서 더 버세요","Keys 1-4 buy · earn money from bounties, items and successful operations":"1~4 키로 강화 · 돈은 현상금·아이템·작전 성공으로 법니다","Payload capacity +20% per level":"단계마다 적재량 +20%","No rockets aboard — buy them in the hangar (the gun is free)":"로켓이 없습니다 — 격납고에서 사세요 (기관총은 무료)","No bombs aboard — buy them in the hangar (the gun is free)":"폭탄이 없습니다 — 격납고에서 사세요 (기관총은 무료)","AUTO":"자동","Auto button (or A): the AI flies, fights, lands and rearms for you. Any arrow key takes control back":"자동 버튼 (또는 A): AI가 대신 비행·공격·착함·재무장을 합니다. 방향키를 누르면 다시 직접 조종합니다","Auto":"자동","Auto ON":"자동 중","Autopilot ON — the AI flies, fights, lands and rearms":"자동 조종 켜짐 — AI가 비행·공격·착함·재무장을 합니다","Autopilot OFF — you have control":"자동 조종 꺼짐 — 직접 조종합니다","Black Kite":"검은 솔개","Crimson Fox":"붉은 여우","Silver Crane":"은빛 학","Thunder Wolf":"천둥 늑대","Night Heron":"밤 왜가리","Iron Hawk":"강철 매","Ace duel":"에이스 결투","Open sea · 1 enemy ace":"넓은 바다 · 적 에이스 1기","finish with over 50% airframe":"기체 체력 50% 이상으로 끝내기","In the clouds — enemies cannot see you":"구름 속 — 적이 나를 보지 못합니다","Aircraft upgrades":"기체 강화","Engine":"엔진","Armor":"장갑","Guns":"기관총","Ammo racks":"탄약고","Thrust +6% per level: faster climbs and top speed":"단계마다 추력 +6%: 상승과 최고 속도가 빨라집니다","Damage taken -10% per level":"단계마다 받는 피해 -10%","Gun damage +15% and range +10% per level":"단계마다 기관총 피해 +15%, 사거리 +10%","Rockets and bombs +20% per level":"단계마다 로켓·폭탄 +20%","Already at max level":"이미 최고 단계입니다","Not enough stars — earn more by clearing operations":"별이 모자랍니다 — 작전을 깨서 별을 더 모으세요","Close (Esc)":"닫기 (Esc)","MAX":"최고","Stars to spend ":"쓸 수 있는 별 ","Keys 1-4 buy · stars come from clearing operations (up to 3 per operation)":"1~4 키로 강화 · 별은 작전을 깨면 얻습니다 (작전마다 최대 3개)","Upgrades (U)":"강화 (U)","Buy ":"강화 ","ZOOM":"확대","Night assault":"야간 공략","Clear both islands while N1K fighters attack":"N1K 전투기의 공격을 받으며 두 섬을 소탕하세요","Clear both islands in the dark and fly home":"어둠 속에서 두 섬을 소탕하고 귀환하세요","Fight off the Zero swarm and clear the island":"몰려오는 제로센을 물리치고 섬을 소탕하세요","Pull up now! Press ▲":"지금 상승하세요! ▲ 키를 누르세요","Rockets":"로켓","48 heavy rockets":"로켓 48발","Bunkers, ship guns":"벙커, 군함의 포","Bombs":"폭탄","90 small bombs (250 kg)":"폭탄 90발","Buildings, barracks, parked aircraft":"건물, 막사, 지상의 적기","Torpedoes":"어뢰","6 torpedoes":"어뢰 6발","Sinking ships":"군함 격침","Stalled by turning too slowly! Falling until you gain speed":"너무 느리게 돌아 실속! 속도를 되찾을 때까지 추락합니다","Climbed too steeply and stalled! The nose drops":"너무 가파르게 올라 실속! 기수가 떨어집니다","Speed regained, out of the stall":"속도를 되찾아 실속에서 벗어났습니다","Maximum altitude ":"최대 고도 ","Air too thin, stalling! Lower the nose and build speed":"공기가 희박해 실속합니다! 기수를 내려 속도를 붙이세요","Stalling! Lower the nose and build speed":"실속 중! 기수를 내려 속도를 붙이세요","Overshot the wires and rolled off the deck. Touch down at the front of the yellow striped zone.":"와이어를 지나쳐 갑판 밖으로 굴러 나갔습니다. 노란 줄무늬 구역 앞쪽에 내리세요.","Ran out of deck and fell into the sea. Touch down near the middle of the deck.":"갑판이 모자라 바다로 떨어졌습니다. 갑판 가운데 쪽에 내리세요.","Not enough takeoff speed, dropped off the end of the deck.":"이륙 속도가 모자라 갑판 끝에서 떨어졌습니다.","UNDER":"속도 부족","FAST":"너무 빠름","LOW":"너무 낮음","HIGH":"너무 높음","ROGER":"양호","Crashed.":"추락했습니다.","Flew into an enemy ship.":"적 군함에 충돌했습니다.","The crash knocked out ":"추락으로 "," ship guns":"문의 함포가 파괴되었습니다","a ship gun":"함포 하나가 파괴되었습니다","Crashed onto an enemy ship":"적 군함 위로 추락했습니다","Flew into the island hills.":"섬의 언덕에 충돌했습니다.","Flew too low, clipped a tree and crashed.":"너무 낮게 날다 나무에 걸려 추락했습니다.","Ditched in the sea. A destroyer rescued the pilot.":"바다에 불시착했습니다. 구축함이 조종사를 구조했습니다.","Crashed into the sea.":"바다로 추락했습니다.","Hit the hull. Too low.":"선체에 부딪혔습니다. 너무 낮았습니다.","A wing hit the deck mid-turn. You cannot land while turning.":"선회 중 날개가 갑판에 닿았습니다. 선회하면서는 착함할 수 없습니다.","Touched down on something other than the wheels.":"바퀴가 아닌 곳으로 닿았습니다.","Landed too hard. Come down gently.":"너무 세게 착함했습니다. 부드럽게 내리세요.","Not level. Nose too ":"수평이 아닙니다. 기수가 너무 ","high.":"높습니다.","low.":"낮습니다.","Stopped on wheel brakes alone, no wire.":"와이어 없이 바퀴 브레이크만으로 멈췄습니다.","-wire. Smooth and level. Perfect!":"번 와이어. 부드럽고 수평입니다. 완벽!","A little fast.":"조금 빨랐습니다.","A little tilted.":"조금 기울었습니다.","A little hard.":"조금 세게 닿았습니다.","-wire. Thump! But down safely.":"번 와이어. 쿵! 하지만 무사히 착함했습니다.","CUT":"엔진 끄기","WAVEOFF":"착함 취소","Refueled, repaired, loaded: ":"급유·수리·적재 완료: ","Wait until the work is done":"작업이 끝날 때까지 기다리세요","Hangar — choose your load":"격납고 — 무장을 고르세요","Refueled and repaired · every load carries 9,600 gun rounds · ships sink only to torpedoes":"급유·수리 완료 · 모든 무장에 기관총탄 9,600발 · 군함은 어뢰로만 가라앉습니다"," + 9,600 rds":" + 기총 9,600발","Tap a card · or press 1 / 2 / 3 · ◀ ▶ then Space":"카드를 누르거나 1 / 2 / 3 · ◀ ▶ 후 Space","Hangar — repair and rearm":"격납고 — 수리와 재무장","Goes back up once refuel, rearm and repair are done":"급유·재무장·수리가 끝나면 올라갑니다","Refuel":"급유","Fuel ":"연료 ","%  (tank ":"%  (탱크 ","Rearm":"재무장","Repair":"수리","Airframe ":"기체 ","Go up (Space)":"올라가기 (Space)","Working…":"작업 중…","Gooney Bird Island":"알바트로스 섬","Jan 1944":"1944년 1월","Midway Atoll":"미드웨이 환초","Training":"훈련","Take off, hit 3 targets and land on the carrier once":"이륙해서 표적 3개를 맞히고 항모에 한 번 착함하세요","First Flag":"첫 깃발","Jan 31":"1월 31일","Majuro Atoll":"마주로 환초","Island assault":"섬 공략","Destroy every building and soldier on each island to force a surrender":"섬마다 건물과 병사를 모두 없애 항복을 받아 내세요","Two Islands, One Runway":"두 섬, 하나의 활주로","Feb 1":"2월 1일","Kwajalein, Roi-Namur":"콰잘렌, 로이나무르","Destroy every building and soldier on both islands. Keep troops out of wrecked bunkers":"두 섬의 건물과 병사를 모두 없애세요. 병사가 부서진 벙커에 들어가지 못하게 하세요","Cats at Dawn":"새벽의 고양이들","Feb 17":"2월 17일","Truk Atoll":"트럭 환초","Airbase strike":"비행장 공습","Shoot down 12 Zeros and destroy the airfields on both large islands":"제로센 12기를 격추하고 두 큰 섬의 비행장을 파괴하세요","Big Island, Long Day":"큰 섬, 긴 하루","Jun 15":"6월 15일","Saipan":"사이판","Destroy every building and soldier on the big island":"큰 섬의 건물과 병사를 모두 없애세요","Turkey Shoot":"칠면조 사냥","Jun 19":"6월 19일","Philippine Sea":"필리핀 해","Fleet defense":"함대 방어","Stop the incoming dive bombers and torpedo bombers and protect the carrier":"날아오는 급강하 폭격기와 뇌격기를 막아 항모를 지키세요","Return in the Dark":"어둠 속의 귀환","Jun 20":"6월 20일","Carrier strike":"항모 공격","Sink the enemy carrier and fly home in the dark":"적 항모를 가라앉히고 어둠 속에서 귀환하세요","Orote Cliffs":"오로트 절벽","Jul 21":"7월 21일","Guam":"괌","Rocket the cliff concrete bunkers and clear the island":"절벽의 콘크리트 벙커를 로켓으로 부수고 섬을 소탕하세요","Coral Ridge":"산호 능선","Sep 15":"9월 15일","Peleliu":"펠렐리우","Rocket the concrete bunkers and clear the island":"콘크리트 벙커를 로켓으로 부수고 섬을 소탕하세요","Battle of Leyte Gulf":"레이테 만 해전","Oct 24–25":"10월 24~25일","Sibuyan Sea, Cape Engaño":"시부얀 해, 엔가뇨 곶","Naval battle":"해전","Sink the battleship and all 4 carriers, then return":"전함과 항모 4척을 모두 가라앉히고 귀환하세요","one perfect (green) landing":"완벽한(초록) 착함 한 번","no wrecked bunker gets restored":"부서진 벙커가 복구되지 않을 것","shoot down the ace":"에이스 격추","carrier above 80%":"항모 체력 80% 이상","return with over 10% fuel":"연료 10% 이상 남기고 귀환","carrier above 60%":"항모 체력 60% 이상","carrier above 70%":"항모 체력 70% 이상","Majuro":"마주로","Kwajalein":"콰잘렌","Eniwetok":"에니웨톡","Truk":"트럭","Tinian":"티니안","Angaur":"앙가우르","Iwo":"이오","Bougainville":"부건빌","Tarawa":"타라와","Makin":"마킨","Rabaul":"라바울","Palau":"팔라우","Yap":"얍","Wake":"웨이크","Midway":"미드웨이","Solomon":"솔로몬","Gilbert":"길버트","Marshall":"마셜","Caroline":"캐롤라인","Mariana":"마리아나","Bonin":"보닌","Rota":"로타","Ulithi":"울리티","Storm":"폭풍","Lightning":"번개","Hammer":"망치","Spear":"창","Wave":"파도","Eagle":"독수리","Hawk":"매","Flame":"불꽃","Dawn":"새벽","Thunder":"천둥","Shield":"방패","Arrow":"화살","Wind":"바람","Star":"별","Anchor":"닻","Gull":"갈매기","Coral":"산호","Typhoon":"태풍","Day":"낮","Dusk":"해질녘","Night":"밤","Skirmish Lv ":"스커미시 Lv ","Operation ":"작전 ","large battleship":"대형 전함","small battleship":"소형 전함"," small island":"개 작은 섬"," large island":"개 큰 섬","Air raids ":"공습 ","Island + fleet":"섬 + 함대","Clear both islands":"두 섬의","Clear all ":"모든 "," islands":"개 섬의","Clear the island":"섬의"," of every building and soldier":" 건물과 병사를 모두 없애세요"," and sink ":" 그리고 "," with torpedoes":"을(를) 어뢰로 격침하세요"," (strip a battleship of every AA gun and machine gun first)":" (전함은 대공포와 기관총을 먼저 모두 부수세요)"," to force a surrender":"을(를) 없애 항복을 받아 내세요","Shoot down ":"제로센 "," Zeros and destroy every enemy aircraft parked on the airfields":"기를 격추하고 비행장에 세워 둔 적기를 모두 파괴하세요","Fleet strike":"함대 공격","Sink ":"","Stop the incoming bombers and torpedo planes to protect the carrier":"날아오는 폭격기와 뇌격기를 막아 항모를 지키세요","Ensign":"소위","Lieutenant":"대위","Lt Cmdr":"소령","Commander":"중령","Captain":"대령","Admiral":"제독","Finish the previous operation first":"먼저 앞 작전을 끝내세요","All aircraft lost":"모든 항공기를 잃었습니다","Landing begins! Marines head for the beach":"상륙 시작! 해병대가 해변으로 향합니다","Enemy tanks counterattack!":"적 전차가 반격합니다!","The flag is up on the summit!":"정상에 깃발이 올랐습니다!","Landing failed. Destroy more defenses and try again":"상륙 실패. 방어 시설을 더 부수고 다시 시도하세요","Enemy aircraft destroyed on the ground!":"지상의 적기를 파괴했습니다!","The carrier is hit!":"항모가 피격되었습니다!","Shot down.":"격추되었습니다.","Japanese troops repaired a wrecked bunker and it is firing again!":"일본군이 부서진 벙커를 고쳐 다시 사격합니다!","Japanese troops restored a wrecked ":"일본군이 부서진 ","AA gun":"대공포","concrete bunker":"콘크리트 벙커","Shot down by infantry rifle fire.":"보병의 소총 사격에 격추되었습니다."," island":" 섬"," retaken — the Japanese surrender and raise a white flag":" 탈환 — 일본군이 항복하고 백기를 올렸습니다","bunker":"벙커","Zeros taking off from the enemy airfield!":"적 비행장에서 제로센이 이륙합니다!","Enemy floatplane catapulted from a battleship!":"전함에서 적 수상기가 사출되었습니다!","Mission complete! Return, land on the carrier and take the elevator down":"임무 완료! 귀환해서 항모에 착함하고 엘리베이터로 내려가세요","The carrier is sinking!":"항모가 가라앉고 있습니다!","The carrier sank":"항모가 침몰했습니다","Shot down by enemy fighters.":"적 전투기에 격추되었습니다.","Shot down by ship machine-gun fire.":"군함의 기관총에 격추되었습니다.","Shot down by a guard-tower machine gun.":"보초 타워의 기관총에 격추되었습니다.","Shot down by bunker cannon fire.":"벙커의 포 사격에 격추되었습니다.","Shot down by a howitzer shell.":"곡사포탄에 격추되었습니다.","Shot down by flak.":"대공포 파편에 격추되었습니다.","Enemy carrier":"적 항모","Enemy battleship":"적 전함"," sunk!":" 격침!","Ships sink only to torpedoes · rockets knock out their guns":"군함은 어뢰로만 가라앉습니다 · 로켓은 포를 부숩니다","Concrete bunker: it takes 2 rocket hits":"콘크리트 벙커: 로켓 2발이 필요합니다","Bombs do not hurt concrete bunkers — use rockets!":"폭탄은 콘크리트 벙커에 듣지 않습니다 — 로켓을 쓰세요!","Out of ":""," loaded":" 다 떨어졌습니다"," — land and take the elevator to rearm":" — 착함해서 엘리베이터로 재무장하세요","Last ":"마지막 "," away — land and take the elevator to rearm (the gun still works)":" 발사 — 착함해서 엘리베이터로 재무장하세요 (기관총은 아직 됩니다)","too high":"너무 높음","not level":"수평이 아님","Near miss! A bomb only damages what it hits directly":"빗나갔습니다! 폭탄은 직격한 것만 부숩니다","The torpedo broke on the water (":"어뢰가 물에 부딪혀 부서졌습니다(","too fast":"너무 빠름",") — fly level, below ":") — 수평으로, 높이 ","The battleship shrugs it off — knock out every AA gun and machine gun first":"전함은 끄떡없습니다 — 대공포와 기관총을 먼저 모두 부수세요","Dud! The torpedo hit the bow head-on and failed to explode — hit the stern instead":"불발! 어뢰가 뱃머리에 정면으로 맞아 터지지 않았습니다 — 고물 쪽을 노리세요","Landings ":"착함 ","/1 · Targets ":"/1 · 표적 ","Ships sunk ":"격침한 군함 ","Retaken ":"탈환 "," islands · Troops ":"개 섬 · 병사 "," · Buildings ":" · 건물 ","Kills ":"격추 "," · Parked aircraft left ":" · 남은 지상 적기 "," · Carrier ":" · 항모 ","Capital ships ":"주력함 ","Mission complete — return to the carrier and take the elevator down":"임무 완료 — 항모로 귀환해 엘리베이터로 내려가세요","Carrier hull ":"항모 선체 ","AA guns ":"대공포 ","Gun":"기관총","Space":"Space","Rocket":"로켓","Bomb":"폭탄","Torpedo":"어뢰","Blue Wings of the Pacific":"태평양의 푸른 날개","An island in the Pacific, 1942":"태평양의 섬, 1942","Fly from the carrier and retake the islands one by one":"항모에서 출격해 섬을 하나씩 되찾으세요","Tap the screen or press any key to start":"화면을 누르거나 아무 키나 눌러 시작","Demo flight":"데모 비행","FLY":"비행","▲ ▼ nose up / down · the arrow in your flight direction = full power · the opposite arrow = U-turn":"▲ ▼ 기수 위/아래 · 날아가는 방향의 화살표 = 최대 출력 · 반대 화살표 = 유턴","Hands off and the plane holds its path. Too slow, too steep (over 60°) or too high and it stalls: let it dive to recover.":"손을 떼면 비행기가 진로를 유지합니다. 너무 느리거나, 너무 가파르거나(60° 초과), 너무 높으면 실속합니다. 기수를 내려 회복하세요.","DECK":"갑판","Hold ◀ or ▶ to roll and take off. The opposite arrow brakes, then turns the plane around.":"◀ 또는 ▶ 를 누른 채 활주해 이륙합니다. 반대 화살표는 브레이크이고 이어서 기체를 돌립니다.","Stop on the elevator and press Space (or the button): refuel, repair and choose one weapon load.":"엘리베이터 위에 멈추고 Space(또는 버튼)를 누르면 급유·수리하고 무장을 하나 고릅니다.","LAND":"착함","Come in low, slow and level and touch down on the yellow zone. The hook catches a wire.":"낮고 느리고 수평으로 들어와 노란 구역에 닿으세요. 후크가 와이어를 겁니다.","GUN":"기관총","Space — machine gun: hurts planes, soldiers, buildings, trees and ship AA guns (rockets and bombs hit far harder)":"Space — 기관총: 비행기, 병사, 건물, 나무, 군함의 대공포에 피해 (로켓과 폭탄이 훨씬 강함)","WEAPON":"무기","C — fires the one weapon you loaded in the hangar":"C — 격납고에서 실은 무기 하나를 발사합니다","ROCKETS":"로켓","48 heavy rockets: one direct hit wrecks almost any building, and rockets break concrete bunkers fastest. Range 2,000 m, then the motor cuts out":"대형 로켓 48발: 직격 한 발이면 거의 모든 건물이 부서지고, 콘크리트 벙커도 로켓이 가장 빨리 부숩니다. 사거리 2,000m","BOMBS":"폭탄","90 small 250 kg bombs: direct hits only (a near miss just throws up debris), a few per building, two for a concrete bunker":"250kg 소형 폭탄 90발: 직격만 유효(빗나가면 파편만 튐), 건물마다 몇 발, 콘크리트 벙커는 2발","TORPEDOES":"어뢰","The only way to sink a ship. Release fairly level, below 60 m. Range 1,500 m":"군함을 가라앉히는 유일한 방법. 수평에 가깝게, 60m 아래에서 투하. 사거리 1,500m","ISLANDS":"섬","An island surrenders when every building and soldier is gone.":"건물과 병사가 모두 없어지면 섬이 항복합니다.","A destroyed barracks releases soldiers who repair wrecked bunkers and guns. Shoot them first.":"부서진 막사에서 병사가 뛰쳐나와 부서진 벙커와 포를 고칩니다. 먼저 쏘세요.","Large islands have an airfield that launches Zeros.":"큰 섬에는 제로센이 이륙하는 비행장이 있습니다.","FINISH":"끝내기","After \"Mission complete\", land and ride the elevator down. You get 3 aircraft per operation.":"\"임무 완료\" 뒤에 착함해서 엘리베이터로 내려가세요. 작전마다 항공기가 3대 주어집니다.","KEYS":"키","P pause · M sound · Esc leave the operation (press twice)":"P 일시정지 · M 소리 · Esc 작전 나가기(두 번)","How to play":"조작법","Tap or press any key to close":"누르거나 아무 키나 눌러 닫기","BLUE WINGS":"푸른 날개","OF THE PACIFIC":"태평양의","DISTINGUISHED FLYING CROSS":"수훈 비행 십자훈장","Awarded to the pilot who freed every island of the Pacific":"태평양의 모든 섬을 해방한 조종사에게 수여합니다","THE END":"끝","Thank you for flying · Stars ":"비행해 주셔서 감사합니다 · 별 "," · Press any key":" · 아무 키나 누르세요","◀ ▶ difficulty · R random mission · M campaign · Enter launch · H how to play · Esc title":"◀ ▶ 난이도 · R 무작위 임무 · M 캠페인 · Enter 출격 · H 조작법 · Esc 처음으로","◀ ▶ pick any operation you have unlocked · Enter launch · R new map · M skirmish · H how to play · Esc title":"◀ ▶ 열린 작전 고르기 · Enter 출격 · R 새 지도 · M 스커미시 · H 조작법 · Esc 처음으로","Blue Wings of the Pacific 1942":"태평양의 푸른 날개 1942","Rank ":"계급 "," · Best: Op ":" · 최고: 작전 "," · Stars ":" · 별 ","Campaign":"캠페인","Skirmish":"스커미시","Skirmish · Level ":"스커미시 · 레벨 ","Free play · random level and map · no campaign progress saved":"자유 대전 · 무작위 레벨과 지도 · 캠페인 기록은 저장되지 않음","  cleared":"  클리어","New operation":"새 작전","Not cleared yet":"아직 클리어하지 못함"," · Enemy planes ":" · 적기 ","★3: lose no aircraft and ":"★3: 항공기를 잃지 않고 ","R rolls a new random mission · ◀ ▶ sets the difficulty (1-20)":"R 새 무작위 임무 · ◀ ▶ 난이도(1-20)","Campaign: levels 1-20 get harder in order · clear Level 20 for the medal ceremony":"캠페인: 1~20레벨이 차례로 어려워집니다 · 20레벨을 깨면 훈장 수여식","Launch (Enter)":"출격 (Enter)","New map (R)":"새 지도 (R)","How to play (H)":"조작법 (H)","Mission Success":"임무 성공","Mission Failed":"임무 실패"," · Targets ":" · 표적 "," · Landings ":" · 착함 "," · Aircraft lost ":" · 잃은 항공기 ","★1: complete · ★2: lose at most 1 aircraft · ★3: lose none and ":"★1: 완료 · ★2: 항공기를 1대까지만 잃음 · ★3: 잃지 않고 ","Next: Op ":"다음: 작전 ","Retry (new map)":"다시 도전 (새 지도)","Operations (Enter)":"작전 목록 (Enter)","Leveling out before the turn":"선회 전에 수평을 잡습니다","Ops":"작전","Sound":"소리","Pause":"일시정지","Arresting zone":"어레스팅 구역","Elevator":"엘리베이터","Space — take the elevator down to finish":"Space — 엘리베이터로 내려가 끝내기","Taxi to the elevator with ◀▶ and press Space":"◀▶ 로 엘리베이터까지 가서 Space를 누르세요","Space: elevator down — refuel, repair and choose your weapons":"Space: 엘리베이터 내리기 — 급유·수리하고 무장 고르기","Hold ◀ or ▶ to speed up and take off · Space on elevator: service · Air: Space gun, C weapon":"◀ 또는 ▶ 를 누르고 가속해 이륙 · 엘리베이터에서 Space: 정비 · 공중: Space 기관총, C 무기","Elevator moving":"엘리베이터 이동 중","Good! Lifting off at the deck end":"좋아요! 갑판 끝에서 떠오릅니다","Rolling… reach ":"활주 중… 갑판 끝 전에 "," kt before the deck end to lift off":"kt에 도달해야 이륙합니다","Turning — you lose a little speed and height":"선회 중 — 속도와 고도를 조금 잃습니다","Climbing gently — ▲ to climb more":"완만하게 상승 중 — ▲ 로 더 오르기","Fuel is low":"연료가 부족합니다","Out of ammo":"탄약이 없습니다",". Return to the carrier and resupply on the elevator":". 항모로 돌아와 엘리베이터에서 보급하세요","Press the opposite arrow to turn back to the carrier":"반대쪽 화살표로 항모 쪽으로 돌아가세요","STALL!":"실속!","◀ Target ":"◀ 표적 ","Target ▶ ":"표적 ▶ ","Fuel":"연료","Carrier ":"항모 ","Sound off":"소리 끔","Sound on":"소리 켬","Elevator down (Space)":"엘리베이터 내리기 (Space)","Start landing (V)":"상륙 시작 (V)","NEWS":"속보","Leave this operation?":"이 작전을 나갈까요?","Paused":"일시정지","Tap Ops again (or press Esc) to leave · tap anywhere else to keep flying":"나가려면 작전 버튼을 다시 누르세요(또는 Esc) · 다른 곳을 누르면 계속 비행","Tap the screen or press any key to continue":"화면을 누르거나 아무 키나 눌러 계속","Perfect":"완벽","Good":"좋음","Fair":"보통","Danger":"위험","Barrier":"방벽","Touchdown ":"착함 ","Ditched":"불시착","Crashed":"추락","Tap here to fly again (Enter) · Planes left ":"여기를 눌러 다시 비행 (Enter) · 남은 항공기 ","All aircraft lost (Enter)":"모든 항공기를 잃었습니다 (Enter)","Destroy every building and soldier ":"건물과 병사를 모두 없애세요 ","Dud!":"불발!","Wingman":"윙맨","Wingman HP ":"윙맨 체력 ","My plane":"내 비행기","Speed ":"속도 ","Altitude ":"고도 ","Torp ":"어뢰 ","Go around! Full throttle":"착함 취소! 전속력","Ship machine guns shot down your torpedo — knock out the bow and stern guns first":"군함의 기관총이 어뢰를 격추했습니다 — 선수와 선미의 포를 먼저 부수세요","Your wingman was shot down! A replacement is being readied":"윙맨이 격추되었습니다! 교체 기체를 준비 중입니다","Custom ":"사용자 ","Custom":"사용자","Your own campaign · difficulty ":"나만의 캠페인 · 난이도 "," · no progress saved":" · 진행은 저장되지 않음","No custom missions yet":"아직 사용자 임무가 없습니다","Open editor.html in a browser, build a campaign, press Save, then come back here":"브라우저에서 editor.html을 열어 캠페인을 만들고 저장한 뒤 돌아오세요","Missions come from editor.html · ◀ ▶ chooses which one":"임무는 editor.html에서 만듭니다 · ◀ ▶ 로 고르기","◀ ▶ pick a mission · Enter launch · M campaign · H how to play · Esc title · Build missions in editor.html (PC)":"◀ ▶ 임무 고르기 · Enter 출격 · M 캠페인 · H 조작법 · Esc 처음으로 · editor.html(PC)에서 임무 만들기","No custom missions yet — build some in editor.html":"아직 사용자 임무가 없습니다 — editor.html에서 만드세요"};
+const KO = {"Arsenal (U)":"정비창 (U)","Upgrades":"강화","Guns":"기관총","Passives":"패시브","Q / E: switch tab · 1-5 buy · earn money from bounties, items and operations":"Q / E: 탭 바꾸기 · 1~5 구입 · 돈은 현상금·아이템·작전으로 법니다","All slots are full — tap an equipped item to take it off":"칸이 다 찼습니다 — 장착한 것을 눌러 빼세요","1 / 2: +rockets / +bombs · 3 / 4: fill · Q / W: rocket type · A / S: bomb type · Space: take off":"1 / 2: 로켓·폭탄 추가 · 3 / 4: 가득 · Q / W: 로켓 종류 · A / S: 폭탄 종류 · Space: 출격","Hangar — supply":"격납고 — 보급","Refuel and repair are free · gun and 9,600 rounds are free":"급유·수리 무료 · 기관총과 탄 9,600발 무료","Aboard ":"실은 수 "," each":" / 개","Fill":"가득","Payload":"적재량","This visit ":"이번 구입 ","Take off (Space)":"출격 (Space)","1 / 2: +rockets / +bombs · 3 / 4: fill · Backspace: undo · Space: take off":"1 / 2: 로켓·폭탄 추가 · 3 / 4: 가득 · Backspace: 취소 · Space: 출격","Not enough money":"돈이 모자랍니다","The plane is full":"더 실을 수 없습니다","Refueled, repaired, rearmed":"급유·수리·보급 완료","Not enough money — earn more in operations":"돈이 모자랍니다 — 작전에서 더 버세요","Keys 1-4 buy · earn money from bounties, items and successful operations":"1~4 키로 강화 · 돈은 현상금·아이템·작전 성공으로 법니다","Payload capacity +20% per level":"단계마다 적재량 +20%","No rockets aboard — buy them in the hangar (the gun is free)":"로켓이 없습니다 — 격납고에서 사세요 (기관총은 무료)","No bombs aboard — buy them in the hangar (the gun is free)":"폭탄이 없습니다 — 격납고에서 사세요 (기관총은 무료)","AUTO":"자동","Auto button (or A): the AI flies, fights, lands and rearms for you. Any arrow key takes control back":"자동 버튼 (또는 A): AI가 대신 비행·공격·착함·재무장을 합니다. 방향키를 누르면 다시 직접 조종합니다","Auto":"자동","Auto ON":"자동 중","Autopilot ON — the AI flies, fights, lands and rearms":"자동 조종 켜짐 — AI가 비행·공격·착함·재무장을 합니다","Autopilot OFF — you have control":"자동 조종 꺼짐 — 직접 조종합니다","Black Kite":"검은 솔개","Crimson Fox":"붉은 여우","Silver Crane":"은빛 학","Thunder Wolf":"천둥 늑대","Night Heron":"밤 왜가리","Iron Hawk":"강철 매","Ace duel":"에이스 결투","Open sea · 1 enemy ace":"넓은 바다 · 적 에이스 1기","finish with over 50% airframe":"기체 체력 50% 이상으로 끝내기","In the clouds — enemies cannot see you":"구름 속 — 적이 나를 보지 못합니다","Aircraft upgrades":"기체 강화","Engine":"엔진","Armor":"장갑","Guns":"기관총","Ammo racks":"탄약고","Thrust +6% per level: faster climbs and top speed":"단계마다 추력 +6%: 상승과 최고 속도가 빨라집니다","Damage taken -10% per level":"단계마다 받는 피해 -10%","Gun damage +15% and range +10% per level":"단계마다 기관총 피해 +15%, 사거리 +10%","Rockets and bombs +20% per level":"단계마다 로켓·폭탄 +20%","Already at max level":"이미 최고 단계입니다","Not enough stars — earn more by clearing operations":"별이 모자랍니다 — 작전을 깨서 별을 더 모으세요","Close (Esc)":"닫기 (Esc)","MAX":"최고","Stars to spend ":"쓸 수 있는 별 ","Keys 1-4 buy · stars come from clearing operations (up to 3 per operation)":"1~4 키로 강화 · 별은 작전을 깨면 얻습니다 (작전마다 최대 3개)","Upgrades (U)":"강화 (U)","Buy ":"강화 ","ZOOM":"확대","Night assault":"야간 공략","Clear both islands while N1K fighters attack":"N1K 전투기의 공격을 받으며 두 섬을 소탕하세요","Clear both islands in the dark and fly home":"어둠 속에서 두 섬을 소탕하고 귀환하세요","Fight off the Zero swarm and clear the island":"몰려오는 제로센을 물리치고 섬을 소탕하세요","Pull up now! Press ▲":"지금 상승하세요! ▲ 키를 누르세요","Rockets":"로켓","48 heavy rockets":"로켓 48발","Bunkers, ship guns":"벙커, 군함의 포","Bombs":"폭탄","90 small bombs (250 kg)":"폭탄 90발","Buildings, barracks, parked aircraft":"건물, 막사, 지상의 적기","Torpedoes":"어뢰","6 torpedoes":"어뢰 6발","Sinking ships":"군함 격침","Stalled by turning too slowly! Falling until you gain speed":"너무 느리게 돌아 실속! 속도를 되찾을 때까지 추락합니다","Climbed too steeply and stalled! The nose drops":"너무 가파르게 올라 실속! 기수가 떨어집니다","Speed regained, out of the stall":"속도를 되찾아 실속에서 벗어났습니다","Maximum altitude ":"최대 고도 ","Air too thin, stalling! Lower the nose and build speed":"공기가 희박해 실속합니다! 기수를 내려 속도를 붙이세요","Stalling! Lower the nose and build speed":"실속 중! 기수를 내려 속도를 붙이세요","Overshot the wires and rolled off the deck. Touch down at the front of the yellow striped zone.":"와이어를 지나쳐 갑판 밖으로 굴러 나갔습니다. 노란 줄무늬 구역 앞쪽에 내리세요.","Ran out of deck and fell into the sea. Touch down near the middle of the deck.":"갑판이 모자라 바다로 떨어졌습니다. 갑판 가운데 쪽에 내리세요.","Not enough takeoff speed, dropped off the end of the deck.":"이륙 속도가 모자라 갑판 끝에서 떨어졌습니다.","UNDER":"속도 부족","FAST":"너무 빠름","LOW":"너무 낮음","HIGH":"너무 높음","ROGER":"양호","Crashed.":"추락했습니다.","Flew into an enemy ship.":"적 군함에 충돌했습니다.","The crash knocked out ":"추락으로 "," ship guns":"문의 함포가 파괴되었습니다","a ship gun":"함포 하나가 파괴되었습니다","Crashed onto an enemy ship":"적 군함 위로 추락했습니다","Flew into the island hills.":"섬의 언덕에 충돌했습니다.","Flew too low, clipped a tree and crashed.":"너무 낮게 날다 나무에 걸려 추락했습니다.","Ditched in the sea. A destroyer rescued the pilot.":"바다에 불시착했습니다. 구축함이 조종사를 구조했습니다.","Crashed into the sea.":"바다로 추락했습니다.","Hit the hull. Too low.":"선체에 부딪혔습니다. 너무 낮았습니다.","A wing hit the deck mid-turn. You cannot land while turning.":"선회 중 날개가 갑판에 닿았습니다. 선회하면서는 착함할 수 없습니다.","Touched down on something other than the wheels.":"바퀴가 아닌 곳으로 닿았습니다.","Landed too hard. Come down gently.":"너무 세게 착함했습니다. 부드럽게 내리세요.","Not level. Nose too ":"수평이 아닙니다. 기수가 너무 ","high.":"높습니다.","low.":"낮습니다.","Stopped on wheel brakes alone, no wire.":"와이어 없이 바퀴 브레이크만으로 멈췄습니다.","-wire. Smooth and level. Perfect!":"번 와이어. 부드럽고 수평입니다. 완벽!","A little fast.":"조금 빨랐습니다.","A little tilted.":"조금 기울었습니다.","A little hard.":"조금 세게 닿았습니다.","-wire. Thump! But down safely.":"번 와이어. 쿵! 하지만 무사히 착함했습니다.","CUT":"엔진 끄기","WAVEOFF":"착함 취소","Refueled, repaired, loaded: ":"급유·수리·적재 완료: ","Wait until the work is done":"작업이 끝날 때까지 기다리세요","Hangar — choose your load":"격납고 — 무장을 고르세요","Refueled and repaired · every load carries 9,600 gun rounds · ships sink only to torpedoes":"급유·수리 완료 · 모든 무장에 기관총탄 9,600발 · 군함은 어뢰로만 가라앉습니다"," + 9,600 rds":" + 기총 9,600발","Tap a card · or press 1 / 2 / 3 · ◀ ▶ then Space":"카드를 누르거나 1 / 2 / 3 · ◀ ▶ 후 Space","Hangar — repair and rearm":"격납고 — 수리와 재무장","Goes back up once refuel, rearm and repair are done":"급유·재무장·수리가 끝나면 올라갑니다","Refuel":"급유","Fuel ":"연료 ","%  (tank ":"%  (탱크 ","Rearm":"재무장","Repair":"수리","Airframe ":"기체 ","Go up (Space)":"올라가기 (Space)","Working…":"작업 중…","Gooney Bird Island":"알바트로스 섬","Jan 1944":"1944년 1월","Midway Atoll":"미드웨이 환초","Training":"훈련","Take off, hit 3 targets and land on the carrier once":"이륙해서 표적 3개를 맞히고 항모에 한 번 착함하세요","First Flag":"첫 깃발","Jan 31":"1월 31일","Majuro Atoll":"마주로 환초","Island assault":"섬 공략","Destroy every building and soldier on each island to force a surrender":"섬마다 건물과 병사를 모두 없애 항복을 받아 내세요","Two Islands, One Runway":"두 섬, 하나의 활주로","Feb 1":"2월 1일","Kwajalein, Roi-Namur":"콰잘렌, 로이나무르","Destroy every building and soldier on both islands. Keep troops out of wrecked bunkers":"두 섬의 건물과 병사를 모두 없애세요. 병사가 부서진 벙커에 들어가지 못하게 하세요","Cats at Dawn":"새벽의 고양이들","Feb 17":"2월 17일","Truk Atoll":"트럭 환초","Airbase strike":"비행장 공습","Shoot down 12 Zeros and destroy the airfields on both large islands":"제로센 12기를 격추하고 두 큰 섬의 비행장을 파괴하세요","Big Island, Long Day":"큰 섬, 긴 하루","Jun 15":"6월 15일","Saipan":"사이판","Destroy every building and soldier on the big island":"큰 섬의 건물과 병사를 모두 없애세요","Turkey Shoot":"칠면조 사냥","Jun 19":"6월 19일","Philippine Sea":"필리핀 해","Fleet defense":"함대 방어","Stop the incoming dive bombers and torpedo bombers and protect the carrier":"날아오는 급강하 폭격기와 뇌격기를 막아 항모를 지키세요","Return in the Dark":"어둠 속의 귀환","Jun 20":"6월 20일","Carrier strike":"항모 공격","Sink the enemy carrier and fly home in the dark":"적 항모를 가라앉히고 어둠 속에서 귀환하세요","Orote Cliffs":"오로트 절벽","Jul 21":"7월 21일","Guam":"괌","Rocket the cliff concrete bunkers and clear the island":"절벽의 콘크리트 벙커를 로켓으로 부수고 섬을 소탕하세요","Coral Ridge":"산호 능선","Sep 15":"9월 15일","Peleliu":"펠렐리우","Rocket the concrete bunkers and clear the island":"콘크리트 벙커를 로켓으로 부수고 섬을 소탕하세요","Battle of Leyte Gulf":"레이테 만 해전","Oct 24–25":"10월 24~25일","Sibuyan Sea, Cape Engaño":"시부얀 해, 엔가뇨 곶","Naval battle":"해전","Sink the battleship and all 4 carriers, then return":"전함과 항모 4척을 모두 가라앉히고 귀환하세요","one perfect (green) landing":"완벽한(초록) 착함 한 번","no wrecked bunker gets restored":"부서진 벙커가 복구되지 않을 것","shoot down the ace":"에이스 격추","carrier above 80%":"항모 체력 80% 이상","return with over 10% fuel":"연료 10% 이상 남기고 귀환","carrier above 60%":"항모 체력 60% 이상","carrier above 70%":"항모 체력 70% 이상","Majuro":"마주로","Kwajalein":"콰잘렌","Eniwetok":"에니웨톡","Truk":"트럭","Tinian":"티니안","Angaur":"앙가우르","Iwo":"이오","Bougainville":"부건빌","Tarawa":"타라와","Makin":"마킨","Rabaul":"라바울","Palau":"팔라우","Yap":"얍","Wake":"웨이크","Midway":"미드웨이","Solomon":"솔로몬","Gilbert":"길버트","Marshall":"마셜","Caroline":"캐롤라인","Mariana":"마리아나","Bonin":"보닌","Rota":"로타","Ulithi":"울리티","Storm":"폭풍","Lightning":"번개","Hammer":"망치","Spear":"창","Wave":"파도","Eagle":"독수리","Hawk":"매","Flame":"불꽃","Dawn":"새벽","Thunder":"천둥","Shield":"방패","Arrow":"화살","Wind":"바람","Star":"별","Anchor":"닻","Gull":"갈매기","Coral":"산호","Typhoon":"태풍","Day":"낮","Dusk":"해질녘","Night":"밤","Skirmish Lv ":"스커미시 Lv ","Operation ":"작전 ","large battleship":"대형 전함","small battleship":"소형 전함"," small island":"개 작은 섬"," large island":"개 큰 섬","Air raids ":"공습 ","Island + fleet":"섬 + 함대","Clear both islands":"두 섬의","Clear all ":"모든 "," islands":"개 섬의","Clear the island":"섬의"," of every building and soldier":" 건물과 병사를 모두 없애세요"," and sink ":" 그리고 "," with torpedoes":"을(를) 어뢰로 격침하세요"," (strip a battleship of every AA gun and machine gun first)":" (전함은 대공포와 기관총을 먼저 모두 부수세요)"," to force a surrender":"을(를) 없애 항복을 받아 내세요","Shoot down ":"제로센 "," Zeros and destroy every enemy aircraft parked on the airfields":"기를 격추하고 비행장에 세워 둔 적기를 모두 파괴하세요","Fleet strike":"함대 공격","Sink ":"","Stop the incoming bombers and torpedo planes to protect the carrier":"날아오는 폭격기와 뇌격기를 막아 항모를 지키세요","Ensign":"소위","Lieutenant":"대위","Lt Cmdr":"소령","Commander":"중령","Captain":"대령","Admiral":"제독","Finish the previous operation first":"먼저 앞 작전을 끝내세요","All aircraft lost":"모든 항공기를 잃었습니다","Landing begins! Marines head for the beach":"상륙 시작! 해병대가 해변으로 향합니다","Enemy tanks counterattack!":"적 전차가 반격합니다!","The flag is up on the summit!":"정상에 깃발이 올랐습니다!","Landing failed. Destroy more defenses and try again":"상륙 실패. 방어 시설을 더 부수고 다시 시도하세요","Enemy aircraft destroyed on the ground!":"지상의 적기를 파괴했습니다!","The carrier is hit!":"항모가 피격되었습니다!","Shot down.":"격추되었습니다.","Japanese troops repaired a wrecked bunker and it is firing again!":"일본군이 부서진 벙커를 고쳐 다시 사격합니다!","Japanese troops restored a wrecked ":"일본군이 부서진 ","AA gun":"대공포","concrete bunker":"콘크리트 벙커","Shot down by infantry rifle fire.":"보병의 소총 사격에 격추되었습니다."," island":" 섬"," retaken — the Japanese surrender and raise a white flag":" 탈환 — 일본군이 항복하고 백기를 올렸습니다","bunker":"벙커","Zeros taking off from the enemy airfield!":"적 비행장에서 제로센이 이륙합니다!","Enemy floatplane catapulted from a battleship!":"전함에서 적 수상기가 사출되었습니다!","Mission complete! Return, land on the carrier and take the elevator down":"임무 완료! 귀환해서 항모에 착함하고 엘리베이터로 내려가세요","The carrier is sinking!":"항모가 가라앉고 있습니다!","The carrier sank":"항모가 침몰했습니다","Shot down by enemy fighters.":"적 전투기에 격추되었습니다.","Shot down by ship machine-gun fire.":"군함의 기관총에 격추되었습니다.","Shot down by a guard-tower machine gun.":"보초 타워의 기관총에 격추되었습니다.","Shot down by bunker cannon fire.":"벙커의 포 사격에 격추되었습니다.","Shot down by a howitzer shell.":"곡사포탄에 격추되었습니다.","Shot down by flak.":"대공포 파편에 격추되었습니다.","Enemy carrier":"적 항모","Enemy battleship":"적 전함"," sunk!":" 격침!","Ships sink only to torpedoes · rockets knock out their guns":"군함은 어뢰로만 가라앉습니다 · 로켓은 포를 부숩니다","Concrete bunker: it takes 2 rocket hits":"콘크리트 벙커: 로켓 2발이 필요합니다","Bombs do not hurt concrete bunkers — use rockets!":"폭탄은 콘크리트 벙커에 듣지 않습니다 — 로켓을 쓰세요!","Out of ":""," loaded":" 다 떨어졌습니다"," — land and take the elevator to rearm":" — 착함해서 엘리베이터로 재무장하세요","Last ":"마지막 "," away — land and take the elevator to rearm (the gun still works)":" 발사 — 착함해서 엘리베이터로 재무장하세요 (기관총은 아직 됩니다)","too high":"너무 높음","not level":"수평이 아님","Near miss! A bomb only damages what it hits directly":"빗나갔습니다! 폭탄은 직격한 것만 부숩니다","The torpedo broke on the water (":"어뢰가 물에 부딪혀 부서졌습니다(","too fast":"너무 빠름",") — fly level, below ":") — 수평으로, 높이 ","The battleship shrugs it off — knock out every AA gun and machine gun first":"전함은 끄떡없습니다 — 대공포와 기관총을 먼저 모두 부수세요","Dud! The torpedo hit the bow head-on and failed to explode — hit the stern instead":"불발! 어뢰가 뱃머리에 정면으로 맞아 터지지 않았습니다 — 고물 쪽을 노리세요","Landings ":"착함 ","/1 · Targets ":"/1 · 표적 ","Ships sunk ":"격침한 군함 ","Retaken ":"탈환 "," islands · Troops ":"개 섬 · 병사 "," · Buildings ":" · 건물 ","Kills ":"격추 "," · Parked aircraft left ":" · 남은 지상 적기 "," · Carrier ":" · 항모 ","Capital ships ":"주력함 ","Mission complete — return to the carrier and take the elevator down":"임무 완료 — 항모로 귀환해 엘리베이터로 내려가세요","Carrier hull ":"항모 선체 ","AA guns ":"대공포 ","Gun":"기관총","Space":"Space","Rocket":"로켓","Bomb":"폭탄","Torpedo":"어뢰","Blue Wings of the Pacific":"태평양의 푸른 날개","An island in the Pacific, 1942":"태평양의 섬, 1942","Fly from the carrier and retake the islands one by one":"항모에서 출격해 섬을 하나씩 되찾으세요","Tap the screen or press any key to start":"화면을 누르거나 아무 키나 눌러 시작","Demo flight":"데모 비행","FLY":"비행","▲ ▼ nose up / down · the arrow in your flight direction = full power · the opposite arrow = U-turn":"▲ ▼ 기수 위/아래 · 날아가는 방향의 화살표 = 최대 출력 · 반대 화살표 = 유턴","Hands off and the plane holds its path. Too slow, too steep (over 60°) or too high and it stalls: let it dive to recover.":"손을 떼면 비행기가 진로를 유지합니다. 너무 느리거나, 너무 가파르거나(60° 초과), 너무 높으면 실속합니다. 기수를 내려 회복하세요.","DECK":"갑판","Hold ◀ or ▶ to roll and take off. The opposite arrow brakes, then turns the plane around.":"◀ 또는 ▶ 를 누른 채 활주해 이륙합니다. 반대 화살표는 브레이크이고 이어서 기체를 돌립니다.","Stop on the elevator and press Space (or the button): refuel, repair and choose one weapon load.":"엘리베이터 위에 멈추고 Space(또는 버튼)를 누르면 급유·수리하고 무장을 하나 고릅니다.","LAND":"착함","Come in low, slow and level and touch down on the yellow zone. The hook catches a wire.":"낮고 느리고 수평으로 들어와 노란 구역에 닿으세요. 후크가 와이어를 겁니다.","GUN":"기관총","Space — machine gun: hurts planes, soldiers, buildings, trees and ship AA guns (rockets and bombs hit far harder)":"Space — 기관총: 비행기, 병사, 건물, 나무, 군함의 대공포에 피해 (로켓과 폭탄이 훨씬 강함)","WEAPON":"무기","C — fires the one weapon you loaded in the hangar":"C — 격납고에서 실은 무기 하나를 발사합니다","ROCKETS":"로켓","48 heavy rockets: one direct hit wrecks almost any building, and rockets break concrete bunkers fastest. Range 2,000 m, then the motor cuts out":"대형 로켓 48발: 직격 한 발이면 거의 모든 건물이 부서지고, 콘크리트 벙커도 로켓이 가장 빨리 부숩니다. 사거리 2,000m","BOMBS":"폭탄","90 small 250 kg bombs: direct hits only (a near miss just throws up debris), a few per building, two for a concrete bunker":"250kg 소형 폭탄 90발: 직격만 유효(빗나가면 파편만 튐), 건물마다 몇 발, 콘크리트 벙커는 2발","TORPEDOES":"어뢰","The only way to sink a ship. Release fairly level, below 60 m. Range 1,500 m":"군함을 가라앉히는 유일한 방법. 수평에 가깝게, 60m 아래에서 투하. 사거리 1,500m","ISLANDS":"섬","An island surrenders when every building and soldier is gone.":"건물과 병사가 모두 없어지면 섬이 항복합니다.","A destroyed barracks releases soldiers who repair wrecked bunkers and guns. Shoot them first.":"부서진 막사에서 병사가 뛰쳐나와 부서진 벙커와 포를 고칩니다. 먼저 쏘세요.","Large islands have an airfield that launches Zeros.":"큰 섬에는 제로센이 이륙하는 비행장이 있습니다.","FINISH":"끝내기","After \"Mission complete\", land and ride the elevator down. You get 3 aircraft per operation.":"\"임무 완료\" 뒤에 착함해서 엘리베이터로 내려가세요. 작전마다 항공기가 3대 주어집니다.","KEYS":"키","P pause · M sound · Esc leave the operation (press twice)":"P 일시정지 · M 소리 · Esc 작전 나가기(두 번)","How to play":"조작법","Tap or press any key to close":"누르거나 아무 키나 눌러 닫기","BLUE WINGS":"푸른 날개","OF THE PACIFIC":"태평양의","DISTINGUISHED FLYING CROSS":"수훈 비행 십자훈장","Awarded to the pilot who freed every island of the Pacific":"태평양의 모든 섬을 해방한 조종사에게 수여합니다","THE END":"끝","Thank you for flying · Stars ":"비행해 주셔서 감사합니다 · 별 "," · Press any key":" · 아무 키나 누르세요","◀ ▶ difficulty · R random mission · M campaign · Enter launch · H how to play · Esc title":"◀ ▶ 난이도 · R 무작위 임무 · M 캠페인 · Enter 출격 · H 조작법 · Esc 처음으로","◀ ▶ pick any operation you have unlocked · Enter launch · R new map · M skirmish · H how to play · Esc title":"◀ ▶ 열린 작전 고르기 · Enter 출격 · R 새 지도 · M 스커미시 · H 조작법 · Esc 처음으로","Blue Wings of the Pacific 1942":"태평양의 푸른 날개 1942","Rank ":"계급 "," · Best: Op ":" · 최고: 작전 "," · Stars ":" · 별 ","Campaign":"캠페인","Skirmish":"스커미시","Skirmish · Level ":"스커미시 · 레벨 ","Free play · random level and map · no campaign progress saved":"자유 대전 · 무작위 레벨과 지도 · 캠페인 기록은 저장되지 않음","  cleared":"  클리어","New operation":"새 작전","Not cleared yet":"아직 클리어하지 못함"," · Enemy planes ":" · 적기 ","★3: lose no aircraft and ":"★3: 항공기를 잃지 않고 ","R rolls a new random mission · ◀ ▶ sets the difficulty (1-20)":"R 새 무작위 임무 · ◀ ▶ 난이도(1-20)","Campaign: levels 1-20 get harder in order · clear Level 20 for the medal ceremony":"캠페인: 1~20레벨이 차례로 어려워집니다 · 20레벨을 깨면 훈장 수여식","Launch (Enter)":"출격 (Enter)","New map (R)":"새 지도 (R)","How to play (H)":"조작법 (H)","Mission Success":"임무 성공","Mission Failed":"임무 실패"," · Targets ":" · 표적 "," · Landings ":" · 착함 "," · Aircraft lost ":" · 잃은 항공기 ","★1: complete · ★2: lose at most 1 aircraft · ★3: lose none and ":"★1: 완료 · ★2: 항공기를 1대까지만 잃음 · ★3: 잃지 않고 ","Next: Op ":"다음: 작전 ","Retry (new map)":"다시 도전 (새 지도)","Operations (Enter)":"작전 목록 (Enter)","Leveling out before the turn":"선회 전에 수평을 잡습니다","Ops":"작전","Sound":"소리","Pause":"일시정지","Arresting zone":"어레스팅 구역","Elevator":"엘리베이터","Space — take the elevator down to finish":"Space — 엘리베이터로 내려가 끝내기","Taxi to the elevator with ◀▶ and press Space":"◀▶ 로 엘리베이터까지 가서 Space를 누르세요","Space: elevator down — refuel, repair and choose your weapons":"Space: 엘리베이터 내리기 — 급유·수리하고 무장 고르기","Hold ◀ or ▶ to speed up and take off · Space on elevator: service · Air: Space gun, C weapon":"◀ 또는 ▶ 를 누르고 가속해 이륙 · 엘리베이터에서 Space: 정비 · 공중: Space 기관총, C 무기","Elevator moving":"엘리베이터 이동 중","Good! Lifting off at the deck end":"좋아요! 갑판 끝에서 떠오릅니다","Rolling… reach ":"활주 중… 갑판 끝 전에 "," kt before the deck end to lift off":"kt에 도달해야 이륙합니다","Turning — you lose a little speed and height":"선회 중 — 속도와 고도를 조금 잃습니다","Climbing gently — ▲ to climb more":"완만하게 상승 중 — ▲ 로 더 오르기","Fuel is low":"연료가 부족합니다","Out of ammo":"탄약이 없습니다",". Return to the carrier and resupply on the elevator":". 항모로 돌아와 엘리베이터에서 보급하세요","Press the opposite arrow to turn back to the carrier":"반대쪽 화살표로 항모 쪽으로 돌아가세요","STALL!":"실속!","◀ Target ":"◀ 표적 ","Target ▶ ":"표적 ▶ ","Fuel":"연료","Carrier ":"항모 ","Sound off":"소리 끔","Sound on":"소리 켬","Elevator down (Space)":"엘리베이터 내리기 (Space)","Start landing (V)":"상륙 시작 (V)","NEWS":"속보","Leave this operation?":"이 작전을 나갈까요?","Paused":"일시정지","Tap Ops again (or press Esc) to leave · tap anywhere else to keep flying":"나가려면 작전 버튼을 다시 누르세요(또는 Esc) · 다른 곳을 누르면 계속 비행","Tap the screen or press any key to continue":"화면을 누르거나 아무 키나 눌러 계속","Perfect":"완벽","Good":"좋음","Fair":"보통","Danger":"위험","Barrier":"방벽","Touchdown ":"착함 ","Ditched":"불시착","Crashed":"추락","Tap here to fly again (Enter) · Planes left ":"여기를 눌러 다시 비행 (Enter) · 남은 항공기 ","All aircraft lost (Enter)":"모든 항공기를 잃었습니다 (Enter)","Destroy every building and soldier ":"건물과 병사를 모두 없애세요 ","Dud!":"불발!","Wingman":"윙맨","Wingman HP ":"윙맨 체력 ","My plane":"내 비행기","Speed ":"속도 ","Altitude ":"고도 ","Torp ":"어뢰 ","Go around! Full throttle":"착함 취소! 전속력","Ship machine guns shot down your torpedo — knock out the bow and stern guns first":"군함의 기관총이 어뢰를 격추했습니다 — 선수와 선미의 포를 먼저 부수세요","Your wingman was shot down! A replacement is being readied":"윙맨이 격추되었습니다! 교체 기체를 준비 중입니다","Custom ":"사용자 ","Custom":"사용자","Your own campaign · difficulty ":"나만의 캠페인 · 난이도 "," · no progress saved":" · 진행은 저장되지 않음","No custom missions yet":"아직 사용자 임무가 없습니다","Open editor.html in a browser, build a campaign, press Save, then come back here":"브라우저에서 editor.html을 열어 캠페인을 만들고 저장한 뒤 돌아오세요","Missions come from editor.html · ◀ ▶ chooses which one":"임무는 editor.html에서 만듭니다 · ◀ ▶ 로 고르기","◀ ▶ pick a mission · Enter launch · M campaign · H how to play · Esc title · Build missions in editor.html (PC)":"◀ ▶ 임무 고르기 · Enter 출격 · M 캠페인 · H 조작법 · Esc 처음으로 · editor.html(PC)에서 임무 만들기","No custom missions yet — build some in editor.html":"아직 사용자 임무가 없습니다 — editor.html에서 만드세요"};
 const trCache = new Map(); let trRe = null;
 const KO_SHIP = { 'large battleship': '대형 전함', 'small battleship': '소형 전함', 'battleship': '전함', 'carrier': '항공모함', 'transport': '수송선', 'destroyer': '구축함' };
 const koShips = x => x.replace(/(\d+) (large battleship|small battleship|battleship|carrier|transport|destroyer)s?/g, (m, n, k) => KO_SHIP[k] + ' ' + n + '척');
@@ -114,7 +114,7 @@ function aero(V, alpha) {   // 앞쪽 기준(오른쪽·왼쪽을 보든 같다)
   const cl0 = CL_BASE + (p.gear ? CL_FLAP : 0), cm = clMax(), as = (cm - cl0) / 5;
   const CL = alpha > as ? Math.max(0.5, cm - 2.8 * (alpha - as)) : Math.max(-cm, 5 * alpha + cl0);   // 임계 받음각을 넘으면 양력이 갑자기 줄어든다(실속)
   const q = KL * V * V, thr = p.fuel > 0 ? p.thr : 0, dn = airDen();   // 높이 올라갈수록 공기가 희박해 엔진 힘과 날개 양력이 줄어든다
-  return { aL: q * CL * (0.25 + 0.75 * dn), aD: KD0 * V * V * (p.gear ? DRAG_GEAR : 1) + q * CL * CL * 0.06, aT: thr * dn * Math.min(AMAX, PWR / Math.max(V, 1)) * (1 + 0.06 * upLv('eng')) * (G.t < (G.bufThr || 0) ? 1.25 : 1) };
+  return { aL: q * CL * (0.25 + 0.75 * dn), aD: KD0 * V * V * (p.gear ? DRAG_GEAR : 1) + q * CL * CL * 0.06, aT: thr * dn * Math.min(AMAX, PWR / Math.max(V, 1)) * (1 + 0.06 * upLv('eng')) * (G.t < (G.bufThr || 0) ? 1.25 : 1) * (has('burner') ? 1.15 : 1) };
 }
 function airDenAt(y) { return clamp(1 - Math.max(0, y - 250) / 400, 0.1, 1); }
 function airDen() { return airDenAt(p.y); }
@@ -214,7 +214,7 @@ function deckStep(dt) {
   p.rollT = fwdK ? (p.rollT || 0) + dt : 0;
   const cl0 = CL_BASE + CL_FLAP, cm = CL_MAX + CL_FLAP;
   {
-    let acc = 20 * p.thr * LOADS[G.loadout].accel * (1 + 0.06 * upLv('eng')) * clamp(0.3 + p.rollT / 2.5, 0.3, 1) - KD0 * V * V * DRAG_GEAR - 0.4;   // 처음엔 천천히, 누르고 있을수록 힘차게
+    let acc = 20 * p.thr * LOADS[G.loadout].accel * (1 + 0.06 * upLv('eng')) * (has('burner') ? 1.15 : 1) * clamp(0.3 + p.rollT / 2.5, 0.3, 1) - KD0 * V * V * DRAG_GEAR - 0.4;   // 처음엔 천천히, 누르고 있을수록 힘차게
     if (!fwdK) acc = -4;    // 키를 놓으면 천천히 선다
     if (backK) acc = -12;   // 반대 키: 브레이크
     const sp = Math.max(0, p.vr * d + acc * dt); p.vr = sp * d;
@@ -641,6 +641,7 @@ function sfx0(n, o) {
   else if (n === 'wsplash') { const sz = (o && o.s) || 0, v = (o && o.v === undefined ? 1 : o && o.v) || 1; splashX(sz === 0 ? 0.08 : sz === 1 ? 0.4 : 0.95, v * (sz === 0 ? 2.5 : sz === 1 ? 0.6 : 1)); }   // 물보라: 0 작은 탄, 1 중간, 2 큰 물기둥
   else if (n === 'die') { sin(420 * j, 190, 0.32, 0.1, 0, 0.25, 'sawtooth', 1300); nz({ type: 'bandpass', f0: 1100 * j, f1: 500, q: 1.5, dur: 0.28, vol: 0.12, att: 0.01, rev: 0.2 }); nz({ brown: true, type: 'lowpass', f0: 260, f1: 90, dur: 0.14, vol: 0.35, att: 0.002, d: 0.18 }); }   // 병사의 짧은 비명과 쓰러지는 소리
   else if (n === 'eshot') gunShot(o.g, o.dist, j);
+  else if (n === 'gun20') gunShot('c20', 0, j);   // 20mm 기관포
   else if (n === 'lootdrop') { const r = (o && o.r) || 2; nz({ type: 'highpass', f0: 5000, f1: 9000, dur: 0.5 + r * 0.2, vol: 0.05 + r * 0.02, att: 0.1, rev: 0.4 }); sin(1500 + r * 300, 2400 + r * 400, 0.35, 0.05, 0, 0.3); }   // 좋은 아이템이 떨어지는 반짝임
   else if (n === 'loot') {   // 아이템 획득: 등급이 높을수록 화려하게
     const r = (o && o.r) || 0, T = sound.ctx.currentTime + 0.02, out = sound.out || sound.master;
@@ -809,9 +810,9 @@ function addMoney(n, x, y) {
 }
 const baseAmmo = () => ({ gun: 9600, rk: 0, bm: 0, tp: 0, lb: 550 });   // 기본 지급: 기관총탄 9,600발 (무료)
 const payCap = () => Math.round(48 * (1 + 0.2 * upLv('ammo')));   // 실을 수 있는 무게: 로켓 1칸, 폭탄 0.5칸
-const payUsed = () => (p.ammo.rk || 0) + (p.ammo.bm || 0) * 0.5;
+const payUsed = () => (p.ammo.rk || 0) * RK().slot + (p.ammo.bm || 0) * BM().slot;
 function shopBuy(k, n) {   // 격납고에서 로켓(rk)·폭탄(bm)을 사거나(+) 이번에 산 것을 되판다(-)
-  const price = k === 'rk' ? RK_PRICE : BM_PRICE, slot = k === 'rk' ? 1 : 0.5; G.buy = G.buy || { rk: 0, bm: 0 };
+  const price = k === 'rk' ? RK().price : BM().price, slot = k === 'rk' ? RK().slot : BM().slot; G.buy = G.buy || { rk: 0, bm: 0 };
   if (n > 0) {
     const can = Math.min(n, Math.floor((payCap() - payUsed()) / slot + 1e-6), Math.floor(money() / price));
     if (can <= 0) { G.shopMsg = money() < price ? 'Not enough money' : 'The plane is full'; return; }
@@ -827,14 +828,155 @@ function shopGo() {   // 보급을 마치고 올라간다 (급유·수리는 무
 function autoShop() {   // 자동 조종의 보급: 지난번에 산 무기(없으면 로켓)를 돈이 되는 만큼 채운다
   const k = G.lastPref || 'rk'; shopBuy(k, 999); if (!(p.ammo[k] > 0)) shopBuy(k === 'rk' ? 'bm' : 'rk', 999); shopGo();
 }
-const SHOP_BTN = { rkM: { x: 470, y: 150, w: 56, h: 46 }, rkP: { x: 532, y: 150, w: 56, h: 46 }, rkF: { x: 594, y: 150, w: 100, h: 46 }, bmM: { x: 470, y: 214, w: 56, h: 46 }, bmP: { x: 532, y: 214, w: 56, h: 46 }, bmF: { x: 594, y: 214, w: 100, h: 46 }, go: { x: 330, y: 330, w: 300, h: 50 } };
+const SHOP_BTN = { rkM: { x: 470, y: 150, w: 56, h: 46 }, rkP: { x: 532, y: 150, w: 56, h: 46 }, rkF: { x: 594, y: 150, w: 100, h: 46 }, bmM: { x: 470, y: 214, w: 56, h: 46 }, bmP: { x: 532, y: 214, w: 56, h: 46 }, bmF: { x: 594, y: 214, w: 100, h: 46 }, go: { x: 330, y: 330, w: 300, h: 50 }, rkL: { x: 704, y: 150, w: 44, h: 46 }, rkR: { x: 752, y: 150, w: 44, h: 46 }, bmL: { x: 704, y: 214, w: 44, h: 46 }, bmR: { x: 752, y: 214, w: 44, h: 46 } };
 function shopTap(m) {
   const B = SHOP_BTN;
   if (inR(m, B.rkM)) shopBuy('rk', -4); else if (inR(m, B.rkP)) shopBuy('rk', 4); else if (inR(m, B.rkF)) shopBuy('rk', 999);
   else if (inR(m, B.bmM)) shopBuy('bm', -6); else if (inR(m, B.bmP)) shopBuy('bm', 6); else if (inR(m, B.bmF)) shopBuy('bm', 999);
   else if (inR(m, B.go)) shopGo();
+  else if (inR(m, B.rkL)) cycleType('rk', -1); else if (inR(m, B.rkR)) cycleType('rk', 1); else if (inR(m, B.bmL)) cycleType('bm', -1); else if (inR(m, B.bmR)) cycleType('bm', 1);
 }
 function pickLoad(i) { shopGo(); }   // 예전 무장 고르기 이름 (지금은 상점에서 산 그대로 올라간다)
+// ───────── 무기고: 기관총 5종(정비창에서 사서 장착), 로켓 4종·폭탄 5종(격납고에서 종류를 골라 산다), 패시브 9종(정비창에서 사서 2칸에 장착) ─────────
+const GUNT = {
+  m2: { n: '.50 cal M2 ×6', k: '12.7mm 기관총 ×6', ic: '🔫', price: 0, rate: 16, dm: 1, spread: 0.02, d: 'Standard issue, free. Balanced', dk: '기본 지급(무료). 균형 잡힌 성능' },
+  ap: { n: 'AP .50 cal', k: '철갑탄 기관총', ic: '🎯', price: 1800, rate: 16, dm: 1, hard: 3, spread: 0.02, tc: '#bfe6ff', d: 'x3 damage to bunkers and towers', dk: '벙커·타워에 3배 피해' },
+  inc: { n: 'Incendiary .50', k: '소이탄 기관총', ic: '🔥', price: 2200, rate: 16, dm: 0.9, burn: 1, spread: 0.02, tc: '#ff8a3c', d: 'Sets targets and planes on fire', dk: '맞은 건물·적기에 불이 붙어 계속 탄다' },
+  c20: { n: '20mm Hispano ×4', k: '20mm 기관포 ×4', ic: '💥', price: 3000, rate: 9, dm: 2.6, spread: 0.025, life: 1.1, boom: 1, tc: '#ffe066', snd: 'gun20', d: 'Slow, hard-hitting exploding shells', dk: '느리지만 강한 작렬탄' },
+  gat: { n: '"Buzzsaw" Gatling', k: "개틀링 '버즈소'", ic: '🌀', price: 4500, rate: 30, dm: 0.65, spread: 0.05, tc: '#ff5ad8', d: 'Huge rate of fire, wide spread', dk: '엄청난 연사력, 넓게 퍼진다' }
+};
+const RKTS = {
+  hvar: { n: 'HVAR 5-inch', k: 'HVAR 5인치', s: 'HVAR', sk: 'HVAR', price: 40, slot: 1, cd: 0.25, r: 14, mul: 1, d: 'Standard rocket', dk: '표준 로켓' },
+  tiny: { n: 'Tiny Tim 11.75-inch', k: '타이니 팀 (초대형)', s: 'Tiny Tim', sk: '타이니 팀', price: 160, slot: 3, cd: 0.9, r: 30, mul: 2.2, big: 1, d: 'Huge blast, slow to fire', dk: '거대한 폭발, 발사 간격이 길다' },
+  clus: { n: 'Cluster rocket', k: '확산 로켓', s: 'Cluster', sk: '확산 로켓', price: 90, slot: 1.5, cd: 0.35, r: 10, mul: 0.8, sub: 6, d: 'Bursts into 6 more explosions', dk: '맞으면 주변에 6번 더 터진다' },
+  hom: { n: 'Homing rocket', k: '유도 로켓', s: 'Homing', sk: '유도 로켓', price: 120, slot: 1.2, cd: 0.35, r: 14, mul: 1, home: 1, d: 'Steers into planes and targets', dk: '적기와 표적을 쫓아간다' }
+};
+const BMBS = {
+  gp: { n: '250 kg bomb', k: '250kg 폭탄', s: '250 kg', sk: '250kg', price: 15, slot: 0.5, lb: 550, mul: 1, d: 'Standard bomb', dk: '표준 폭탄' },
+  hvy: { n: '1,000 kg bomb', k: '1,000kg 대형 폭탄', s: '1,000 kg', sk: '1,000kg', price: 70, slot: 1.5, lb: 1000, mul: 1, d: 'Double damage, huge blast', dk: '2배 피해, 거대한 폭발' },
+  nap: { n: 'Napalm', k: '네이팜탄', s: 'Napalm', sk: '네이팜', price: 45, slot: 0.8, lb: 550, mul: 0.6, nap: 1, d: 'Leaves a sea of fire that burns everything', dk: '떨어진 곳에 불바다가 남아 주변을 태운다' },
+  clu: { n: 'Cluster bomb', k: '확산탄', s: 'Cluster', sk: '확산탄', price: 55, slot: 1, lb: 550, mul: 0.5, clu: 1, d: 'Opens into 10 bomblets over the target', dk: '목표 위에서 작은 폭탄 10발로 갈라진다' },
+  bus: { n: 'Bunker buster', k: '벙커버스터', s: 'Buster', sk: '벙커버스터', price: 80, slot: 1, lb: 550, mul: 1, hard: 4, d: 'x4 damage to bunkers and towers', dk: '벙커·타워에 4배 피해' }
+};
+const PASS = {
+  shield: { n: 'Energy Shield', k: '에너지 보호막', ic: '🔵', price: 3000, d: 'Absorbs 30 damage, recharges after 5 s', dk: '피해 30을 막고, 5초 안 맞으면 다시 찬다' },
+  nano: { n: 'Repair Nanites', k: '자가 수리 나노', ic: '🧬', price: 2500, d: '+1.5 airframe/s when not hit for 3 s', dk: '3초 안 맞으면 초당 기체 +1.5' },
+  magnet: { n: 'Golden Magnet', k: '황금 자석', ic: '🧲', price: 2000, d: '+50% money from bounties and items', dk: '현상금·아이템 돈 +50%' },
+  lucky: { n: 'Lucky Charm', k: '행운의 부적', ic: '🍀', price: 2800, d: 'More drops, rarer items', dk: '아이템이 더 자주, 더 좋게 나온다' },
+  burner: { n: 'Afterburner', k: '애프터버너', ic: '🚀', price: 2200, d: 'Thrust +15%', dk: '추력 +15%' },
+  flare: { n: 'Flare Dispenser', k: '플레어 발사기', ic: '🎇', price: 1800, d: 'Enemy fighters miss far more', dk: '적 전투기 사격이 훨씬 빗나간다' },
+  stealth: { n: 'Stealth Paint', k: '스텔스 도장', ic: '🌫️', price: 2400, d: 'Ground guns aim far worse', dk: '지상 화기의 조준이 크게 나빠진다' },
+  recycle: { n: 'Ammo Recycler', k: '탄약 재활용기', ic: '♻️', price: 2000, d: '25%: a rocket or bomb is not used up', dk: '25% 확률로 로켓·폭탄이 줄지 않는다' },
+  rage: { n: 'Combat Adrenaline', k: '전투 아드레날린', ic: '💢', price: 1500, d: 'When hit: damage x1.5 for 6 s', dk: '맞으면 6초 동안 공격력 1.5배' }
+};
+const SLOT3_PRICE = 5000, HARD = { pill: 1, bunker: 1, tower: 1 };
+const GN = () => GUNT[(G.save && G.save.gun) || 'm2'] || GUNT.m2;
+const RK = () => RKTS[(G.save && G.save.rkT) || 'hvar'] || RKTS.hvar;
+const BM = () => BMBS[(G.save && G.save.bmT) || 'gp'] || BMBS.gp;
+const has = id => !!(G.save && G.save.eq && G.save.eq.includes(id) && G.scene === 'play');
+const slots = () => (G.save && G.save.slots) || 2;
+const owned = (kind, id) => kind === 'gun' ? (id === 'm2' || !!(G.save.guns && G.save.guns[id])) : !!(G.save.pass && G.save.pass[id]);
+const magK = () => (has('magnet') ? 1.5 : 1);
+const FIREZ = [];   // 네이팜 불바다
+function setRkType(id) { if (!RKTS[id] || id === (G.save.rkT || 'hvar')) return; const old = RK(); G.save.money = money() + p.ammo.rk * old.price; p.ammo.rk = 0; if (G.buy) G.buy.rk = 0; G.save.rkT = id; saveProg(); }   // 종류를 바꾸면 실은 로켓은 산 값에 되판다
+function setBmType(id) { if (!BMBS[id] || id === (G.save.bmT || 'gp')) return; const old = BM(); G.save.money = money() + p.ammo.bm * old.price; p.ammo.bm = 0; if (G.buy) G.buy.bm = 0; G.save.bmT = id; saveProg(); }
+function cycleType(k, d) { const keys = Object.keys(k === 'rk' ? RKTS : BMBS), cur = k === 'rk' ? (G.save.rkT || 'hvar') : (G.save.bmT || 'gp'), i = (keys.indexOf(cur) + d + keys.length) % keys.length; if (k === 'rk') setRkType(keys[i]); else setBmType(keys[i]); sfx('click'); }
+function rocketBoom(q, x, y, sea) {   // 로켓 종류마다 다른 폭발
+  const R = RKTS[q.rt] || RKTS.hvar; G.expMul = R.mul; try { explode(x, y, R.r, 'rocket', sea); } finally { G.expMul = 1; }
+  if (R.big) { FX.push({ k: 'flash', x, y: y + 3, vx: 0, vy: 0, life: 0.4, t: 0 }); for (let k = 0; k < 10; k++) FX.push({ k: 'fire', x: x + (Math.random() - 0.5) * 20, y: y + Math.random() * 8, vx: (Math.random() - 0.5) * 30, vy: 6 + Math.random() * 14, life: 1 + Math.random() * 0.8, t: 0, s: 3 + Math.random() * 3 }); sfx('boom', { k: 'bomb', r: 30, x }); }
+  if (R.sub) for (let k = 0; k < R.sub; k++) PROJ.push({ k: 'x', x: x + (Math.random() - 0.5) * 56, y: y + Math.random() * 5, t: 0.07 + k * 0.06, r: 9, mul: 0.55, life: 2 });
+}
+function bombMul(q, t) { const B = BMBS[q.bt] || BMBS.gp; return B.mul * (B.hard && HARD[t.type] ? B.hard : 1); }
+function stepArsenal(dt) {   // 매 순간: 불바다, 불붙은 표적·적기, 보호막·자가 수리
+  for (let i = FIREZ.length - 1; i >= 0; i--) {
+    const z = FIREZ[i]; if (G.t > z.until) { FIREZ.splice(i, 1); continue; }
+    if (Math.random() < dt * 40) FX.push({ k: 'fire', x: z.x + (Math.random() - 0.5) * z.w, y: z.y + Math.random() * 2, vx: (Math.random() - 0.5) * 4, vy: 4 + Math.random() * 7, life: 0.7 + Math.random() * 0.7, t: 0, s: 1.6 + Math.random() * 2.2 });
+    if (Math.random() < dt * 6) FX.push({ k: 'smoke', x: z.x + (Math.random() - 0.5) * z.w, y: z.y + 4, vx: -2, vy: 6, life: 1.6, t: 0, s: 2 });
+    for (const t of TARGETS) if (t.alive && t.type !== 'runway' && !SHIPS[t.type] && Math.abs(t.x - z.x) < z.w / 2 + (BOX[t.type] ? BOX[t.type].w / 2 : 4)) applyDmg(t, 1.6 * dt);
+    for (const o of SOLD) if (o.alive && Math.abs(o.x - z.x) < z.w / 2) killSoldier(o);
+    for (const tr of TREES) if (tr.alive && Math.abs(tr.x - z.x) < z.w / 2 && Math.random() < dt * 0.8) { tr.alive = false; chips(tr.x, tr.y + 2, 6, ['#3a2a1a', '#7a5a36']); }
+  }
+  for (const t of TARGETS) if (t.alive && t.fireT > G.t) { applyDmg(t, 0.45 * dt); if (Math.random() < dt * 14) FX.push({ k: 'fire', x: t.x + (Math.random() - 0.5) * 6, y: t.y + 3 + Math.random() * 3, vx: 0, vy: 5, life: 0.7, t: 0, s: 1.4 }); }
+  for (const e of ENE) if (!e.dead && e.burnT > G.t) { e.hp -= 0.35 * dt; if (Math.random() < dt * 18) FX.push({ k: 'fire', x: e.x, y: e.y, vx: 0, vy: 2, life: 0.5, t: 0, s: 1.3 }); if (e.hp <= 0) killEnemy(e); }
+  const quiet = G.t - (G.lastHitT || -99);
+  if (has('shield') && quiet > 5) G.shield = Math.min(30, (G.shield || 0) + 6 * dt);
+  if (has('nano') && p.mode === 'air' && quiet > 3) p.hp = Math.min(100, p.hp + 1.5 * dt);
+}
+function drawShield(c) {   // 보호막: 내 비행기 둘레의 푸른 막 (맞으면 번쩍)
+  if (!has('shield') || !(G.shield > 0.5) || !SMOKY[p.mode]) return; const hit = G.t - (G.shieldHitT || -9), a = 0.1 + 0.25 * Math.max(0, 1 - hit / 0.35) + 0.04 * Math.sin(G.t * 6);
+  const X = sx(p.x), Y = sy(p.y), R = 13 * cam.z; c.save(); const g = c.createRadialGradient(X, Y, R * 0.55, X, Y, R); g.addColorStop(0, 'rgba(90,180,255,0)'); g.addColorStop(0.85, 'rgba(110,200,255,' + a + ')'); g.addColorStop(1, 'rgba(180,230,255,' + (a * 1.6) + ')'); c.fillStyle = g; c.beginPath(); c.arc(X, Y, R, 0, 7); c.fill(); c.restore();
+}
+// ───────── 정비창 (메뉴의 'U'): 강화 · 기관총 · 패시브 ─────────
+const ARS_TAB = [0, 1, 2].map(i => ({ x: 164 + i * 150, y: 70, w: 140, h: 38 }));
+const ARS_GUN = Object.keys(GUNT).map((k, i) => ({ k, x: 160, y: 124 + i * 54, w: 640, h: 48 }));
+const ARS_PAS = Object.keys(PASS).map((k, i) => ({ k, x: 160 + (i % 2) * 324, y: 120 + Math.floor(i / 2) * 54, w: 316, h: 48 }));
+const ARS_SLOT = { x: 484, y: 336, w: 316, h: 40 };
+function arsMsg(t) { G.upMsg = t; }
+function arsGun(id) { const g = GUNT[id]; if (owned('gun', id)) { G.save.gun = id; saveProg(); sfx('click'); return; } if (money() < g.price) return arsMsg('Not enough money — earn more in operations'); G.save.money = money() - g.price; G.save.guns = G.save.guns || {}; G.save.guns[id] = 1; G.save.gun = id; saveProg(); sfx('green'); }
+function arsPass(id) {
+  const P = PASS[id]; G.save.eq = G.save.eq || [];
+  if (!owned('pass', id)) { if (money() < P.price) return arsMsg('Not enough money — earn more in operations'); G.save.money = money() - P.price; G.save.pass = G.save.pass || {}; G.save.pass[id] = 1; sfx('green'); }
+  const i = G.save.eq.indexOf(id); if (i >= 0) G.save.eq.splice(i, 1); else if (G.save.eq.length < slots()) G.save.eq.push(id); else return (saveProg(), arsMsg('All slots are full — tap an equipped item to take it off'));
+  saveProg(); arsMsg('');
+}
+function arsSlot() { if (slots() >= 3) return; if (money() < SLOT3_PRICE) return arsMsg('Not enough money — earn more in operations'); G.save.money = money() - SLOT3_PRICE; G.save.slots = 3; saveProg(); sfx('green'); }
+function drawArsenal(c) {
+  const ko = LANG === 'ko', tab = G.arsTab || 0;
+  c.fillStyle = 'rgba(4,10,20,0.6)'; c.fillRect(0, 0, W, H);
+  c.fillStyle = 'rgba(22,34,50,0.98)'; c.beginPath(); c.roundRect(140, 56, 680, 432, 16); c.fill(); c.strokeStyle = '#ffd23f'; c.lineWidth = 2; c.stroke();
+  ['Upgrades', 'Guns', 'Passives'].forEach((nm, i) => { const r = ARS_TAB[i], on = i === tab; c.fillStyle = on ? 'rgba(255,200,61,0.92)' : 'rgba(46,60,80,0.95)'; c.beginPath(); c.roundRect(r.x, r.y, r.w, r.h, 10); c.fill(); c.fillStyle = on ? '#1c1405' : '#dbe4ee'; c.font = '800 16px system-ui,sans-serif'; c.textAlign = 'center'; c.fillText(nm, r.x + r.w / 2, r.y + 25); });
+  c.textAlign = 'right'; c.fillStyle = '#ffe27a'; c.font = '900 20px system-ui,sans-serif'; c.fillText(fmt$(money()), 800, 96);
+  const card = (r, hi, col) => { c.fillStyle = hi ? 'rgba(60,80,110,0.95)' : 'rgba(40,56,76,0.9)'; c.beginPath(); c.roundRect(r.x, r.y, r.w, r.h, 10); c.fill(); if (col) { c.strokeStyle = col; c.lineWidth = 2; c.stroke(); } };
+  const chip = (x, y, txt, col, fg) => { c.font = '800 13px system-ui,sans-serif'; const w = c.measureText(txt).width + 18; c.fillStyle = col; c.beginPath(); c.roundRect(x - w, y - 15, w, 26, 8); c.fill(); c.fillStyle = fg || '#fff'; c.textAlign = 'center'; c.fillText(txt, x - w / 2, y + 3); };
+  if (tab === 0) {
+    UPG.forEach((u, i) => {
+      const r = UPG_BTN[i], y = r.y, lv = upLv(u.k), cost = upgCost(lv), max = lv >= UPG_MAX, ok = !max && money() >= cost;
+      c.fillStyle = 'rgba(40,56,76,0.9)'; c.beginPath(); c.roundRect(160, y - 4, 640, 52, 10); c.fill();
+      c.textAlign = 'left'; c.fillStyle = '#fff'; c.font = '800 17px system-ui,sans-serif'; c.fillText((i + 1) + '. ' + u.n, 176, y + 18);
+      c.fillStyle = '#9fb3c8'; fitFont(c, u.d, 12, '600', 320); c.fillText(u.d, 176, y + 37);
+      for (let k = 0; k < UPG_MAX; k++) { c.fillStyle = k < lv ? '#ffc83d' : 'rgba(255,255,255,0.15)'; c.beginPath(); c.arc(540 + k * 26, y + 22, 9, 0, 7); c.fill(); }
+      c.fillStyle = max ? 'rgba(80,90,104,0.9)' : ok ? 'rgba(52,150,84,0.95)' : 'rgba(70,82,98,0.95)'; c.beginPath(); c.roundRect(r.x, r.y, r.w, r.h, 10); c.fill();
+      c.textAlign = 'center'; c.fillStyle = ok || max ? '#fff' : '#9fb0c4'; c.font = '800 15px system-ui,sans-serif'; c.fillText(max ? 'MAX' : fmt$(cost), r.x + r.w / 2, r.y + 28);
+    });
+  } else if (tab === 1) {
+    for (const r of ARS_GUN) {
+      const g = GUNT[r.k], own = owned('gun', r.k), eq = (G.save.gun || 'm2') === r.k;
+      card(r, eq, eq ? '#ffd23f' : null); c.textAlign = 'left'; c.font = '24px system-ui,sans-serif'; c.fillStyle = '#fff'; c.fillText(g.ic, r.x + 12, r.y + 33);
+      c.fillStyle = '#fff'; c.font = '800 16px system-ui,sans-serif'; c.fillText(ko ? g.k : g.n, r.x + 50, r.y + 20);
+      c.fillStyle = '#9fb3c8'; c.font = '600 12px system-ui,sans-serif'; c.fillText((ko ? g.dk : g.d) + ' · ' + (ko ? '연사 ' : 'Rate ') + g.rate + '/s · ' + (ko ? '위력 ' : 'Power ') + 'x' + g.dm, r.x + 50, r.y + 38);
+      chip(r.x + r.w - 10, r.y + 24, eq ? (ko ? '장착 중' : 'Equipped') : own ? (ko ? '장착' : 'Equip') : fmt$(g.price), eq ? '#ffc83d' : own ? 'rgba(52,120,190,0.95)' : money() >= g.price ? 'rgba(52,150,84,0.95)' : 'rgba(70,82,98,0.95)', eq ? '#1c1405' : '#fff');
+    }
+  } else {
+    const eqN = (G.save.eq || []).length;
+    for (const r of ARS_PAS) {
+      const P = PASS[r.k], own = owned('pass', r.k), eq = (G.save.eq || []).includes(r.k);
+      card(r, eq, eq ? '#5ee37a' : null); c.textAlign = 'left'; c.font = '22px system-ui,sans-serif'; c.fillStyle = '#fff'; c.fillText(P.ic, r.x + 10, r.y + 32);
+      c.font = '800 14px system-ui,sans-serif'; c.fillText(ko ? P.k : P.n, r.x + 44, r.y + 19); c.fillStyle = '#9fb3c8'; fitFont(c, ko ? P.dk : P.d, 11, '600', 180); c.fillText(ko ? P.dk : P.d, r.x + 44, r.y + 37);
+      chip(r.x + r.w - 8, r.y + 24, eq ? '✓' : own ? (ko ? '장착' : 'Equip') : fmt$(P.price), eq ? '#5ee37a' : own ? 'rgba(52,120,190,0.95)' : money() >= P.price ? 'rgba(52,150,84,0.95)' : 'rgba(70,82,98,0.95)', eq ? '#06210d' : '#fff');
+    }
+    const r = ARS_SLOT; card(r, false, null); c.textAlign = 'left'; c.fillStyle = '#fff'; c.font = '800 14px system-ui,sans-serif'; c.fillText((ko ? '장착 칸 ' : 'Slots ') + eqN + ' / ' + slots(), r.x + 12, r.y + 25);
+    if (slots() < 3) chip(r.x + r.w - 8, r.y + 20, (ko ? '3번째 칸 ' : '3rd slot ') + fmt$(SLOT3_PRICE), money() >= SLOT3_PRICE ? 'rgba(52,150,84,0.95)' : 'rgba(70,82,98,0.95)');
+  }
+  c.textAlign = 'center'; if (G.upMsg) { c.fillStyle = '#ff9a7a'; c.font = '700 13px system-ui,sans-serif'; c.fillText(G.upMsg, 480, 456); }
+  c.fillStyle = 'rgba(70,82,98,0.95)'; c.beginPath(); c.roundRect(UPG_CLOSE.x, UPG_CLOSE.y, UPG_CLOSE.w, UPG_CLOSE.h, 10); c.fill(); c.fillStyle = '#fff'; c.font = '800 15px system-ui,sans-serif'; c.fillText('Close (Esc)', 480, UPG_CLOSE.y + 25);
+  c.fillStyle = '#9fb0c4'; c.font = '600 12px system-ui,sans-serif'; c.fillText('Q / E: switch tab · 1-5 buy · earn money from bounties, items and operations', 480, 478);
+  c.textAlign = 'left';
+}
+function arsTap(m) {
+  const ti = ARS_TAB.findIndex(r => inR(m, r)); if (ti >= 0) { G.arsTab = ti; G.upMsg = ''; return; }
+  const tab = G.arsTab || 0;
+  if (tab === 0) { const i = UPG_BTN.findIndex(r => inR(m, r)); if (i >= 0) { buyUpg(i); return; } }
+  else if (tab === 1) { const r = ARS_GUN.find(r => inR(m, r)); if (r) { arsGun(r.k); return; } }
+  else { const r = ARS_PAS.find(r => inR(m, r)); if (r) { arsPass(r.k); return; } if (inR(m, ARS_SLOT)) { arsSlot(); return; } }
+  if (inR(m, UPG_CLOSE) || m.x < 140 || m.x > 820 || m.y < 56 || m.y > 488) G.upg = false;
+}
+function arsKey(e) {
+  const tab = G.arsTab || 0, n = { Digit1: 0, Digit2: 1, Digit3: 2, Digit4: 3, Digit5: 4, Digit6: 5, Digit7: 6, Digit8: 7, Digit9: 8 }[e.code];
+  if (e.code === 'KeyQ') { G.arsTab = (tab + 2) % 3; G.upMsg = ''; } else if (e.code === 'KeyE' || e.code === 'Tab') { G.arsTab = (tab + 1) % 3; G.upMsg = ''; }
+  else if (n !== undefined) { if (tab === 0) buyUpg(n); else if (tab === 1 && ARS_GUN[n]) arsGun(ARS_GUN[n].k); else if (tab === 2 && ARS_PAS[n]) arsPass(ARS_PAS[n].k); }
+  else if (e.code === 'Escape' || e.code === 'KeyU' || e.code === 'Enter') G.upg = false;
+}
+
 // ───────── 아이템: 적을 부수면 등급별 아이템이 떨어진다 (고급 유닛일수록 값진 아이템) ─────────
 const RAR = [{ n: 'Common', k: '일반', c: '#e8edf3' }, { n: 'Uncommon', k: '고급', c: '#5ee37a' }, { n: 'Rare', k: '희귀', c: '#4aa8ff' }, { n: 'Epic', k: '영웅', c: '#c07bff' }, { n: 'Legendary', k: '전설', c: '#ffb02e' }];
 const ITEMS = {
@@ -861,34 +1003,34 @@ const DROP = {
   mech: [1, [0, 0, 40, 40, 20], 3000, 3]   // 보스 로봇: 희귀 이상만 3개
 };
 const LOOT = [], FLOATS = [];
-const dmgBuf = () => (G.t < (G.bufDmg || 0) ? 2 : 1);
+const dmgBuf = () => (G.t < (G.bufDmg || 0) ? 2 : 1) * (G.t < (G.bufRage || 0) ? 1.5 : 1);
 function rollRarity(w) { const tot = w.reduce((a, b) => a + b, 0); let r = Math.random() * tot, ri = 0; while (ri < 4 && r >= w[ri]) { r -= w[ri]; ri++; } return ri; }
 function dropItems(src, x, y) {
   const D = DROP[src]; if (!D) return;
   for (let k = 0; k < D[3]; k++) {
-    if (Math.random() >= D[0]) continue; const ri = rollRarity(D[1]), pool = POOL[ri], id = pool[Math.floor(Math.random() * pool.length)];
+    if (Math.random() >= Math.min(1, D[0] * (has('lucky') ? 1.5 : 1))) continue; const ri = rollRarity(has('lucky') ? D[1].map((w, i) => w * (i >= 2 ? 1.7 : 1)) : D[1]), pool = POOL[ri], id = pool[Math.floor(Math.random() * pool.length)];
     LOOT.push({ x: x + (k - (D[3] - 1) / 2) * 9, y: y + 4, it: id, t: -k * 0.25 }); if (ri >= 2) sfx('lootdrop', { r: ri });
   }
 }
 function onKill(src, x, y) {   // 적을 부쉈다: 현상금과 아이템
   if (G.scene !== 'play' || !G.m) return; const D = DROP[src]; if (!D) return;
-  addMoney(D[2], x, y); dropItems(src, x, y);
+  addMoney(Math.round(D[2] * magK()), x, y); dropItems(src, x, y);
 }
 function applyItem(id) {
   const it = ITEMS[id], m = G.m; if (m) { m.loot = m.loot || [0, 0, 0, 0, 0]; m.loot[it.r]++; }
   if (id === 'fuel') p.fuel = Math.min(p.fuelMax, p.fuel + p.fuelMax * 0.2);
   else if (id === 'kit') p.hp = Math.min(100, p.hp + 20);
-  else if (id === 'pouch') addMoney(80);
+  else if (id === 'pouch') addMoney(Math.round(80 * magK()));
   else if (id === 'rcrate') p.ammo.rk += 6;
   else if (id === 'bcrate') p.ammo.bm += 10;
-  else if (id === 'roll') addMoney(250);
+  else if (id === 'roll') addMoney(Math.round(250 * magK()));
   else if (id === 'tune') G.bufThr = G.t + 40;
-  else if (id === 'gold') addMoney(600);
+  else if (id === 'gold') addMoney(Math.round(600 * magK()));
   else if (id === 'armor') { p.hp = 100; G.bufArm = G.t + 40; }
   else if (id === 'insignia') G.bufDmg = G.t + 40;
-  else if (id === 'chest') addMoney(1500);
-  else if (id === 'medal') addMoney(4000);
-  else if (id === 'prop') { p.hp = 100; p.fuel = p.fuelMax; G.bufDmg = G.t + 60; G.bufThr = G.t + 60; addMoney(1000); }
+  else if (id === 'chest') addMoney(Math.round(1500 * magK()));
+  else if (id === 'medal') addMoney(Math.round(4000 * magK()));
+  else if (id === 'prop') { p.hp = 100; p.fuel = p.fuelMax; G.bufDmg = G.t + 60; G.bufThr = G.t + 60; addMoney(Math.round(1000 * magK())); }
   G.banQ = G.banQ || []; G.banQ.push(id); sfx('loot', { r: it.r });
 }
 function lootStep(dt) {
@@ -965,25 +1107,27 @@ function drawPick(c) {   // 격납고 보급: 가진 달러 안에서 로켓·�
   c.fillStyle = 'rgba(11,23,38,0.97)'; c.beginPath(); c.roundRect(140, 70, 680, 332, 14); c.fill(); c.strokeStyle = '#ffd23f'; c.lineWidth = 2; c.stroke();
   c.textAlign = 'left'; c.fillStyle = '#ffd23f'; c.font = '800 22px system-ui,sans-serif'; c.fillText('Hangar — supply', 164, 104);
   c.textAlign = 'right'; c.fillStyle = '#ffe27a'; c.font = '900 22px system-ui,sans-serif'; c.fillText(fmt$(money()), 796, 104);
-  c.textAlign = 'left'; c.fillStyle = '#b9c7d8'; c.font = '600 13px system-ui,sans-serif'; c.fillText('Refuel and repair are free · gun and 9,600 rounds are free', 164, 128);
+  c.textAlign = 'left'; c.fillStyle = '#b9c7d8'; c.font = '600 13px system-ui,sans-serif'; c.fillText((LANG === 'ko' ? '급유·수리 무료 · 기관총: ' + GN().k : 'Refuel and repair are free · gun: ' + GN().n) + (LANG === 'ko' ? ' (탄 무료) · ◀ ▶ 로 종류 선택' : ' (free ammo) · ◀ ▶ picks the type'), 164, 128);
   const row = (y, icon, name, k, price) => {
     c.fillStyle = 'rgba(30,44,62,0.95)'; c.beginPath(); c.roundRect(160, y - 6, 640, 58, 10); c.fill();
     c.save(); c.translate(196, y + 23); icon(); c.restore();
     c.textAlign = 'left'; c.fillStyle = '#fff'; c.font = '800 18px system-ui,sans-serif'; c.fillText(name, 234, y + 18);
-    c.fillStyle = '#9fb3c8'; c.font = '700 13px system-ui,sans-serif'; c.fillText('Aboard ' + p.ammo[k] + ' · ' + fmt$(price) + ' each', 234, y + 38);
+    const T = k === 'rk' ? RK() : BM(), ko = LANG === 'ko'; c.fillStyle = '#9fb3c8'; c.font = '700 12px system-ui,sans-serif'; c.fillText((ko ? '실은 수 ' : 'Aboard ') + p.ammo[k] + ' · ' + fmt$(T.price) + (ko ? ' / 개 · ' : ' each · ') + (ko ? T.dk : T.d), 234, y + 38);
   };
-  row(150, () => { for (let k = -1; k <= 1; k++) { c.fillStyle = '#cfd5da'; c.fillRect(-16, k * 9 - 2, 26, 4); c.fillStyle = '#c0392b'; c.beginPath(); c.moveTo(10, k * 9 - 2); c.lineTo(16, k * 9); c.lineTo(10, k * 9 + 2); c.fill(); } }, 'Rockets', 'rk', RK_PRICE);
-  row(214, () => { for (let k = -1; k <= 1; k++) { c.fillStyle = '#2b2f33'; c.beginPath(); c.ellipse(k * 13, 0, 6, 10, 0, 0, 7); c.fill(); c.fillStyle = '#4a5058'; c.fillRect(k * 13 - 3, -14, 6, 4); } }, 'Bombs', 'bm', BM_PRICE);
-  const G0 = G.buy || { rk: 0, bm: 0 }, rkOk = money() >= RK_PRICE && payUsed() + 1 <= payCap(), bmOk = money() >= BM_PRICE && payUsed() + 0.5 <= payCap();
+  const ko0 = LANG === 'ko';
+  row(150, () => { for (let k = -1; k <= 1; k++) { c.fillStyle = '#cfd5da'; c.fillRect(-16, k * 9 - 2, 26, 4); c.fillStyle = '#c0392b'; c.beginPath(); c.moveTo(10, k * 9 - 2); c.lineTo(16, k * 9); c.lineTo(10, k * 9 + 2); c.fill(); } }, ko0 ? RK().k : RK().n, 'rk', RK().price);
+  row(214, () => { for (let k = -1; k <= 1; k++) { c.fillStyle = '#2b2f33'; c.beginPath(); c.ellipse(k * 13, 0, 6, 10, 0, 0, 7); c.fill(); c.fillStyle = '#4a5058'; c.fillRect(k * 13 - 3, -14, 6, 4); } }, ko0 ? BM().k : BM().n, 'bm', BM().price);
+  btn(B.rkL, '◀', true); btn(B.rkR, '▶', true); btn(B.bmL, '◀', true); btn(B.bmR, '▶', true);
+  const G0 = G.buy || { rk: 0, bm: 0 }, rkOk = money() >= RK().price && payUsed() + RK().slot <= payCap(), bmOk = money() >= BM().price && payUsed() + BM().slot <= payCap();
   btn(B.rkM, '−4', G0.rk > 0); btn(B.rkP, '+4', rkOk); btn(B.rkF, 'Fill', rkOk, 'rgba(160,112,20,0.95)');
   btn(B.bmM, '−6', G0.bm > 0); btn(B.bmP, '+6', bmOk); btn(B.bmF, 'Fill', bmOk, 'rgba(160,112,20,0.95)');
   const u = payUsed(), cap = payCap(); c.textAlign = 'left'; c.fillStyle = '#cfd8e3'; c.font = '700 13px system-ui,sans-serif'; c.fillText('Payload', 164, 296);
   c.fillStyle = '#243447'; c.fillRect(234, 286, 330, 12); c.fillStyle = u >= cap ? '#ff8a5c' : '#59d37a'; c.fillRect(234, 286, 330 * clamp(u / cap, 0, 1), 12);
   c.fillStyle = '#cfd8e3'; c.fillText(Math.round(u * 10) / 10 + ' / ' + cap, 574, 297);
-  const spent = G0.rk * RK_PRICE + G0.bm * BM_PRICE; c.textAlign = 'right'; c.fillStyle = '#ffd23f'; c.fillText('This visit ' + fmt$(spent), 796, 297);
+  const spent = G0.rk * RK().price + G0.bm * BM().price; c.textAlign = 'right'; c.fillStyle = '#ffd23f'; c.fillText('This visit ' + fmt$(spent), 796, 297);
   if (G.shopMsg) { c.textAlign = 'center'; c.fillStyle = '#ff9a7a'; c.font = '700 13px system-ui,sans-serif'; c.fillText(G.shopMsg, 480, 320); }
   btn(B.go, 'Take off (Space)', true, 'rgba(52,150,84,0.95)');
-  c.textAlign = 'center'; c.fillStyle = '#9fb0c4'; c.font = '600 12px system-ui,sans-serif'; c.fillText('1 / 2: +rockets / +bombs · 3 / 4: fill · Backspace: undo · Space: take off', 480, 396); c.textAlign = 'left';
+  c.textAlign = 'center'; c.fillStyle = '#9fb0c4'; c.font = '600 12px system-ui,sans-serif'; c.fillText('1 / 2: +rockets / +bombs · 3 / 4: fill · Q / W: rocket type · A / S: bomb type · Space: take off', 480, 396); c.textAlign = 'left';
 }
 
 function drawHangar(c) {
@@ -1304,7 +1448,7 @@ const rankOf = n => n < 3 ? 'Ensign' : n < 6 ? 'Lt (jg)' : n < 10 ? 'Lieutenant'
 function startMission(i) {
   const M = typeof i === 'number' ? MISSIONS[i] : i; G.cur = M; G.mi = typeof i === 'number' ? i : -1; G.scene = 'play'; G.res = null; G.sink = null; G.lives = 3; G.carrierHp = 100; G.land = null; G.dark = 0;
   G.m = { earn: 0, loot: [0, 0, 0, 0, 0], t: 0, kills: 0, zeros: 0, ace: false, landings: 0, greens: 0, crashes: 0, wave: 0, hits: [], done: false, obj: false, flag: 0, runwayFirst: false, revived: 0 };
-  G.gunHint = 0; G.gunHintT = 0; G.camWing = false; G.auto = null; G.demoFire = false; LOOT.length = 0; FLOATS.length = 0; G.ban = null; G.banQ = []; G.bufDmg = 0; G.bufThr = 0; G.bufArm = 0; G.buy = { rk: 0, bm: 0 };
+  G.gunHint = 0; G.gunHintT = 0; G.camWing = false; G.auto = null; G.demoFire = false; LOOT.length = 0; FLOATS.length = 0; FIREZ.length = 0; G.shield = 30; G.lastHitT = -99; G.bufRage = 0; G.ban = null; G.banQ = []; G.bufDmg = 0; G.bufThr = 0; G.bufArm = 0; G.buy = { rk: 0, bm: 0 };
   G.loadout = 0;   // 시작 무장: 함대 공격은 어뢰, 나머지는 로켓
   ENE.length = 0; EB.length = 0; FLAK.length = 0; AAT.length = 0; FX.length = 0; PROJ.length = 0; SOLD.length = 0; SHELL.length = 0; WRECKS.length = 0; G.tick = []; G.fmx = undefined; G.depX = undefined; G.fmTask = undefined; G.fmDir = 1;
   ship.x = -500; G.t = 0;
@@ -1543,7 +1687,10 @@ function spawnWave(l) { const m = G.m; (m.queue = m.queue || []).push(...l); }
 function hitCarrier(d) { if (G.sink) return; G.carrierHp = Math.max(0, G.carrierHp - d); explode(ship.x + 60 + Math.random() * (DECK_L - 120), DECK_Y + 2, 18, 'none', false); G.toast = { text: 'The carrier is hit!', grade: 'brown', until: G.t + 3 }; }
 function hurt(d, why) {
   if (p === WP) { wingHurt(d * 0.65); return; }   // 내 비행기와 같은 피해(적 공격력 -35%)   // 적의 사격 대상이 동료기일 때
-  if (p.mode !== 'air' || G.result) return; d *= 0.65 * (1 - 0.1 * upLv('arm')) * (G.t < (G.bufArm || 0) ? 0.5 : 1); p.hp -= d; p.smokeT = G.t + 1.4; sfx('hit');   // 쉬운 난이도: 적의 공격력 -35%, 맞으면 잠시 하얀 연기
+  if (p.mode !== 'air' || G.result) return; d *= 0.65 * (1 - 0.1 * upLv('arm')) * (G.t < (G.bufArm || 0) ? 0.5 : 1);
+  G.lastHitT = G.t; if (has('rage')) G.bufRage = G.t + 6;
+  if (has('shield') && (G.shield || 0) > 0) { const ab = Math.min(G.shield, d); G.shield -= ab; d -= ab; G.shieldHitT = G.t; if (d <= 0.001) { sfx('ehit', { x: p.x }); return; } }   // 보호막이 먼저 막는다
+  p.hp -= d; p.smokeT = G.t + 1.4; sfx('hit');   // 쉬운 난이도: 적의 공격력 -35%, 맞으면 잠시 하얀 연기
   for (let i = 0, n = 3 + Math.min(4, Math.round(d)); i < n; i++) FX.push({ k: 'dirt', x: p.x + (Math.random() - 0.5) * 7, y: p.y + (Math.random() - 0.5) * 2.5, vx: p.vx * 0.5 + (Math.random() - 0.5) * 22, vy: (Math.random() - 0.4) * 14 + 2, life: 0.25 + Math.random() * 0.3, t: 0, s: 0.18 + Math.random() * 0.16, c: i % 2 ? '#c9ced4' : '#3f72b8' });   // 작은 티끌
   if (p.hp <= 0) crash(why || 'Shot down.');
 }
@@ -1883,7 +2030,7 @@ function enemyStep(dt) {
     if (e.y <= Math.max(1, gh(e.x)) && !nearShip) { G.selfCrash = (G.selfCrash || 0) + 1; killEnemy(e); continue; }   // 늦으면 추락한다
     if (!bomber && air && e.att && e.st === 'app' && !e.rv) {   // 사격
       const d = Math.hypot(p.x - e.x, p.y - e.y), tf = d / 560, aimA = Math.atan2(p.y + p.vy * tf - e.y, p.x + p.vx * tf - e.x);
-      if (e.bt > 0) { e.bt -= dt; e.cd -= dt; if (e.bt <= 0) e.cd = 1.6 - 0.2 * (e.rk || 3) + Math.random() * 0.6; if (e.cd <= 0) { e.cd = 0.12; e.sn = (e.sn || 0) + 1; sfx('eshot', { g: e.type === 'd4y' || e.type === 'b6n' ? 'mg7' : e.sn % 3 === 0 ? 'c20' : 'mg7', x: e.x, y: e.y }); const a = e.h + clamp(angd(aimA, e.h), -0.16, 0.16) + (Math.random() - 0.5) * (0.14 - 0.02 * (e.rk || 3)); FX.push({ k: 'muz', x: e.x + Math.cos(e.h) * 6, y: e.y + Math.sin(e.h) * 6, vx: Math.cos(e.h) * e.v, vy: Math.sin(e.h) * e.v, a: e.h, s: 1.4 + Math.random() * 0.9, life: 0.06, t: 0 }); EB.push({ x: e.x + Math.cos(e.h) * 8, y: e.y + Math.sin(e.h) * 8, vx: Math.cos(a) * 480 + Math.cos(e.h) * e.v, vy: Math.sin(a) * 480 + Math.sin(e.h) * e.v, life: 0.8, tr: (e.trN = (e.trN > 0 ? e.trN : 0) - 1) < 0 && ((e.trN = 4 + ((Math.random() * 4) | 0)), true) }); } }   // 예광탄: 5~8발에 한 발
+      if (e.bt > 0) { e.bt -= dt; e.cd -= dt; if (e.bt <= 0) e.cd = 1.6 - 0.2 * (e.rk || 3) + Math.random() * 0.6; if (e.cd <= 0) { e.cd = 0.12; e.sn = (e.sn || 0) + 1; sfx('eshot', { g: e.type === 'd4y' || e.type === 'b6n' ? 'mg7' : e.sn % 3 === 0 ? 'c20' : 'mg7', x: e.x, y: e.y }); const a = e.h + clamp(angd(aimA, e.h), -0.16, 0.16) + (Math.random() - 0.5) * (0.14 - 0.02 * (e.rk || 3)) * (has('flare') ? 2.4 : 1); FX.push({ k: 'muz', x: e.x + Math.cos(e.h) * 6, y: e.y + Math.sin(e.h) * 6, vx: Math.cos(e.h) * e.v, vy: Math.sin(e.h) * e.v, a: e.h, s: 1.4 + Math.random() * 0.9, life: 0.06, t: 0 }); EB.push({ x: e.x + Math.cos(e.h) * 8, y: e.y + Math.sin(e.h) * 8, vx: Math.cos(a) * 480 + Math.cos(e.h) * e.v, vy: Math.sin(a) * 480 + Math.sin(e.h) * e.v, life: 0.8, tr: (e.trN = (e.trN > 0 ? e.trN : 0) - 1) < 0 && ((e.trN = 4 + ((Math.random() * 4) | 0)), true) }); } }   // 예광탄: 5~8발에 한 발
       else { e.cd -= dt; if (e.cd <= 0 && d < 650 && !(G.pCloud > 0.5) && Math.abs(angd(aimA, e.h)) < 0.16) { e.bt = 0.45 + 0.12 * (e.rk || 3); e.cd = 0; } }
       if ((e.bt <= 0 || d < 90) && (d < 130 || (d < 600 && Math.abs(angd(Math.atan2(p.y - e.y, p.x - e.x), e.h)) > 2.0))) { e.st = 'ext'; e.up = e.y >= p.y; e.xt = 2.4 + Math.random() * 1.6; e.att = false; e.cd = 1.7 - 0.2 * (e.rk || 3); e.bt = 0; if ((e.rk || 1) >= 4 && !e.mv && (e.mvCd || 0) <= 0 && e.y - gA > 110 && e.y < MAX_ALT - 230 && Math.random() < 0.45) mvStart(e, 'imm'); }
     }
@@ -1921,7 +2068,7 @@ function towerStep(dt) {   // 보초 타워의 병사가 기관총으로 쏜다 
     const want = p.mode === 'air' && d < 750 ? clamp(Math.atan2(p.y + p.vy * tf - gy, p.x + p.vx * tf - gx), -0.4, Math.PI + 0.4) : 0.9;
     t.aim = t.aim === undefined ? want : t.aim + clamp(angd(want, t.aim), -1.6 * dt, 1.6 * dt);
     t.tcd = (t.tcd === undefined ? Math.random() * 3 : t.tcd) - dt; t.tb = (t.tb || 0) - dt;
-    if (t.tb <= 0 && t.tcd <= 0 && p.mode === 'air' && !(G.pCloud > 0.5) && d < 650 && d > 30 && Math.abs(angd(want, t.aim)) < 0.14) { t.tb = 0.8; t.tcd = 3 + Math.random() * 2.5; t.te = (Math.random() - 0.5) * (0.22 + d / 3500); alarmFauna(gx, gy, 220); }
+    if (t.tb <= 0 && t.tcd <= 0 && p.mode === 'air' && !(G.pCloud > 0.5) && d < 650 && d > 30 && Math.abs(angd(want, t.aim)) < 0.14) { t.tb = 0.8; t.tcd = 3 + Math.random() * 2.5; t.te = (Math.random() - 0.5) * (0.22 + d / 3500) * (has('stealth') ? 2.4 : 1); alarmFauna(gx, gy, 220); }
     if (t.tb > 0) { t.tt = (t.tt || 0) - dt; while (t.tt <= 0) { t.tt += 1 / 11; sfx('eshot', { g: 'mg7', x: gx, y: gy }); const a = t.aim + (t.te || 0) + (Math.random() - 0.5) * 0.1; EB.push({ x: gx + Math.cos(t.aim) * 3, y: gy + Math.sin(t.aim) * 3, vx: Math.cos(a) * 520, vy: Math.sin(a) * 520, life: 2, why: 'Shot down by a guard-tower machine gun.', dmg: 0.7, aa: true }); t.qf = G.t; } }
   }
 }
@@ -1932,7 +2079,7 @@ function quadStep(dt) {   // 일반 벙커의 4연장 기관포: 포신이 내 �
     const want = p.mode === 'air' && d < 700 ? clamp(Math.atan2(p.y + p.vy * tf - gy, p.x + p.vx * tf - gx), 0.05, Math.PI - 0.05) : 0.9;
     t.aim = t.aim === undefined ? want : t.aim + clamp(angd(want, t.aim), -1.4 * dt, 1.4 * dt);
     t.qcd = (t.qcd === undefined ? Math.random() * 3 : t.qcd) - dt; t.burst = (t.burst || 0) - dt;
-    if (t.burst <= 0 && t.qcd <= 0 && p.mode === 'air' && !(G.pCloud > 0.5) && d < 500 && d > 40 && Math.abs(angd(want, t.aim)) < 0.12) { t.burst = 0.5; alarmFauna(gx, gy, 220); t.qcd = 6.5 + Math.random() * 2; t.qn = 0; t.qe = (Math.random() - 0.5) * (0.2 + d / 4500); }
+    if (t.burst <= 0 && t.qcd <= 0 && p.mode === 'air' && !(G.pCloud > 0.5) && d < 500 && d > 40 && Math.abs(angd(want, t.aim)) < 0.12) { t.burst = 0.5; alarmFauna(gx, gy, 220); t.qcd = 6.5 + Math.random() * 2; t.qn = 0; t.qe = (Math.random() - 0.5) * (0.2 + d / 4500) * (has('stealth') ? 2.4 : 1); }
     if (t.burst > 0) { t.qt = (t.qt || 0) - dt; while (t.qt <= 0) { t.qt += 1 / 12; t.qn = (t.qn || 0) + 1; if (t.qn % 2) sfx('eshot', { g: 'c25', x: gx, y: gy }); const a = t.aim + t.qe + (Math.random() - 0.5) * 0.12, k = t.qn % 4; const sd = pl ? (k % 2 ? 1 : -1) * 0.9 : 0; EB.push({ x: gx + Math.cos(t.aim) * off - Math.sin(t.aim) * sd, y: gy + Math.sin(t.aim) * off + Math.cos(t.aim) * sd + (pl ? 0 : (k - 1.5) * 0.4), vx: Math.cos(a) * 520, vy: Math.sin(a) * 520, life: 2.2, why: 'Shot down by bunker cannon fire.', dmg: pl ? 2 : 1, aa: true }); t.qf = G.t; } }
   }
 }
@@ -1996,7 +2143,7 @@ function flakStep(dt) {
     const d = Math.hypot(p.x - t.x, p.y - t.y); if (d > (AA_R[t.type] || 1100) || d < 25) continue;
     t.flashT = G.t; sfx('eshot', { g: SHIPS[t.type] || t.type === 'aa' || t.type === 'cave' ? 'hvy' : 'c25', x: t.x, y: t.y });
     const hy = t.y + (SHIPS[t.type] ? BOX[t.type].h * 0.7 : t.type === 'aa' ? 7 : t.type === 'pill' ? 7.1 : t.type === 'tank' ? 10 : 4);
-    for (let k = 0, nk = Math.ceil(AA_N[t.type] * (t.guns ? nG / t.guns.length : 1)); k < nk; k++) { const f = 0.4 + Math.random() * 0.4, err = 70 + d * 0.07; FLAK.push({ x0: t.x, y0: hy, x: p.x + p.vx * f + (Math.random() - 0.5) * err * 2, y: p.y + p.vy * f + (Math.random() - 0.5) * err, t: f, life: f }); }
+    for (let k = 0, nk = Math.ceil(AA_N[t.type] * (t.guns ? nG / t.guns.length : 1)); k < nk; k++) { const f = 0.4 + Math.random() * 0.4, err = (70 + d * 0.07) * (has('stealth') ? 1.7 : 1); FLAK.push({ x0: t.x, y0: hy, x: p.x + p.vx * f + (Math.random() - 0.5) * err * 2, y: p.y + p.vy * f + (Math.random() - 0.5) * err, t: f, life: f }); }
   }
   for (let i = FLAK.length - 1; i >= 0; i--) {
     const q = FLAK[i]; q.t -= dt; if (q.t > 0) continue;
@@ -2078,7 +2225,7 @@ function damageAt(x, y, r, kind) {
     }
     if (d <= r) { if (t.type === 'pill' && kind === 'rocket' && d <= 3) { (t.marks = t.marks || []).push({ x: (() => { const yy = clamp(y - t.y, 0.7, 7.1); return clamp(x - t.x, yy > 5.3 ? -5.6 : -6.6, yy > 5.3 ? 5.6 : 6.6); })(), y: clamp(y - t.y, 0.7, 7.1), r: 0.8 + Math.random() * 0.7, a: Math.random() * 6 }); if (t.marks.length > 8) t.marks.shift(); if (t.hp > 0 && (!G.toast || G.toast.until < G.t)) G.toast = { text: 'Concrete bunker: it takes 2 rocket hits', grade: 'yellow', until: G.t + 2.5 };
         chips(x, y, 16, ['#a3a49c', '#8f908a', '#b9bab3', '#6e6f69', '#7a4a36'], 2.4); FX.push({ k: 'dust', x: x, y: y + 1, vx: -2, vy: 3, life: 1.1, t: 0 }); FX.push({ k: 'dust', x: x + 2, y: y + 1.5, vx: 2, vy: 4, life: 1.3, t: 0 }); }   // 콘크리트 파편이 튀어 나간다
-      applyDmg(t, DMG[kind][t.type] * (kind === 'rocket' ? 3 : 1) * (kind === 'rocket' && d <= 2.5 ? 1 : 1 - 0.6 * d / r)); }
+      applyDmg(t, DMG[kind][t.type] * (kind === 'rocket' ? 3 : 1) * (kind === 'rocket' && d <= 2.5 ? 1 : 1 - 0.6 * d / r) * (G.expMul || 1)); }
   }
 }
 function explode(x, y, r, kind, sea) {
@@ -2111,11 +2258,11 @@ function fireStep(dt) {
   if (((keys.Space && !(p.mode !== 'air' && overElev())) || keys.KeyZ || touch.on.gun > 0 || G.demoFire) && p.ammo.gun > 0) {   // 기관총: 연속 약 30초 (엘리베이터 위에서는 Space 가 엘리베이터 키)
     p.gunT -= dt;
     while (p.gunT <= 0 && p.ammo.gun > 0) {
-      p.gunT += 1 / 16; p.ammo.gun = Math.max(0, p.ammo.gun - 5); G.gunFireT = G.t;
-      const a = p.th + (Math.random() - 0.5) * 0.02, dx = Math.cos(a), dy = Math.sin(a);
+      const GW = GN(); p.gunT += 1 / GW.rate; p.ammo.gun = Math.max(0, p.ammo.gun - 5); G.gunFireT = G.t;
+      const a = p.th + (Math.random() - 0.5) * GW.spread, dx = Math.cos(a), dy = Math.sin(a);
       if (!(p.trN > 0)) p.trN = 0; const trc = --p.trN < 0; if (trc) p.trN = 4 + ((Math.random() * 4) | 0);   // 예광탄: 5~8발에 한 발
-      const [fvx, fvy] = fireVel(); PROJ.push({ k: 'b', x: p.x + dx * 9, y: p.y + dy * 9 - 0.4, vx: fvx + dx * 640, vy: fvy + dy * 640, life: GUN_LIFE * (1 + 0.1 * upLv('gun')), tr: trc });
-      if (((p.ammo.gun / 5) | 0) % 2 === 0) { sfx('gun'); FX.push({ k: 'muz', x: p.x + dx * 6.5, y: p.y + dy * 6.5 - 0.4, vx: fvx, vy: fvy, a, s: 1.4 + Math.random() * 0.9, life: 0.05, t: 0 }); }
+      const [fvx, fvy] = fireVel(); PROJ.push({ k: 'b', x: p.x + dx * 9, y: p.y + dy * 9 - 0.4, vx: fvx + dx * 640, vy: fvy + dy * 640, life: GUN_LIFE * (1 + 0.1 * upLv('gun')) * (GW.life || 1), tr: trc || GW.rate < 12, w: (G.save && G.save.gun) || 'm2', dm: GW.dm, tc: GW.tc });
+      if (GW.snd === 'gun20' || ((p.ammo.gun / 5) | 0) % (GW.rate > 20 ? 3 : 2) === 0) { sfx(GW.snd || 'gun'); FX.push({ k: 'muz', x: p.x + dx * 6.5, y: p.y + dy * 6.5 - 0.4, vx: fvx, vy: fvy, a, s: 1.4 + Math.random() * 0.9, life: 0.05, t: 0 }); }
     }
   } else p.gunT = 0;
 }
@@ -2133,8 +2280,8 @@ function fireRocket() {
   if ((p.mode !== 'air' && !deckArmOk()) || p.off) return;
   if (p.ammo.rk <= 0) return noAmmo(0);
   if (gunOn() || p.turn > 0 || G.t < p.rkT) return;
-  const dx = Math.cos(p.th), dy = Math.sin(p.th); p.ammo.rk--; p.rkT = G.t + 0.25; sfx('rocket'); if (p.ammo.rk === 0) lastShot(0);
-  { const [fvx, fvy] = fireVel(); PROJ.push({ k: 'r', x: p.x + dx * 8, y: p.y + dy * 8 - (p.mode === 'air' ? 1 : 0), vx: fvx + dx * 130, vy: fvy + dy * 130, life: 14 }); }
+  const RT = RK(), dx = Math.cos(p.th), dy = Math.sin(p.th); if (!(has('recycle') && Math.random() < 0.25)) p.ammo.rk--; p.rkT = G.t + RT.cd; sfx('rocket'); if (RT.big) sfx('boom', { k: 'shell', x: p.x }); if (p.ammo.rk === 0) lastShot(0);
+  { const [fvx, fvy] = fireVel(); PROJ.push({ k: 'r', x: p.x + dx * 8, y: p.y + dy * 8 - (p.mode === 'air' ? 1 : 0), vx: fvx + dx * 130, vy: fvy + dy * 130, life: 14, rt: (G.save && G.save.rkT) || 'hvar' }); }
 }
 const ROCKET_RANGE = 2000, ROCKET_V = 450;   // 로켓 사거리(m)와 추진 중 최고 속도(m/s): 사거리를 넘으면 추력이 0이 된다
 const TORP_RANGE = 1500;   // 어뢰 사거리(m): 떨어뜨린 자리에서 이만큼 달리면 힘이 다한다
@@ -2151,10 +2298,16 @@ function dropBomb() {
   if (p.mode !== 'air' || p.off) return;
   if (p.ammo.bm <= 0) return noAmmo(1);
   if (gunOn() || p.turn > 0 || G.t < p.bmT) return;
-  p.ammo.bm--; p.bmT = G.t + 0.25; sfx('bomb'); if (p.ammo.bm === 0) lastShot(1);
-  PROJ.push({ k: 'm', x: p.x, y: p.y - 2.5, vx: p.vx, vy: p.vy - 15, life: 30, lb: p.ammo.lb });
+  const BT = BM(); if (!(has('recycle') && Math.random() < 0.25)) p.ammo.bm--; p.bmT = G.t + 0.25; sfx('bomb'); if (p.ammo.bm === 0) lastShot(1);
+  PROJ.push({ k: 'm', x: p.x, y: p.y - 2.5, vx: p.vx, vy: p.vy - 15, life: 30, lb: BT.lb, bt: (G.save && G.save.bmT) || 'gp' });
 }
 function bombImpact(q, hit, g, sea) {   // 폭탄은 표적에 직격했을 때만 피해를 준다. 조금이라도 빗나가 옆 땅에 떨어지면 작은 파편만 튀고 파괴에 실패한다
+  if (q.bt === 'blet') {   // 확산탄의 작은 폭탄: 맞으면 작은 피해, 근처 병사는 죽는다
+    const y = Math.max(q.y, g); if (sea) { FX.push({ k: 'splash', x: q.x, y: 0, vx: 0, vy: 0, life: 0.4, t: 0 }); return; }
+    FX.push({ k: 'flash', x: q.x, y: y + 1, vx: 0, vy: 0, life: 0.1, t: 0 }); dirtBurst(q.x, y, 0.8); if (Math.random() < 0.35) sfx('boom', { k: 'shell', x: q.x });
+    for (const o of SOLD) if (o.alive && Math.abs(o.x - q.x) < 7) killSoldier(o); if (hit && hit.type !== 'runway' && !SHIPS[hit.type]) applyDmg(hit, 4.5); else if (hit && hit.type === 'runway') killParkedNear(hit, q.x, q.y, 8); return;
+  }
+  if (q.bt === 'nap' && !sea) { const y = Math.max(q.y, g); FIREZ.push({ x: q.x, y, w: 46, until: G.t + 7 }); explode(q.x, y, 18, 'none', false); for (let k = 0; k < 16; k++) FX.push({ k: 'fire', x: q.x + (Math.random() - 0.5) * 40, y: y + Math.random() * 4, vx: (Math.random() - 0.5) * 20, vy: 6 + Math.random() * 12, life: 1.2 + Math.random(), t: 0, s: 2.5 + Math.random() * 2.5 }); sfx('boom', { k: 'bomb', r: 30, x: q.x }); if (hit && hit.type !== 'runway' && !SHIPS[hit.type]) applyDmg(hit, (DMG.bomb[hit.type] || 0) * 0.6); return; }   // 네이팜: 불바다
   const R = q.lb >= 1000 ? 52 : 23;   // 폭발 범위(직격 연출·병사 살상 반경): 살짝 넓힘
   if (sea) { explode(q.x, 0, R, 'none', true); return; }
   if (!hit) {
@@ -2171,7 +2324,7 @@ function bombImpact(q, hit, g, sea) {   // 폭탄은 표적에 직격했을 때�
   if (SHIPS[hit.type]) { hit.hitAt = G.t; if (!G.toast || G.toast.until < G.t) G.toast = { text: 'Ships sink only to torpedoes · rockets knock out their guns', grade: 'yellow', until: G.t + 3 }; return; }
   if (hit.type === 'runway') { killParkedNear(hit, q.x, q.y, 14); return; }
   if (hit.type === 'barracks') hit.hitSide = q.x < hit.x ? -1 : 1;   // 맞은 쪽부터 무너진다
-  applyDmg(hit, (DMG.bomb[hit.type] || 0) * (q.lb >= 1000 ? 2 : 1));   // 250kg 소형탄의 폭발력 (이전의 2배)
+  applyDmg(hit, (DMG.bomb[hit.type] || 0) * (q.lb >= 1000 ? 2 : 1) * bombMul(q, hit));   // 250kg 소형탄의 폭발력 (이전의 2배)
 }
 function gunHitTarget(t, q) {
   if (t.type !== 'runway') t.hitAt = G.t;   // 기관총탄이 맞았다: 건물은 조금씩 깎이고, 군함은 선체가 아니라 갑판의 대공포·기관총이 상한다
@@ -2185,7 +2338,9 @@ function gunHitTarget(t, q) {
     if (best && bd < 10) { best.hp -= 0.25; if (best.hp <= 0) { best.alive = false; FX.push({ k: 'flash', x: t.x + best.lx * sk * dr, y: t.y + G2.gy * sk, vx: 0, vy: 0, life: 0.25, t: 0 }); } }
     return;
   }
-  applyDmg(t, (DMG.gun[t.type] || 0.1) * gunK());
+  applyDmg(t, (DMG.gun[t.type] || 0.1) * gunK() * (q.dm || 1) * (q.w && GUNT[q.w] && GUNT[q.w].hard && HARD[t.type] ? GUNT[q.w].hard : 1));
+  if (q.w === 'inc') t.fireT = G.t + 4;   // 소이탄: 불이 붙는다
+  if (q.w === 'c20') FX.push({ k: 'flash', x: q.x, y: q.y, vx: 0, vy: 0, life: 0.08, t: 0 });
 }
 function stepProj(dt) {
   const viewR = W / cam.z + 100;   // 화면에서 먼 곳의 연기는 만들지 않는다
@@ -2197,6 +2352,7 @@ function stepProj(dt) {
   }
   for (let i = PROJ.length - 1; i >= 0; i--) {
     const q = PROJ[i]; q.life -= dt;
+    if (q.k === 'x') { q.t -= dt; if (q.t <= 0) { const g0 = gh(q.x); G.expMul = q.mul; try { explode(q.x, Math.max(q.y, g0), q.r, 'rocket', g0 <= 0 && q.y <= 1); } finally { G.expMul = 1; } PROJ.splice(i, 1); } continue; }   // 확산 로켓의 뒤따르는 폭발
     if (q.k === 't') {
       if (!q.run) {   // 떨어지는 중
         q.vy -= GRAV * dt; q.vx *= 1 - 0.3 * dt; q.x += q.vx * dt; q.y += q.vy * dt;
@@ -2229,25 +2385,35 @@ function stepProj(dt) {
       continue;
     }
     if (q.k === 'r') {
+      if (q.rt === 'hom' && (q.dist || 0) > 60 && (q.dist || 0) < ROCKET_RANGE) {   // 유도 로켓: 앞쪽의 가장 가까운 적기·표적으로 방향을 튼다
+        const h0 = Math.atan2(q.vy, q.vx); let best = null, bs = 1e9;
+        for (const e of ENE) if (!e.dead) { const d = Math.hypot(e.x - q.x, e.y - q.y), da = Math.abs(angd(Math.atan2(e.y - q.y, e.x - q.x), h0)); if (d < 1200 && da < 0.9 && d < bs) { bs = d; best = e; } }
+        if (!best) for (const t of TARGETS) if (t.alive && t.type !== 'runway') { const ty = t.y + 3, d = Math.hypot(t.x - q.x, ty - q.y), da = Math.abs(angd(Math.atan2(ty - q.y, t.x - q.x), h0)); if (d < 1200 && da < 0.8 && d < bs) { bs = d; best = { x: t.x, y: ty }; } }
+        if (best) { const want = Math.atan2(best.y - q.y, best.x - q.x), turn = clamp(angd(want, h0), -2.4 * dt, 2.4 * dt), sp0 = Math.hypot(q.vx, q.vy); q.vx = Math.cos(h0 + turn) * sp0; q.vy = Math.sin(h0 + turn) * sp0; }
+      }
       const th = Math.atan2(q.vy, q.vx), sp = Math.hypot(q.vx, q.vy); q.dist = (q.dist || 0) + sp * dt;
       if (q.dist < ROCKET_RANGE) {   // 추진 중: 가속하며 날고, 하얀 연기를 뒤로 뿜는다
         if (sp < ROCKET_V) { q.vx += Math.cos(th) * 260 * dt; q.vy += Math.sin(th) * 260 * dt; } q.vy -= 1.2 * dt; q.burn = true;
-        if (Math.random() < dt * 70) FX.push({ k: 'trail', x: q.x - Math.cos(th) * 3, y: q.y - Math.sin(th) * 3, vx: 0, vy: 0, life: 1.1, t: 0, s: 1.1 });
+        if (Math.random() < dt * 70) FX.push({ k: 'trail', x: q.x - Math.cos(th) * 3, y: q.y - Math.sin(th) * 3, vx: 0, vy: 0, life: q.rt === 'tiny' ? 1.8 : 1.1, t: 0, s: q.rt === 'tiny' ? 2.4 : 1.1 });
       } else { q.burn = false; q.vy -= GRAV * dt; q.vx *= 1 - 0.25 * dt; }   // 사거리 끝: 추력 0 → 중력과 공기저항으로 떨어진다
     }
     else if (q.k === 'm') q.vy -= GRAV * 2.4 * dt;
     q.x += q.vx * dt; q.y += q.vy * dt;
+    if (q.k === 'm' && q.bt === 'clu' && q.vy < 0 && q.y - Math.max(0, gh(q.x)) < 120) {   // 확산탄: 목표 위에서 작은 폭탄 10발로 갈라진다
+      for (let k = 0; k < 10; k++) PROJ.push({ k: 'm', x: q.x, y: q.y, vx: q.vx * 0.8 + (k - 4.5) * 5 + (Math.random() - 0.5) * 3, vy: q.vy * 0.9 + (Math.random() - 0.5) * 6, life: 20, lb: 100, bt: 'blet' });
+      FX.push({ k: 'flash', x: q.x, y: q.y, vx: 0, vy: 0, life: 0.12, t: 0 }); sfx('clunk', { x: q.x }); PROJ.splice(i, 1); continue;
+    }
     if (q.k === 'b' && bulletVsParked(q)) { PROJ.splice(i, 1); continue; }
     const en = (q.k === 'b' || q.k === 'r') ? ENE.find(e => !e.dead && Math.abs(q.x - e.x) < 12 && Math.abs(q.y - e.y) < 6) : null;
     if (en) {
-      if (q.k === 'b') { en.hp -= 0.5 * gunK() * dmgBuf(); if (G.t - (G.ehitT || 0) > 0.07) { G.ehitT = G.t; sfx('ehit', { x: q.x }); } for (let j = 0; j < 2; j++) FX.push({ k: 'spark', x: q.x, y: q.y, vx: (Math.random() - 0.5) * 18, vy: 3 + Math.random() * 8, life: 0.3, t: 0 }); if (en.hp <= 0) killEnemy(en); }
-      else { if (Math.random() < 0.7 && !en.dead) killEnemy(en); explode(q.x, q.y, 14, 'rocket', false); }   // 로켓이 적기에 직격하면 일정 확률(70%)로 즉시 파괴
+      if (q.k === 'b') { en.hp -= 0.5 * gunK() * dmgBuf() * (q.dm || 1); if (q.w === 'inc') en.burnT = G.t + 4; if (G.t - (G.ehitT || 0) > 0.07) { G.ehitT = G.t; sfx('ehit', { x: q.x }); } for (let j = 0; j < 2; j++) FX.push({ k: 'spark', x: q.x, y: q.y, vx: (Math.random() - 0.5) * 18, vy: 3 + Math.random() * 8, life: 0.3, t: 0 }); if (en.hp <= 0) killEnemy(en); }
+      else { if (Math.random() < 0.7 && !en.dead) killEnemy(en); rocketBoom(q, q.x, q.y, false); }   // 로켓이 적기에 직격하면 일정 확률(70%)로 즉시 파괴
       PROJ.splice(i, 1); continue;
     }
     if (q.k === 'b') { const sd = SOLD.find(o => o.alive && o.st !== 'enter' && Math.abs(q.x - o.x) < 4.5 && q.y >= o.y - 0.5 && q.y <= o.y + 8); if (sd) { killSoldier(sd); PROJ.splice(i, 1); continue; } }
     if (q.k === 'r' || q.k === 'm') {   // 로켓·폭탄도 병사를 직접 맞힌다 (빠른 탄이 건너뛰지 않게 한 프레임 이동 거리만큼 판정을 넓힌다)
       const sd = SOLD.find(o => o.alive && o.st !== 'enter' && Math.abs(q.x - o.x) < 4.5 + Math.abs(q.vx) * dt * 0.6 && q.y >= o.y - 0.5 - Math.abs(q.vy) * dt * 0.6 && q.y <= o.y + 8 + Math.abs(q.vy) * dt * 0.6);
-      if (sd) { if (q.k === 'r') explode(q.x, Math.max(q.y, gh(q.x)), 14, 'rocket', false); else { const R = q.lb >= 1000 ? 52 : 23; explode(q.x, Math.max(q.y, gh(q.x)), R, 'none', false); for (const o of SOLD) if (o.alive && Math.abs(o.x - q.x) < R * 0.5 + 2) killSoldier(o); } killSoldier(sd); PROJ.splice(i, 1); continue; }
+      if (sd) { if (q.k === 'r') rocketBoom(q, q.x, Math.max(q.y, gh(q.x)), false); else { const R = q.lb >= 1000 ? 52 : 23; explode(q.x, Math.max(q.y, gh(q.x)), R, 'none', false); for (const o of SOLD) if (o.alive && Math.abs(o.x - q.x) < R * 0.5 + 2) killSoldier(o); } killSoldier(sd); PROJ.splice(i, 1); continue; }
     }
     let tree; const hit = hitTest(q.x, q.y, q.k === 'b' ? 0.5 : q.k === 'm' ? 2 : 1.5),   // 기관총도 건물·벙커·대공포·함선의 포에 피해를 준다
       tseg = q.k === 'r' || q.k === 'm' ? hitTreeSeg(q, dt) : null, tree0 = q.k === 'b' ? hitTree(q.x, q.y) : tseg ? tseg.t : null,   // 기관총·로켓·폭탄 모두 나무에 닿는지 본다
@@ -2262,7 +2428,7 @@ function stepProj(dt) {
       else { dirtBurst(q.x, g, 1); alarmFauna(q.x, g, 110); for (const o of SOLD) if (o.alive && Math.abs(o.x - q.x) < 4) killSoldier(o); }
     } else if (q.k === 'm' && tree && !hit) { const R = q.lb >= 1000 ? 52 : 23; explode(q.x, q.y, R, 'none', false); for (const o of SOLD) if (o.alive && Math.abs(o.x - q.x) < R * 0.5 + 2) killSoldier(o); tree.hp = 0; treeHit(tree, 0); }   // 폭탄이 나무에 걸려 터졌다: 나무는 쓰러지고 건물은 피해가 없다
     else if (q.k === 'm') bombImpact(q, hit, g, sea);
-    else { explode(q.x, Math.max(q.y, g), 14, 'rocket', sea); if (tree) { tree.hp = 0; treeHit(tree, 0); } }   // 로켓이 나무에 걸리면 폭발하면서 그 나무는 반드시 쓰러진다
+    else { rocketBoom(q, q.x, Math.max(q.y, g), sea); if (tree) { tree.hp = 0; treeHit(tree, 0); } }   // 로켓이 나무에 걸리면 폭발하면서 그 나무는 반드시 쓰러진다
     PROJ.splice(i, 1);
   }
 }
@@ -3091,8 +3257,9 @@ function drawZero(c, type) {
 const FIRE_KEY = { rocket: 'rk', bomb: 'bm', torp: 'tp' };
 function fireBtns() {   // 화면의 발사 버튼: 기관총과, 이번에 실은 무기 하나 (늘 같은 자리에 크게)
   const out = [{ ...FIRE[0], x: 788, y: 432, w: 150, h: 84 }], L = p.loaded || {}; let y = 338;   // 기관총(무료) + 실은 로켓·폭탄
-  if (L.rk || p.ammo.rk > 0) { out.push({ ...FIRE[1], x: 788, y, w: 150, h: 84 }); y -= 94; }
-  if (L.bm || p.ammo.bm > 0) out.push({ ...FIRE[2], x: 788, y, w: 150, h: 84, key: (L.rk || p.ammo.rk > 0) ? 'B' : 'C' });
+  const ko = LANG === 'ko';
+  if (L.rk || p.ammo.rk > 0) { out.push({ ...FIRE[1], x: 788, y, w: 150, h: 84, label: ko ? RK().sk : RK().s }); y -= 94; }
+  if (L.bm || p.ammo.bm > 0) out.push({ ...FIRE[2], x: 788, y, w: 150, h: 84, key: (L.rk || p.ammo.rk > 0) ? 'B' : 'C', label: ko ? BM().sk : BM().s });
   return out;   // 오른쪽 아래: 기관총 + 이번에 실은 무기 하나
 }
 const SMOKY = { air: 1, deck: 1, taxi: 1, lift: 1, slide: 1, dslide: 1 };   // 연기·체력바가 보이는 상태 (추락 중에는 제외)
@@ -3195,7 +3362,7 @@ function drawProj(c) {
   for (const b of EB) if (b.tr) { const x2 = b.x - b.vx * 0.05, y2 = b.y - b.vy * 0.05; c.lineCap = 'round'; c.strokeStyle = 'rgba(255,60,40,0.55)'; c.lineWidth = Math.max(1.5, 0.55 * cam.z); c.beginPath(); c.moveTo(sx(b.x), sy(b.y)); c.lineTo(sx(x2), sy(y2)); c.stroke(); c.strokeStyle = '#ffd0c0'; c.lineWidth = Math.max(0.8, 0.25 * cam.z); c.beginPath(); c.moveTo(sx(b.x), sy(b.y)); c.lineTo(sx(b.x - b.vx * 0.035), sy(b.y - b.vy * 0.035)); c.stroke(); c.lineCap = 'butt'; }   // 적 전투기 예광탄
   for (const q of PROJ) {
     if (q.k === 'b') {   // 보통 탄은 보이지 않고, 예광탄만 밝은 줄로 보인다
-      if (q.tr) { const x2 = q.x - q.vx * 0.05, y2 = q.y - q.vy * 0.05; c.lineCap = 'round'; c.strokeStyle = 'rgba(255,120,40,0.55)'; c.lineWidth = Math.max(1.5, 0.55 * cam.z); c.beginPath(); c.moveTo(sx(q.x), sy(q.y)); c.lineTo(sx(x2), sy(y2)); c.stroke(); c.strokeStyle = '#fff2a0'; c.lineWidth = Math.max(0.8, 0.25 * cam.z); c.beginPath(); c.moveTo(sx(q.x), sy(q.y)); c.lineTo(sx(q.x - q.vx * 0.035), sy(q.y - q.vy * 0.035)); c.stroke(); c.lineCap = 'butt'; }
+      if (q.tr) { const x2 = q.x - q.vx * 0.05, y2 = q.y - q.vy * 0.05; c.lineCap = 'round'; c.strokeStyle = 'rgba(255,120,40,0.55)'; c.lineWidth = Math.max(1.5, 0.55 * cam.z); c.beginPath(); c.moveTo(sx(q.x), sy(q.y)); c.lineTo(sx(x2), sy(y2)); c.stroke(); c.strokeStyle = q.tc || '#fff2a0'; c.lineWidth = Math.max(0.8, 0.25 * cam.z); c.beginPath(); c.moveTo(sx(q.x), sy(q.y)); c.lineTo(sx(q.x - q.vx * 0.035), sy(q.y - q.vy * 0.035)); c.stroke(); c.lineCap = 'butt'; }
       continue;
     }
     if (q.k === 't') {
@@ -3203,8 +3370,9 @@ function drawProj(c) {
       else world(q.x, q.y, () => { if (q.d < 0) c.scale(-1, 1); c.fillStyle = '#3a4048'; c.beginPath(); c.ellipse(0, 0, 3, 0.55, 0, 0, 7); c.fill(); c.fillStyle = '#5a6068'; c.fillRect(-3.4, -0.7, 0.6, 1.4); });
       continue;
     }
+    if (q.k === 'x') continue;
     world(q.x, q.y, () => {
-      c.rotate(Math.atan2(q.vy, q.vx));
+      c.rotate(Math.atan2(q.vy, q.vx)); if (q.rt === 'tiny') c.scale(2.2, 2.2); else if (q.bt === 'blet') c.scale(0.45, 0.45); else if (q.bt === 'nap') c.scale(1.15, 1.3);
       if (q.k === 'r') { if (q.burn !== false) { c.fillStyle = '#ff9f3c'; c.beginPath(); c.moveTo(-2.6, 0); c.lineTo(-6, 0.6); c.lineTo(-6, -0.6); c.closePath(); c.fill(); } c.fillStyle = '#cfd5da'; c.fillRect(-2.6, -0.35, 3.6, 0.7); c.fillStyle = '#c0392b'; c.beginPath(); c.moveTo(1, -0.35); c.lineTo(2, 0); c.lineTo(1, 0.35); c.closePath(); c.fill(); }
       else { const big = q.lb >= 1000; c.fillStyle = '#2b2f33'; c.beginPath(); c.ellipse(0, 0, big ? 2.6 : 1.9, big ? 1.1 : 0.8, 0, 0, 7); c.fill(); c.fillStyle = '#4a5058'; c.fillRect(-3.3, -0.9, 0.9, 1.8); }
     });
@@ -3369,7 +3537,7 @@ const RES_BTN = [{ x: 240, y: 380, w: 230, h: 50 }, { x: 490, y: 380, w: 230, h:
 function sceneKey(e) {
   if (G.scene === 'title') { goMenu(); return; }
   if (G.scene === 'ending') { if (endClock() > 2) goMenu(); return; }
-  if (G.scene === 'menu' && G.upg) { const n = { Digit1: 0, Digit2: 1, Digit3: 2, Digit4: 3, Numpad1: 0, Numpad2: 1, Numpad3: 2, Numpad4: 3 }[e.code]; if (n !== undefined) buyUpg(n); else if (e.code === 'Escape' || e.code === 'KeyU' || e.code === 'Enter') G.upg = false; return; }
+  if (G.scene === 'menu' && G.upg) { arsKey(e); return; }
   if (G.scene === 'menu' && G.help) { G.help = false; return; }   // 도움말은 아무 키나 누르면 닫힌다
   if (G.scene === 'menu' && e.code === 'Escape') { startDemo(); return; }
   if (G.scene === 'menu') {
@@ -3397,7 +3565,7 @@ function sceneTap(m) {
   if (G.scene === 'ending') { if (endClock() > 2) goMenu(); return; }
   if (G.scene === 'menu') {
     if (G.help) { G.help = false; return; }
-    if (G.upg) { upgTap(m); return; }
+    if (G.upg) { arsTap(m); return; }
     if (inR(m, MENU_UP)) { G.upg = true; G.upMsg = ''; return; }
     if (inR(m, MODE_CAM)) G.mode = 'campaign'; else if (inR(m, MODE_SK)) G.mode = 'skirmish'; else if (inR(m, MODE_CU)) G.mode = 'custom';
     else if (inR(m, MENU_GO)) menuGo(); else if (inR(m, MENU_RE)) menuReroll(); else if (inR(m, MENU_HELP)) G.help = true;
@@ -3533,10 +3701,10 @@ function drawScene() {
     card(MENU_GO, 'rgba(52,150,84,0.95)'); c.fillStyle = '#fff'; c.font = '800 20px system-ui,sans-serif'; c.fillText('Launch (Enter)', 480, MENU_GO.y + 37);
     card(MENU_RE, 'rgba(70,82,98,0.95)'); c.font = '700 15px system-ui,sans-serif'; c.fillStyle = '#fff'; c.fillText('New map (R)', MENU_RE.x + MENU_RE.w / 2, MENU_RE.y + 28);
     card(MENU_HELP, 'rgba(26,90,150,0.95)'); c.fillStyle = '#fff'; c.fillText('How to play (H)', MENU_HELP.x + MENU_HELP.w / 2, MENU_HELP.y + 28);
-    card(MENU_UP, 'rgba(160,112,20,0.95)', money() >= 1200 ? '#ffd23f' : null); c.fillStyle = '#fff'; c.fillText('Upgrades (U)', MENU_UP.x + MENU_UP.w / 2, MENU_UP.y + 28);
+    card(MENU_UP, 'rgba(160,112,20,0.95)', money() >= 1200 ? '#ffd23f' : null); c.fillStyle = '#fff'; c.fillText('Arsenal (U)', MENU_UP.x + MENU_UP.w / 2, MENU_UP.y + 28);
     c.textAlign = 'left'; c.fillStyle = G.menuMsg ? '#ff9a7a' : '#9fb0c4'; fitFont(c, tip, 12, '600', 840); c.fillText(tip, 60, 514);
     if (G.help) drawHelp(c);
-    if (G.upg) drawUpg(c);
+    if (G.upg) drawArsenal(c);
   } else if (G.scene === 'result') {
     const R = G.res, m = G.m, M = G.cur;
     c.fillStyle = 'rgba(30,44,62,0.98)'; c.beginPath(); c.roundRect(200, 90, 560, 360, 16); c.fill(); c.strokeStyle = R.win ? '#59d37a' : '#ff5a3c'; c.lineWidth = 3; c.stroke();
@@ -3837,7 +4005,7 @@ function update(dt) {
   if (p.mode === 'deck' || p.mode === 'taxi' || p.mode === 'dslide') { const xr = p.x - ship.x; if (xr > -4 && xr < DECK_L + 4) p.y = Math.max(p.y, DECK_Y + WH - (p.mode === 'dslide' ? 0.4 : 0)); }   // 바퀴가 갑판에 닿아 있으면 출렁이는 갑판 높이에 맞춰 갑판 밑으로 내려가지 않는다
   if (p.mode === 'air' || (p.mode === 'deck' && !p.held)) p.fuel = Math.max(0, p.fuel - (0.03 + 0.25 * p.thr) * dt);
   G.pCloud = p.mode === 'air' ? inCloud(p.x, p.y) : 0; if (G.pCloud > 0.5 && G.scene === 'play' && !G.cloudHint) { G.cloudHint = 1; G.msg = { text: 'In the clouds — enemies cannot see you', until: G.t + 3 }; }
-  lootStep(dt); G.lso = lsoSignal(); fireStep(dt); stepProj(dt); missionStep(dt); wingStep(dt);
+  lootStep(dt); stepArsenal(dt); G.lso = lsoSignal(); fireStep(dt); stepProj(dt); missionStep(dt); wingStep(dt);
   { const rp = p; p = foePick(); try { enemyStep(dt); ebStep(dt); flakStep(dt); myAAStep(dt); shellStep(dt); quadStep(dt); towerStep(dt); shipMgStep(dt); } finally { p = rp; } }
   stepFx(dt);
 }
@@ -3865,6 +4033,7 @@ addEventListener('keydown', e => {
   if (hangarOpen()) {
     if (e.code === 'Digit1') shopBuy('rk', 4); else if (e.code === 'Digit2') shopBuy('bm', 6); else if (e.code === 'Digit3') shopBuy('rk', 999); else if (e.code === 'Digit4') shopBuy('bm', 999);
     else if (e.code === 'Backspace') { shopBuy('rk', -999); shopBuy('bm', -999); }
+    else if (e.code === 'KeyQ') cycleType('rk', -1); else if (e.code === 'KeyW') cycleType('rk', 1); else if (e.code === 'KeyA') cycleType('bm', -1); else if (e.code === 'KeyS') cycleType('bm', 1);
     else if (e.code === 'Space' || e.code === 'Enter') shopGo();
     e.preventDefault(); return;
   } else if (e.code === 'Space') startLift();
@@ -4381,6 +4550,7 @@ function drawWorld() {
   drawWing(c);
   drawProj(c);
   drawLoot(c);
+  drawShield(c);
   drawFx();
   if (p.mode === 'down' && G.result.sea) {   // 물기둥
     const X = sx(p.x), k = clamp((G.t - (G.result.t0 || (G.result.t0 = G.t))) * 2, 0, 1);
@@ -4526,6 +4696,7 @@ function drawHUD() {
   if (!wv && G.scene === 'play') {   // 가진 돈과 아이템 효과 남은 시간
     const mt = fmt$(money()); c.font = '800 14px system-ui,sans-serif'; const tw = c.measureText(mt).width; panel(690 - tw - 14, 10, tw + 24, 30, 0.6); c.fillStyle = '#ffe27a'; c.textAlign = 'center'; c.fillText(mt, 690 - tw / 2 - 2, 30);
     const bs = [G.t < (G.bufDmg || 0) ? '⚔ ' + Math.ceil(G.bufDmg - G.t) : '', G.t < (G.bufThr || 0) ? '⚙ ' + Math.ceil(G.bufThr - G.t) : '', G.t < (G.bufArm || 0) ? '🛡 ' + Math.ceil(G.bufArm - G.t) : ''].filter(Boolean).join('  ');
+    if (has('shield')) { const sw = 110, sx0 = 690 - sw; c.fillStyle = 'rgba(6,16,30,0.75)'; c.beginPath(); c.roundRect(sx0 - 10, 74, sw + 10, 16, 6); c.fill(); c.fillStyle = '#6cc6ff'; c.fillRect(sx0 - 4, 78, (sw - 2) * clamp((G.shield || 0) / 30, 0, 1), 8); }
     if (bs) { c.font = '800 13px system-ui,sans-serif'; const bw = c.measureText(bs).width; panel(690 - bw - 14, 44, bw + 24, 26, 0.6); c.fillStyle = '#d8a8ff'; c.fillText(bs, 690 - bw / 2 - 2, 62); }
   }
   // 속도·고도: 오른쪽 맨 위

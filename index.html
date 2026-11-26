@@ -3140,7 +3140,7 @@ function demoBot(dt, auto) {
   if (!auto) { p.hp = 100; p.fuel = p.fuelMax; if (p.ammo.rk < 3) p.ammo.rk = 30; if (p.ammo.bm < 3) p.ammo.bm = 30; if (!(p.ammo.tp > 0)) p.ammo.tp = 6; if (p.ammo.gun < 300) p.ammo.gun = 3000; }   // 데모만 탄·연료를 채운다
   if (!auto && D.t > 16 && !D.z) { D.z = 1; spawnEnemy('zero', ship.x + 10100, 260, 3); spawnEnemy('zero', ship.x + 10400, 200, 4); }
   if (D.salvo > 0 && !(p.ammo.bm > 0)) D.salvo = 0;   // 실은 폭탄이 없으면 투하하지 않는다
-  if (D.salvo > 0 && p.mode === 'air' && G.t >= (D.salvoT || 0)) { dropBomb(); D.salvo--; D.salvoT = G.t + 0.14; }   // 폭탄 연속 투하
+  if (D.salvo > 0 && p.mode === 'air' && G.t >= (D.salvoT || 0)) { if (auto) p.bmT = 0; dropBomb(); D.salvo--; D.salvoT = G.t + (auto ? 0.1 : 0.14); }   // 연속 투하 (자동 조종은 급강하 중 촘촘히)   // 폭탄 연속 투하
   if (auto && p.mode !== 'air') { autoDeck(D, dt, K); return; }
   if (p.mode === 'taxi' || p.mode === 'deck') { K(p.mode === 'deck' && kts() >= TAKEOFF_KT ? 1 : 0, 0, 1); return; }
   if (p.mode !== 'air') { K(0); return; }
@@ -3155,7 +3155,7 @@ function demoBot(dt, auto) {
   let ground = 0; for (let k = 0; k <= 8; k++) ground = Math.max(ground, gh(p.x + dir * k * 45));   // 앞쪽 언덕까지 본다
   const torpRun = !en && !!tgt && !!SHIPS[tgt.type] && ground <= 0;   // 배를 노릴 때는 바다 위를 낮게 (어뢰)
   let alt = en ? en.y : tgt ? (SHIPS[tgt.type] ? 28 : tgt.y + 70) : 150; if (!torpRun) alt = Math.max(alt, ground + 55);
-  const diveMode = !!auto && !en && !(LOAD_AMMO[G.loadout].bm > 0 && p.ammo.bm > 0);   // 자동 조종: 로켓·기총소사는 300m 넘는 높이에서 내리꽂으며 공격한다 (폭탄은 예전처럼 낮게 수평으로)
+  const diveMode = !!auto && !en, bombDive = diveMode && p.ammo.bm > 0;   // 자동 조종: 로켓·폭탄·기총소사 모두 300m 넘는 높이에서 내리꽂으며 공격한다
   let gt = null; if (diveMode) for (const t of TARGETS) if (t.alive && t.type !== 'runway' && (t.x - p.x) * dir > 40 && (t.x - p.x) * dir < 3000 && (!gt || Math.abs(t.x - p.x) < Math.abs(gt.x - p.x))) gt = t;
   if (!diveMode && D.atk) D.atk = null;
   if (diveMode && D.atk !== 'dive' && D.atk !== 'pull') alt = Math.max(330, ground + 90);   // 공격 전에는 330m 이상으로 올라가 있는다
@@ -3166,10 +3166,18 @@ function demoBot(dt, auto) {
   else if (!diveMode && tgt && !en && Math.abs(tgt.x - p.x) < 750 && p.y - tgt.y > 20) u = steer(Math.atan2(tgt.y + 2 - p.y, tgt.x - p.x));   // 표적이 가까우면 기수를 표적에 맞춘다 (땅이 가까워지면 아래에서 다시 올라간다)
   if (diveMode && gt && !(ld && ld.dist < 1000)) {   // 급강하 공격: 목표가 앞쪽 비스듬히 아래(약 20~45도)에 오면 내리꽂는다
     const dxT = (gt.x - p.x) * dir, h = p.y - (gt.y + 2);
-    if (!D.atk && p.y >= 290 && dxT > h * 0.9 && dxT < h * 2.6) D.atk = 'dive';
-    if (D.atk === 'dive') { const a = Math.atan2(gt.y + 2 - p.y, gt.x - p.x), pt = clamp(dir > 0 ? angd(a, 0) : angd(Math.PI, a), -0.75, 0.3), er = pt - levelPitch(); u = er > 0.012 ? 1 : er < -0.012 ? -1 : 0; if (dxT < 60) D.atk = 'pull'; }
+    if (!D.atk && p.y >= 290 && dxT > h * 0.9 && dxT < h * 2.6) { D.atk = 'dive'; D.bTgt = null; }
+    if (D.atk === 'dive') { const a = Math.atan2(gt.y + 2 + (bombDive ? 28 : 0) - p.y, gt.x - p.x),   // 폭탄은 떨어지며 아래로 처지므로 목표 조금 위를 겨눈다
+      pt = clamp(dir > 0 ? angd(a, 0) : angd(Math.PI, a), -0.75, 0.3), er = pt - levelPitch(); u = er > 0.012 ? 1 : er < -0.012 ? -1 : 0; if (dxT < 60) D.atk = 'pull'; }
+  }
+  if (bombDive && D.atk === 'dive' && gt && D.bTgt !== gt) {   // 급강하 폭격: 내리꽂는 동안 폭탄이 떨어질 자리를 계속 계산해, 목표와 겹치는 순간(지면 위 90m 이상) 필요한 만큼 연달아 떨어뜨린다
+    const h = p.y - 2.5 - (gt.y + BOX[gt.type].h * 0.6), gg = GRAV * 2.4, v0 = p.vy - 15, tf = (v0 + Math.sqrt(Math.max(0, v0 * v0 + 2 * gg * h))) / gg, ix = p.x + p.vx * tf, er = (ix - gt.x) * dir, lp = levelPitch(), agl = p.y - Math.max(0, gh(p.x));
+    u = er > 3 ? -1 : er < -3 ? 1 : 0;   // 폭탄이 짧게 떨어질 자리면 기수를 조금 들어 얕게, 길면 더 숙인다
+    if (lp > -0.2) u = Math.min(u, 0); if (lp > -0.15) u = -1; else if (lp < -0.8) u = 1;   // 급강하 각도는 약 9~46도 사이를 지킨다
+    if (h > 0 && agl > 90 && lp < -0.1 && Math.abs(er) < BOX[gt.type].w * 0.3 + 2 && !(D.salvo > 0)) { const per = (DMG.bomb[gt.type] || 10) * (p.ammo.lb >= 1000 ? 2 : 1); D.salvo = clamp(Math.ceil(gt.hp / per) + 1, 1, 6); D.salvoT = 0; D.bTgt = gt; }
   }
   if (D.atk === 'dive' && (!gt || !gt.alive)) D.atk = 'pull';
+  if (D.atk === 'dive' && D.bTgt === gt && !(D.salvo > 0)) D.atk = 'pull';   // 다 떨어뜨렸으면 빠져나온다
   if (D.atk === 'pull') { u = 1; if (Math.atan2(p.vy, Math.abs(p.vx)) > 0.22 || p.y > 260) D.atk = null; }   // 빠져나오기: 기수를 들어 다시 올라간다
   { const gm = Math.atan2(p.vy, Math.abs(p.vx)), room = clamp((kts() - stallKt() * 1.25) / 90 * 0.6, 0, 0.5); if (u > 0 && gm > room) u = gm > room + 0.12 ? -1 : 0; }   // 에너지 관리: 속도 여유가 적으면 가파르게 오르지 않고 속도를 붙인다 (진짜 비행기처럼)
   if (D.atk === 'dive') { const hh = p.y - ground; if (hh < 50 || hh < 70 + Math.max(0, -p.vy) * 2.2) { D.atk = 'pull'; u = 1; } }   // 급강하 중: 땅까지 남은 높이가 빠져나올 거리보다 작아지면 당긴다
@@ -3186,7 +3194,7 @@ function demoBot(dt, auto) {
   if (!fire && tgt) {
     if (p.ammo.tp > 0 && SHIPS[tgt.type] && p.y < TORP_H - 3 && Math.abs(Math.atan2(p.vy, Math.abs(p.vx))) < 0.15 && Math.abs(tgt.x - p.x) < 600 && G.t > (D.tpT || 0)) { fireTorpedo(); D.tpT = G.t + 3; }   // 배는 어뢰로
     else if (p.ammo.rk > 0 && (!diveMode || D.atk === 'dive') && aim(tgt.x, tgt.y + 2, 0.045) && Math.abs(tgt.x - p.x) < 900 && Math.abs(tgt.x - p.x) > 100 && G.t > (D.rkT || 0) && (!SHIPS[tgt.type] || (tgt.guns && tgt.guns.some(g => g.alive)))) { fireRocket(); D.rkT = G.t + 0.5; }
-    else if (p.ammo.bm > 0 && !SHIPS[tgt.type] && p.y > tgt.y + 15) { const h = p.y - 2.5 - (tgt.y + BOX[tgt.type].h * 0.6), gg = GRAV * 2.4, v0 = p.vy - 15, tf = (v0 + Math.sqrt(Math.max(0, v0 * v0 + 2 * gg * h))) / gg, lead = (tgt.x - p.x) - p.vx * tf; if (lead < 26 && lead > -4 && G.t > (D.bmT || 0) && !(D.salvo > 0)) { D.salvo = 3; D.salvoT = 0; D.bmT = G.t + 2.4; } }   // 3발 연속 투하
+    else if (!bombDive && p.ammo.bm > 0 && !SHIPS[tgt.type] && p.y > tgt.y + 15) { const h = p.y - 2.5 - (tgt.y + BOX[tgt.type].h * 0.6), gg = GRAV * 2.4, v0 = p.vy - 15, tf = (v0 + Math.sqrt(Math.max(0, v0 * v0 + 2 * gg * h))) / gg, lead = (tgt.x - p.x) - p.vx * tf; if (lead < 26 && lead > -4 && G.t > (D.bmT || 0) && !(D.salvo > 0)) { D.salvo = 3; D.salvoT = 0; D.bmT = G.t + 2.4; } }   // 3발 연속 투하
   }
 }
 function drawTitle() {

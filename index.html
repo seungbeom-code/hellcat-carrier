@@ -852,8 +852,7 @@ const GUNT = {
 const RKTS = {
   hvar: { n: 'HVAR 5-inch', k: 'HVAR 5인치', s: 'HVAR', sk: 'HVAR', price: 20, slot: 1, cd: 0.25, r: 14, mul: 1, d: 'Standard rocket', dk: '표준 로켓' },
   tiny: { n: 'Tiny Tim 11.75-inch', k: '타이니 팀 (초대형)', s: 'Tiny Tim', sk: '타이니 팀', price: 80, slot: 3, cd: 0.9, r: 30, mul: 2.2, big: 1, d: 'Huge blast, slow to fire', dk: '거대한 폭발, 발사 간격이 길다' },
-  clus: { n: 'Cluster rocket', k: '확산 로켓', s: 'Cluster', sk: '확산 로켓', price: 45, slot: 1.5, cd: 0.35, r: 10, mul: 0.8, sub: 6, d: 'Bursts into 6 more explosions', dk: '맞으면 주변에 6번 더 터진다' },
-  hom: { n: 'Homing rocket', k: '유도 로켓', s: 'Homing', sk: '유도 로켓', price: 60, slot: 1.2, cd: 0.35, r: 14, mul: 1, home: 1, d: 'Steers into planes and targets', dk: '적기와 표적을 쫓아간다' }
+  clus: { n: 'Cluster rocket', k: '확산 로켓', s: 'Cluster', sk: '확산 로켓', price: 45, slot: 1.5, cd: 0.35, r: 10, mul: 0.8, sub: 6, d: 'Bursts into 6 more explosions', dk: '맞으면 주변에 6번 더 터진다' }
 };
 const BMBS = {
   gp: { n: '250 kg bomb', k: '250kg 폭탄', s: '250 kg', sk: '250kg', price: 8, slot: 0.5, lb: 550, mul: 1, d: 'Standard bomb', dk: '표준 폭탄' },
@@ -875,7 +874,7 @@ const PASS = {
 };
 const SLOT3_PRICE = 5000, HARD = { pill: 1, bunker: 1, tower: 1 };
 // 무기 해금: 처음에는 기본 기관총·HVAR 로켓·250kg 폭탄만. 나머지는 아이템으로 얻으면 영구히 풀린다 (강한 무기일수록 높은 등급)
-const UNLOCK = { ap: ['gun', 2], inc: ['gun', 3], c20: ['gun', 3], gat: ['gun', 4], clus: ['rk', 2], hom: ['rk', 3], tiny: ['rk', 4], hvy: ['bm', 2], nap: ['bm', 2], clu: ['bm', 3], bus: ['bm', 3] };
+const UNLOCK = { ap: ['gun', 2], inc: ['gun', 3], c20: ['gun', 3], gat: ['gun', 4], clus: ['rk', 2], tiny: ['rk', 4], hvy: ['bm', 2], nap: ['bm', 2], clu: ['bm', 3], bus: ['bm', 3] };
 const isUnl = id => id === 'm2' || id === 'hvar' || id === 'gp' || !!(G.save && ((G.save.unl && G.save.unl[id]) || (G.save.guns && G.save.guns[id])));
 const GN = () => { const id = (G.save && G.save.gun) || 'm2'; return isUnl(id) && GUNT[id] ? GUNT[id] : GUNT.m2; };
 const RK = () => { const id = (G.save && G.save.rkT) || 'hvar'; return isUnl(id) && RKTS[id] ? RKTS[id] : RKTS.hvar; };
@@ -2708,12 +2707,6 @@ function stepProj(dt) {
       continue;
     }
     if (q.k === 'r') {
-      if (q.rt === 'hom' && (q.dist || 0) > 60 && (q.dist || 0) < ROCKET_RANGE) {   // 유도 로켓: 앞쪽의 가장 가까운 적기·표적으로 방향을 튼다
-        const h0 = Math.atan2(q.vy, q.vx); let best = null, bs = 1e9;
-        for (const e of ENE) if (!e.dead) { const d = Math.hypot(e.x - q.x, e.y - q.y), da = Math.abs(angd(Math.atan2(e.y - q.y, e.x - q.x), h0)); if (d < 1200 && da < 0.9 && d < bs) { bs = d; best = e; } }
-        if (!best) for (const t of TARGETS) if (t.alive && t.type !== 'runway') { const ty = t.y + 3, d = Math.hypot(t.x - q.x, ty - q.y), da = Math.abs(angd(Math.atan2(ty - q.y, t.x - q.x), h0)); if (d < 1200 && da < 0.8 && d < bs) { bs = d; best = { x: t.x, y: ty }; } }
-        if (best) { const want = Math.atan2(best.y - q.y, best.x - q.x), turn = clamp(angd(want, h0), -2.4 * dt, 2.4 * dt), sp0 = Math.hypot(q.vx, q.vy); q.vx = Math.cos(h0 + turn) * sp0; q.vy = Math.sin(h0 + turn) * sp0; }
-      }
       const th = Math.atan2(q.vy, q.vx), sp = Math.hypot(q.vx, q.vy); q.dist = (q.dist || 0) + sp * dt;
       if (q.dist < ROCKET_RANGE) {   // 추진 중: 가속하며 날고, 하얀 연기를 뒤로 뿜는다
         if (sp < ROCKET_V) { q.vx += Math.cos(th) * 260 * dt; q.vy += Math.sin(th) * 260 * dt; } q.vy -= 1.2 * dt; q.burn = true;

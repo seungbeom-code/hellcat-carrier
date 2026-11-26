@@ -692,42 +692,37 @@ function mSnare(T, vol, out) {   // 군악대 작은북
   g.gain.setValueAtTime(vol, T); g.gain.exponentialRampToValueAtTime(0.001, T + 0.13); s.start(T, Math.random()); s.stop(T + 0.15);
   const o = a.createOscillator(), og = a.createGain(); o.type = 'triangle'; o.frequency.setValueAtTime(205, T); o.frequency.exponentialRampToValueAtTime(150, T + 0.06); o.connect(og); og.connect(out); og.gain.setValueAtTime(vol * 0.6, T); og.gain.exponentialRampToValueAtTime(0.001, T + 0.08); o.start(T); o.stop(T + 0.1);
 }
-// 곡: 경쾌한 휘파람 행진곡 (사장조, 새로 지은 선율). 마디마다 화음(ch: 금관이 2·4박에 '짝'), 베이스(b·b5: 튜바가 1·3박에 '쿵'), 휘파람 선율([음, 8분음표 길이]…)
-function mWhistle(T, m, dur, vol, out) {   // 휘파람: 맑은 사인파 + 살짝 미끄러져 올라가는 시작 + 떨림 + 숨소리
-  const a = sound.ctx, o = a.createOscillator(), g = a.createGain(), f = mtof(m); o.type = 'sine';
-  o.frequency.setValueAtTime(f * 0.96, T); o.frequency.exponentialRampToValueAtTime(f, T + 0.04);
-  const lfo = a.createOscillator(), lg = a.createGain(); lfo.frequency.value = 6.2; lg.gain.setValueAtTime(0, T); lg.gain.linearRampToValueAtTime(dur > 0.3 ? 14 : 4, T + Math.min(0.25, dur)); lfo.connect(lg); lg.connect(o.detune);
-  o.connect(g); g.connect(out); const end = env(g, T, vol, 0.025, Math.max(0.01, dur - 0.07), 0.05);
-  o.start(T); o.stop(end + 0.03); lfo.start(T); lfo.stop(end + 0.03);
-  const s = a.createBufferSource(), bp = a.createBiquadFilter(), ng = a.createGain(); s.buffer = sound.noise; bp.type = 'bandpass'; bp.frequency.value = f; bp.Q.value = 12; s.connect(bp); bp.connect(ng); ng.connect(out); env(ng, T, vol * 0.5, 0.02, Math.max(0.01, dur - 0.07), 0.05); s.start(T, Math.random()); s.stop(end + 0.03);
+// 곡: 묵직한 전쟁 영화풍 관현악 (라 단조, 새로 지은 선율). 낮은 현악이 8분음표로 밀고 나가고, 호른이 옥타브로 주제를 부르고, 팀파니·큰북·심벌즈가 무게를 더한다
+function mKick(T, vol, out) { const a = sound.ctx, o = a.createOscillator(), g = a.createGain(); o.frequency.setValueAtTime(80, T); o.frequency.exponentialRampToValueAtTime(40, T + 0.18); o.connect(g); g.connect(out); g.gain.setValueAtTime(vol, T); g.gain.exponentialRampToValueAtTime(0.001, T + 0.5); o.start(T); o.stop(T + 0.52); }   // 큰북
+function mStr(T, m, dur, vol, out) {   // 현악 스타카토: 짧게 끊어 켜는 낮은 첼로·콘트라베이스
+  const a = sound.ctx, f = a.createBiquadFilter(), g = a.createGain(); f.type = 'lowpass'; f.frequency.value = 1100; f.Q.value = 0.6; f.connect(g); g.connect(out);
+  g.gain.setValueAtTime(0.0001, T); g.gain.linearRampToValueAtTime(vol, T + 0.012); g.gain.exponentialRampToValueAtTime(vol * 0.35, T + dur * 0.5); g.gain.exponentialRampToValueAtTime(0.0008, T + dur);
+  for (const dt of [-9, 9]) { const o = a.createOscillator(); o.type = 'sawtooth'; o.frequency.value = mtof(m); o.detune.value = dt; o.connect(f); o.start(T); o.stop(T + dur + 0.02); }
 }
-function mKick(T, vol, out) { const a = sound.ctx, o = a.createOscillator(), g = a.createGain(); o.frequency.setValueAtTime(95, T); o.frequency.exponentialRampToValueAtTime(48, T + 0.12); o.connect(g); g.connect(out); g.gain.setValueAtTime(vol, T); g.gain.exponentialRampToValueAtTime(0.001, T + 0.3); o.start(T); o.stop(T + 0.32); }   // 큰북
-function mTuba(T, m, dur, vol, out) { const a = sound.ctx, o = a.createOscillator(), f = a.createBiquadFilter(), g = a.createGain(); o.type = 'sawtooth'; o.frequency.value = mtof(m); f.type = 'lowpass'; f.frequency.setValueAtTime(700, T); f.frequency.exponentialRampToValueAtTime(320, T + 0.15); o.connect(f); f.connect(g); g.connect(out); const end = env(g, T, vol, 0.02, dur * 0.5, dur * 0.3); o.start(T); o.stop(end + 0.03); }   // 튜바의 '쿵'
-const G_ = { ch: [55, 59, 62], b: 43, b5: 38 }, D7 = { ch: [54, 57, 60], b: 38, b5: 45 }, C_ = { ch: [55, 60, 64], b: 36, b5: 43 }, EM = { ch: [55, 59, 64], b: 40, b5: 47 }, A7 = { ch: [55, 61, 64], b: 45, b5: 40 };
-const MARCH = [
-  [G_, [[79, 2], [83, 1], [86, 1], [86, 2], [83, 2]]], [D7, [[84, 3], [81, 1], [78, 2], [81, 2]]],
-  [G_, [[83, 1], [83, 1], [86, 2], [91, 3], [0, 1]]], [C_, [[88, 4], [86, 2], [84, 2]]],
-  [G_, [[83, 2], [86, 1], [83, 1], [79, 2], [83, 2]]], [D7, [[81, 2], [84, 2], [86, 2], [84, 2]]],
-  [G_, [[83, 2], [81, 2], [79, 2], [78, 2]]], [G_, [[79, 6], [0, 2]]],
-  [C_, [[88, 2], [88, 1], [86, 1], [84, 2], [88, 2]]], [G_, [[86, 3], [83, 1], [79, 4]]],
-  [D7, [[81, 1], [83, 1], [84, 2], [86, 2], [81, 2]]], [G_, [[83, 4], [0, 2], [79, 2]]],
-  [EM, [[83, 2], [88, 2], [86, 2], [83, 2]]], [A7, [[85, 2], [88, 2], [85, 2], [81, 2]]],
-  [D7, [[86, 2], [84, 2], [81, 2], [78, 2]]], [G_, [[79, 6], [0, 2]]]
+function mLow(T, m, dur, vol, out) { const a = sound.ctx, o = a.createOscillator(), f = a.createBiquadFilter(), g = a.createGain(); o.type = 'sawtooth'; o.frequency.value = mtof(m); f.type = 'lowpass'; f.frequency.value = 260; o.connect(f); f.connect(g); g.connect(out); const end = env(g, T, vol, 0.08, dur * 0.6, dur * 0.35); o.start(T); o.stop(end + 0.03); }   // 아주 낮은 금관·콘트라베이스의 깔림음
+function mCym(T, vol, out) { const a = sound.ctx, s = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain(); s.buffer = sound.noise; s.loop = true; f.type = 'highpass'; f.frequency.value = 5200; s.connect(f); f.connect(g); g.connect(out); g.gain.setValueAtTime(vol, T); g.gain.exponentialRampToValueAtTime(0.001, T + 2.2); s.start(T, Math.random()); s.stop(T + 2.3); }   // 심벌즈
+const DM = { ch: [50, 57, 62, 65], b: 38 }, BB = { ch: [46, 53, 58, 62], b: 34 }, GM = { ch: [43, 55, 58, 62], b: 31 }, AA = { ch: [45, 57, 61, 64], b: 33 }, FF = { ch: [41, 53, 57, 60], b: 29 }, CC = { ch: [48, 55, 60, 64], b: 36 };
+const EPIC = [
+  [DM, [[62, 3], [65, 1], [69, 4]]], [BB, [[70, 3], [69, 1], [65, 4]]], [GM, [[67, 3], [70, 1], [74, 2], [72, 2]]], [AA, [[69, 6], [0, 2]]],
+  [DM, [[74, 3], [72, 1], [69, 2], [65, 2]]], [FF, [[72, 3], [69, 1], [65, 4]]], [CC, [[67, 2], [64, 2], [67, 2], [72, 2]]], [AA, [[69, 6], [0, 2]]],
+  [BB, [[70, 4], [74, 4]]], [FF, [[72, 3], [69, 1], [72, 4]]], [GM, [[70, 2], [67, 2], [62, 2], [67, 2]]], [DM, [[65, 3], [62, 1], [69, 4]]],
+  [BB, [[74, 3], [72, 1], [70, 2], [74, 2]]], [CC, [[76, 4], [72, 4]]], [AA, [[73, 3], [76, 1], [81, 4]]], [AA, [[69, 6], [0, 2]]]
 ].map(([c, mel]) => ({ ...c, mel }));
 const SONGS = {
-  title: { bpm: 116, vol: 0.32, bars: MARCH },
-  mission: { bpm: 116, vol: 0.2, bars: MARCH, quiet: true }   // 작전 중에는 같은 곡을 작게 (적기가 가까우면 작은북이 더해진다)
+  title: { bpm: 84, vol: 0.26, bars: EPIC },
+  mission: { bpm: 84, vol: 0.12, bars: EPIC, quiet: true }   // 작전 중: 현악·타악만 낮게 깔리고, 적기가 가까우면 호른 주제와 작은북이 들어온다
 };
 function musBar(S, bar, T, bd, out, int) {   // 한 마디를 미리 예약한다
-  const e = bd / 8, beat = bd / 4;   // 8분음표, 4분음표 길이
-  for (let k = 0; k < 4; k++) {
-    const t = T + k * beat;
-    if (k % 2 === 0) { mTuba(t, k === 0 ? bar.b : bar.b5, beat, 0.2, out); mKick(t, 0.32, out); }   // 1·3박: 튜바 '쿵' + 큰북
-    else { bar.ch.forEach(m => mBrass(t, m, beat * 0.4, 0.028, out)); mSnare(t, 0.13, out); }   // 2·4박: 금관 '짝' + 작은북
-  }
-  mSnare(T + 7 * e, 0.06, out); mSnare(T + 7.5 * e, 0.08, out);   // 마디 끝 꾸밈음
-  if (S.quiet && int > 0.15) for (let k = 0; k < 8; k++) mSnare(T + k * e + e / 2, 0.06 * int, out);   // 적기가 가까우면 작은북이 바빠진다
-  let k = 0; for (const [m, l] of bar.mel) { if (m) mWhistle(T + k * e, m, l * e * 0.92, S.quiet ? 0.05 : 0.07, out); k += l; }
+  const e = bd / 8, beat = bd / 4, step = S.bars.indexOf(bar), horn = !S.quiet || int > 0.45, drums = !S.quiet || int > 0.15, hv = S.quiet ? 0.055 * Math.min(1, int * 1.4) : 0.06;
+  mPad(T, bar.ch, bd + 0.3, S.quiet ? 0.035 : 0.045, out);   // 현악 화음
+  mLow(T, bar.b, bd, 0.16, out);   // 바닥을 받치는 낮은 소리
+  for (let k = 0; k < 8; k++) mStr(T + k * e, bar.b + 12 + (k === 3 || k === 7 ? 7 : 0), e * 0.9, k % 4 === 0 ? 0.09 : 0.06, out);   // 현악이 8분음표로 밀고 나간다
+  mTimp(T, bar.b + 12, 0.5, out); mKick(T, 0.4, out);
+  mTimp(T + 2 * beat, bar.b + 19, 0.32, out); mKick(T + 2 * beat, 0.28, out);
+  if (step % 4 === 0) mCym(T, S.quiet ? 0.05 : 0.08, out);   // 네 마디마다 심벌즈
+  if (step % 4 === 3) for (let k = 0; k < 8; k++) mTimp(T + bd / 2 + k * e / 2, bar.b + 12, 0.1 + k * 0.03, out);   // 프레이즈 끝: 팀파니 연타로 다음 마디로 밀어 준다
+  if (drums) { [1, 3].forEach(k => mSnare(T + k * beat, 0.11 * (S.quiet ? int : 1), out)); mSnare(T + 3.5 * beat, 0.06 * (S.quiet ? int : 1), out); }
+  if (horn) { let k = 0; for (const [m, l] of bar.mel) { if (m) { mBrass(T + k * e, m, l * e * 0.95, hv, out); mBrass(T + k * e, m - 12, l * e * 0.95, hv * 0.8, out); } k += l; } }   // 호른: 옥타브로 겹쳐 굵게
 }
 function musSting(win) {   // 작전 결과: 승리는 밝은 나팔과 팀파니 연타, 패배는 낮게 가라앉는 금관
   const a = sound.ctx, out = musOut(), T = a.currentTime + 0.1; MUS.g.gain.setTargetAtTime(0.22, a.currentTime, 0.05);

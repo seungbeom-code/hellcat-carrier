@@ -3717,8 +3717,9 @@ function fireBtns() {   // 화면의 발사 버튼: 기관총과, 이번에 실�
 const SMOKY = { air: 1, deck: 1, taxi: 1, lift: 1, slide: 1, dslide: 1 };   // 연기·체력바가 보이는 상태 (추락 중에는 제외)
 const ENEMY_NAME = { zero: 'Zero', ace: 'Ace Zero', n1k: 'N1K Shiden', d4y: 'D4Y Dive Bomber', b6n: 'B6N Torpedo Bomber' }, ENEMY_NAME_KO = { zero: '제로센', ace: '에이스 제로센', n1k: 'N1K 시덴', d4y: 'D4Y 급강하 폭격기', b6n: 'B6N 뇌격기' };
 const enemyCol = fr => { const k = clamp(fr, 0, 1); return 'rgb(' + Math.round(20 + 215 * k) + ',' + Math.round(4 + 46 * k) + ',' + Math.round(4 + 41 * k) + ')'; };   // 적 체력바: 빨강 → 체력이 줄수록 검정
+let HP_K = 1;   // 체력바 두께 배수 (작은 확대창에서는 두껍게)
 function hpBar(c, X, Y, bw, fr, col) {   // 체력바: 물체보다 좁고, 화면 확대율에 따라 같이 커지고 작아진다
-  bw = Math.max(8, bw); const bh = Math.max(2.5, bw * 0.14);
+  bw = Math.max(8, bw); const bh = Math.max(2.5, bw * 0.14) * HP_K;
   c.save(); c.fillStyle = col ? 'rgba(205,208,214,0.8)' : 'rgba(8,12,20,0.78)'; c.beginPath(); c.roundRect(X - bw / 2 - 1, Y - 1, bw + 2, bh + 2, bh / 2 + 1); c.fill();   // 검은 막대가 보이도록 적 체력바의 바탕은 밝은 회색
   c.fillStyle = col || (fr > 0.6 ? '#59d37a' : fr > 0.3 ? '#ffd23f' : '#ff5a3c'); c.beginPath(); c.roundRect(X - bw / 2, Y, Math.max(bh, bw * fr), bh, bh / 2); c.fill(); c.restore();
 }
@@ -3726,13 +3727,13 @@ function drawPlayerHp(c) {   // 내 비행기 위에 항상 보이는 체력바
   if (!SMOKY[p.mode] || G.scene !== 'play') return;
   hpBar(c, sx(p.x), sy(p.y + 8) - 3 * cam.z, 11.7 * cam.z, clamp(p.hp / 100, 0, 1));
 }
-function drawEnemyHp(c) {   // 적기 위에 항상 보이는 체력바
+function drawEnemyHp(c, noName) {   // 적기 위에 항상 보이는 체력바 (noName: 이름표 없이)
   let lufN = 0; for (const e of ENE) if (!e.dead && e.rk >= 4 && !e.att && e.st === 'app' && !e.mv) lufN++;
   for (const e of ENE) {
     if (e.dead || Math.abs(e.x - cam.x) > W / cam.z / 2 + 40 || inCloud(e.x, e.y) > 0.5) continue;   // 구름 속 적기는 이름표도 숨긴다
     e.hpM = Math.max(e.hpM || 0, e.hp); { const fe = clamp(e.hp / e.hpM, 0, 1); hpBar(c, sx(e.x), sy(e.y + 7) - 3 * cam.z, 10.4 * cam.z, fe, enemyCol(fe)); }
     const nm0 = (LANG === 'ko' ? ENEMY_NAME_KO : ENEMY_NAME)[e.type], nm = e.name ? '★ ' + tr(e.name) + ' Lv.' + e.rk : nm0 && (e.rk ? nm0 + ' Lv.' + e.rk : nm0);   // 에이스는 별명을 금색으로   // 체력바 위에 적기 종류와 계급(Lv.1~5)을 쓴다
-    if (nm) { const fs0 = clamp(3.4 * cam.z, 9, 15), by = sy(e.y + 7) - 3 * cam.z; c.save(); c.font = '700 ' + fs0 + 'px system-ui,sans-serif'; c.textAlign = 'center'; c.textBaseline = 'alphabetic'; c.lineJoin = 'round'; c.lineWidth = 3; c.strokeStyle = 'rgba(8,12,20,0.85)'; c.strokeText(nm, sx(e.x), by - 4); c.fillStyle = e.boss ? '#ffd23f' : e.rk ? RANK_COL[e.rk] : '#f2f4f8'; c.fillText(nm, sx(e.x), by - 4);
+    if (nm && !noName) { const fs0 = clamp(3.4 * cam.z, 9, 15), by = sy(e.y + 7) - 3 * cam.z; c.save(); c.font = '700 ' + fs0 + 'px system-ui,sans-serif'; c.textAlign = 'center'; c.textBaseline = 'alphabetic'; c.lineJoin = 'round'; c.lineWidth = 3; c.strokeStyle = 'rgba(8,12,20,0.85)'; c.strokeText(nm, sx(e.x), by - 4); c.fillStyle = e.boss ? '#ffd23f' : e.rk ? RANK_COL[e.rk] : '#f2f4f8'; c.fillText(nm, sx(e.x), by - 4);
       const mk = e.mv || (G.t < (e.mvShow || 0) ? e.mvLast : null) || (lufN >= 2 && e.rk >= 4 && !e.att && e.st === 'app' && p.mode === 'air' ? 'luf' : null);   // 특수 기동 중에는 이름을 한 줄 더 띄운다
       if (mk) { const cap = '◆ ' + (LANG === 'ko' ? MV[mk].k : MV[mk].n); c.font = '800 ' + (fs0 + 1) + 'px system-ui,sans-serif'; c.strokeText(cap, sx(e.x), by - 5 - fs0 * 1.25); c.fillStyle = '#ff9d3c'; c.fillText(cap, sx(e.x), by - 5 - fs0 * 1.25); }
       c.restore(); }
@@ -3744,7 +3745,7 @@ function drawHpBars(c) {   // 적 구조물·함정이 맞으면 잠깐 체력�
   for (const t of TARGETS) {
     const armed = ARMED[t.type] || SHIPS[t.type] && t.type !== 'boat' && t.type !== 'tr', age = armed ? 0 : G.t - (t.hitAt === undefined ? -99 : t.hitAt); if (!t.alive || age > SHOW || t.type === 'runway') continue;   // 공격하는 시설과 군함은 체력바가 항상 보인다
     if (Math.abs(t.x - cam.x) > W / cam.z / 2 + 60) continue;
-    const fr = clamp(t.hp / t.hp0, 0, 1), bw = Math.max(8, BOX[t.type].w * cam.z * 0.78), bh = Math.max(2.5, bw * 0.1), X = sx(t.x), Y = sy(t.y + BOX[t.type].h + (SHIPS[t.type] ? 14 : 3)) - 3 * cam.z;
+    const fr = clamp(t.hp / t.hp0, 0, 1), bw = Math.max(8, BOX[t.type].w * cam.z * 0.78), bh = Math.max(2.5, bw * 0.1) * HP_K, X = sx(t.x), Y = sy(t.y + BOX[t.type].h + (SHIPS[t.type] ? 14 : 3)) - 3 * cam.z;
     const a = age > SHOW - 0.6 ? (SHOW - age) / 0.6 : 1;
     c.save(); c.globalAlpha = a;
     if (!SHIPS[t.type]) {   // 배에는 체력바를 달지 않는다 (남은 대공화기 수만 보인다)
@@ -5129,13 +5130,13 @@ function drawHudFaded() {   // HUD를 따로 그린 뒤 3분의 1 불투명도�
 }
 let pipCv = null, pipCx = null, pipT = -9, pipS = null;
 function pipMarks(c) {   // 작은 확대창 안의 적 유닛(적기·시설·군함·병사) 머리 위에 빨간 화살표를 붙여 조준하기 쉽게 한다 (창이 작아서 크게 그린다)
-  const mk = (x, top, sz) => {
-    const X = sx(x), Y = sy(top) - 8 + Math.sin(G.t * 6 + x * 0.3) * 3; if (X < -30 || X > W + 30 || Y < -10 || Y > H + 60) return;
+  const mk = (x, top, sz, bar) => {
+    const X = sx(x), Y = sy(top) - 8 - (bar ? 3 * cam.z + 26 : 0) + Math.sin(G.t * 6 + x * 0.3) * 3;   // 체력바가 있으면 그 위로 올린다 if (X < -30 || X > W + 30 || Y < -10 || Y > H + 60) return;
     c.beginPath(); c.moveTo(X, Y); c.lineTo(X - sz * 0.5, Y - sz * 0.55); c.lineTo(X - sz * 0.17, Y - sz * 0.55); c.lineTo(X - sz * 0.17, Y - sz * 1.2); c.lineTo(X + sz * 0.17, Y - sz * 1.2); c.lineTo(X + sz * 0.17, Y - sz * 0.55); c.lineTo(X + sz * 0.5, Y - sz * 0.55); c.closePath(); c.stroke(); c.fill();
   };
   c.save(); c.fillStyle = '#ff2d20'; c.strokeStyle = 'rgba(0,0,0,0.8)'; c.lineWidth = 5; c.lineJoin = 'round';
-  for (const t of TARGETS) { if (!t.alive || t.type === 'runway') continue; const b = BOX[t.type]; mk(t.x, t.y + (b ? b.h : 8) + (SHIPS[t.type] ? 14 : 3), 54); }
-  for (const e of ENE) if (!e.dead) mk(e.x, e.y + 8, 54);
+  for (const t of TARGETS) { if (!t.alive || t.type === 'runway') continue; const b = BOX[t.type]; mk(t.x, t.y + (b ? b.h : 8) + (SHIPS[t.type] ? 14 : 3), 54, true); }
+  for (const e of ENE) if (!e.dead) mk(e.x, e.y + 8, 54, true);
   for (const o of SOLD) if (o.alive && o.st !== 'enter') mk(o.x, o.y + 9, 36);
   c.restore();
 }
@@ -5171,7 +5172,7 @@ function drawFwdView(m) {   // 정면 화면: 비행기가 향한 쪽 멀리(기
       cam.z = pipS.z; cam.x = pipS.x; cam.y = pipS.y;
     }   // 기수가 향한 쪽 380m 앞을 본다: 조준선에 들어온 벙커가 실제로 보이는 것처럼 보인다
     ctx = pipCx; pipCx.setTransform(pipCv.width / W, 0, 0, pipCv.height / H, 0, 0);
-    try { drawWorld(); pipMarks(pipCx); } finally { ctx = sc; cam.x = sv.x; cam.y = sv.y; cam.z = sv.z; }
+    try { drawWorld(); HP_K = 2.2; try { if (G.scene === 'play') { drawHpBars(pipCx); drawEnemyHp(pipCx, true); } } finally { HP_K = 1; } pipMarks(pipCx); } finally { ctx = sc; cam.x = sv.x; cam.y = sv.y; cam.z = sv.z; }   // 확대창에도 체력바를 그린다 (두껍게, 이름표 없이)
   }
   const c = ctx0; c.save(); c.setTransform(m); c.beginPath(); c.roundRect(X, Y, PW, PH, 8); c.clip(); c.drawImage(pipCv, X, Y, PW, PH);
   c.restore(); c.save(); c.setTransform(m); c.strokeStyle = 'rgba(170,205,255,0.8)'; c.lineWidth = 2; c.beginPath(); c.roundRect(X, Y, PW, PH, 8); c.stroke(); c.fillStyle = 'rgba(6,16,30,0.7)'; c.beginPath(); c.roundRect(X + 8, Y + 6, 46, 16, 5); c.fill(); c.fillStyle = '#ffc83d'; c.font = '800 10px system-ui,sans-serif'; c.textAlign = 'left'; c.fillText('ZOOM', X + 15, Y + 18);   // 창 이름표

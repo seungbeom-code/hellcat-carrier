@@ -854,16 +854,17 @@ function addMoney(n, x, y) {
 const baseAmmo = () => ({ gun: 9600, rk: 0, bm: 0, tp: 0, lb: 550 });   // 기본 지급: 기관총탄 9,600발 (무료)
 const payCap = () => Math.round(48 * (1 + 0.2 * upLv('ammo')));   // 실을 수 있는 무게: 로켓 1칸, 폭탄 0.5칸
 const payUsed = () => (p.ammo.rk || 0) * RK().slot + (p.ammo.bm || 0) * BM().slot;
-function shopBuy(k, n) {   // 격납고에서 로켓(rk)·폭탄(bm)을 사거나(+) 이번에 산 것을 되판다(-)
+function shopBuy(k, n) {   // 격납고에서 로켓(rk)·폭탄(bm)을 사거나(+) 실린 것을 산 값에 되판다(-)
+  if (G.shopM0 === undefined && hangarOpen()) G.shopM0 = money();   // 이번 보급에서 쓴 돈의 기준
   const price = k === 'rk' ? RK().price : BM().price, slot = k === 'rk' ? RK().slot : BM().slot; G.buy = G.buy || { rk: 0, bm: 0 };
   if (n > 0) {
     const can = Math.min(n, Math.floor((payCap() - payUsed()) / slot + 1e-6), Math.floor(money() / price));
     if (can <= 0) { G.shopMsg = money() < price ? 'Not enough money' : 'The plane is full'; return; }
     p.ammo[k] += can; G.buy[k] += can; G.save.money = money() - can * price; G.shopMsg = ''; sfx('clunk');
-  } else { const back = Math.min(-n, G.buy[k]); if (back <= 0) return; p.ammo[k] -= back; G.buy[k] -= back; G.save.money = money() + back * price; G.shopMsg = ''; }
+  } else { const back = Math.min(-n, p.ammo[k]); if (back <= 0) return; p.ammo[k] -= back; G.buy[k] -= back; G.save.money = money() + back * price; G.shopMsg = ''; }
 }
 function shopGo() {   // 보급을 마치고 올라간다 (급유·수리는 무료)
-  const e = p.el; if (!e || e.st !== 'pick') return; saveProg();
+  const e = p.el; if (!e || e.st !== 'pick') return; saveProg(); G.shopM0 = undefined; G.shopMsg = '';
   p.loaded = { rk: p.ammo.rk > 0, bm: p.ammo.bm > 0 }; if (G.buy && (G.buy.rk || G.buy.bm)) G.lastPref = G.buy.bm > G.buy.rk ? 'bm' : 'rk'; G.buy = { rk: 0, bm: 0 };
   p.fuelMax = LOADS[0].fuel; p.fuel = p.fuelMax; p.hp = 100;
   e.st = 'up'; e.t = 0; sfx('lift'); G.toast = G.brief ? { text: G.brief, grade: 'green', until: G.t + 7 } : { text: 'Refueled, repaired, rearmed', grade: 'green', until: G.t + 2.5 }; G.brief = null;
@@ -871,13 +872,40 @@ function shopGo() {   // 보급을 마치고 올라간다 (급유·수리는 무
 function autoShop() {   // 자동 조종의 보급: 지난번에 산 무기(없으면 로켓)를 돈이 되는 만큼 채운다
   const k = G.lastPref || 'rk', cnt = kk => Math.floor(money() * 0.6 / (kk === 'rk' ? RK().price : BM().price)); shopBuy(k, cnt(k)); if (!(p.ammo[k] > 0)) { const k2 = k === 'rk' ? 'bm' : 'rk'; shopBuy(k2, cnt(k2)); } shopGo();   // 가진 돈의 60%까지만 쓴다 (강화용 돈을 남긴다)
 }
-const SHOP_BTN = { rkM: { x: 470, y: 150, w: 56, h: 46 }, rkP: { x: 532, y: 150, w: 56, h: 46 }, rkF: { x: 594, y: 150, w: 100, h: 46 }, bmM: { x: 470, y: 214, w: 56, h: 46 }, bmP: { x: 532, y: 214, w: 56, h: 46 }, bmF: { x: 594, y: 214, w: 100, h: 46 }, go: { x: 330, y: 330, w: 300, h: 50 }, rkL: { x: 704, y: 150, w: 44, h: 46 }, rkR: { x: 752, y: 150, w: 44, h: 46 }, bmL: { x: 704, y: 214, w: 44, h: 46 }, bmR: { x: 752, y: 214, w: 44, h: 46 } };
+// 격납고 보급 화면 배치: 왼쪽 로켓, 오른쪽 폭탄. 종류는 모두 칩으로 펼쳐 놓고 눌러서 고른다
+const SHOP_KINDS = ['rk', 'bm'];
+const shopTab = k => (k === 'rk' ? RKTS : BMBS), shopCur = k => (k === 'rk' ? RKid() : BMid()), shopT = k => (k === 'rk' ? RK() : BM());
+const shopMax = k => Math.floor(payCap() / shopT(k).slot + 1e-6);   // 이 무기만 실었을 때 최대 개수
+const shopStep = k => Math.max(1, Math.round(shopMax(k) / 8));      // + / − 한 번에 바뀌는 개수
+function shopLayout() {
+  const L = { go: { x: 640, y: 448, w: 296, h: 66 }, cards: {} };
+  SHOP_KINDS.forEach((k, i) => {
+    const x = 24 + i * 468, y = 80, w = 444, ids = Object.keys(shopTab(k)), cw = (w - 24 - 3 * 8) / 4;
+    const chips = ids.map((id, j) => ({ id, r: { x: x + 12 + (j % 4) * (cw + 8), y: y + 46 + Math.floor(j / 4) * 58, w: cw, h: 50 } }));
+    const qy = y + 268, qx = x + 12;
+    L.cards[k] = { x, y, w, h: 338, chips, minus: { x: qx, y: qy, w: 64, h: 56 }, plus: { x: qx + 64 + 4 + 132 + 4, y: qy, w: 64, h: 56 }, cnt: { x: qx + 68, y: qy, w: 132, h: 56 }, fill: { x: qx + 272, y: qy, w: 80, h: 56 }, empty: { x: qx + 356, y: qy, w: 64, h: 56 } };
+  });
+  return L;
+}
+function shopPick(k, id) {   // 종류 칩을 눌렀다
+  if (!isUnl(id)) { G.shopMsg = LANG === 'ko' ? '잠긴 종류입니다 — 적을 부수고 아이템으로 얻으세요' : 'Locked — find it as an item drop'; sfx('click'); return; }
+  if (id === shopCur(k)) return; const had = p.ammo[k] || 0; if (G.shopM0 === undefined) G.shopM0 = money();
+  if (k === 'rk') setRkType(id); else setBmType(id);
+  G.shopMsg = ''; if (had > 0) shopBuy(k, had);   // 실려 있던 만큼 새 종류로 바꿔 싣는다 (돈이나 무게가 모자라면 되는 만큼)
+  if (had > 0 && (p.ammo[k] || 0) < had) G.shopMsg = LANG === 'ko' ? '바꾼 종류는 ' + (p.ammo[k] || 0) + (k === 'rk' ? '발' : '개') + '만 실었습니다 (' + (money() < shopT(k).price ? '돈이' : '무게가') + ' 모자람)' : 'Only ' + (p.ammo[k] || 0) + ' fit after the switch (' + (money() < shopT(k).price ? 'money' : 'weight') + ')';
+  sfx('click');
+}
 function shopTap(m) {
-  const B = SHOP_BTN;
-  if (inR(m, B.rkM)) shopBuy('rk', -4); else if (inR(m, B.rkP)) shopBuy('rk', 4); else if (inR(m, B.rkF)) shopBuy('rk', 999);
-  else if (inR(m, B.bmM)) shopBuy('bm', -6); else if (inR(m, B.bmP)) shopBuy('bm', 6); else if (inR(m, B.bmF)) shopBuy('bm', 999);
-  else if (inR(m, B.go)) shopGo();
-  else if (inR(m, B.rkL)) cycleType('rk', -1); else if (inR(m, B.rkR)) cycleType('rk', 1); else if (inR(m, B.bmL)) cycleType('bm', -1); else if (inR(m, B.bmR)) cycleType('bm', 1);
+  const L = shopLayout();
+  if (inR(m, L.go)) return shopGo();
+  for (const k of SHOP_KINDS) {
+    const C = L.cards[k];
+    for (const ch of C.chips) if (inR(m, ch.r)) return shopPick(k, ch.id);
+    if (inR(m, C.minus)) return shopBuy(k, -shopStep(k));
+    if (inR(m, C.plus)) return shopBuy(k, shopStep(k));
+    if (inR(m, C.fill)) return shopBuy(k, 999);
+    if (inR(m, C.empty)) return shopBuy(k, -999);
+  }
 }
 function pickLoad(i) { shopGo(); }   // 예전 무장 고르기 이름 (지금은 상점에서 산 그대로 올라간다)
 // ───────── 무기고: 기관총 5종(정비창에서 사서 장착), 로켓 4종·폭탄 5종(격납고에서 종류를 골라 산다), 패시브 9종(정비창에서 사서 2칸에 장착) ─────────
@@ -922,6 +950,7 @@ const isUnl = id => id === 'm2' || id === 'r2' || id === 'gp' || !!(G.save && ((
 const GN = () => { const id = (G.save && G.save.gun) || 'm2'; return isUnl(id) && GUNT[id] ? GUNT[id] : GUNT.m2; };
 const RKid = () => { const id = (G.save && G.save.rkT) || 'r2'; return isUnl(id) && RKTS[id] ? id : 'r2'; };
 const RK = () => RKTS[RKid()];
+const BMid = () => { const id = (G.save && G.save.bmT) || 'gp'; return isUnl(id) && BMBS[id] ? id : 'gp'; };
 const BM = () => { const id = (G.save && G.save.bmT) || 'gp'; return isUnl(id) && BMBS[id] ? BMBS[id] : BMBS.gp; };
 const has = id => !!(G.save && G.save.eq && G.save.eq.includes(id) && G.scene === 'play');
 const slots = () => (G.save && G.save.slots) || 2;
@@ -930,7 +959,7 @@ const magK = () => (has('magnet') ? 1.5 : 1);
 const FIREZ = [];   // 네이팜 불바다
 function setRkType(id) { if (!RKTS[id] || id === RKid()) return; const old = RK(); G.save.money = money() + p.ammo.rk * old.price; p.ammo.rk = 0; if (G.buy) G.buy.rk = 0; G.save.rkT = id; saveProg(); }   // 종류를 바꾸면 실은 로켓은 산 값에 되판다
 function setBmType(id) { if (!BMBS[id] || id === (G.save.bmT || 'gp')) return; const old = BM(); G.save.money = money() + p.ammo.bm * old.price; p.ammo.bm = 0; if (G.buy) G.buy.bm = 0; G.save.bmT = id; saveProg(); }
-function cycleType(k, d) { const keys = Object.keys(k === 'rk' ? RKTS : BMBS).filter(isUnl), cur = k === 'rk' ? RKid() : (isUnl(G.save.bmT || 'gp') ? G.save.bmT || 'gp' : 'gp'); if (keys.length < 2) { G.shopMsg = 'Other types are locked — find them as item drops'; return; } const i = (keys.indexOf(cur) + d + keys.length) % keys.length; if (k === 'rk') setRkType(keys[i]); else setBmType(keys[i]); sfx('click'); }
+function cycleType(k, d) { const keys = Object.keys(k === 'rk' ? RKTS : BMBS).filter(isUnl), cur = k === 'rk' ? RKid() : (isUnl(G.save.bmT || 'gp') ? G.save.bmT || 'gp' : 'gp'); if (keys.length < 2) { G.shopMsg = 'Other types are locked — find them as item drops'; return; } const i = (keys.indexOf(cur) + d + keys.length) % keys.length; shopPick(k, keys[i]); }
 function rocketBoom(q, x, y, sea) {   // 로켓 종류마다 다른 폭발
   const R = RKTS[q.rt] || RKTS.hvar; G.expMul = R.mul; try { explode(x, y, R.r, 'rocket', sea); } finally { G.expMul = 1; }
   if (R.big) { FX.push({ k: 'flash', x, y: y + 3, vx: 0, vy: 0, life: 0.4, t: 0 }); for (let k = 0; k < 10; k++) FX.push({ k: 'fire', x: x + (Math.random() - 0.5) * 20, y: y + Math.random() * 8, vx: (Math.random() - 0.5) * 30, vy: 6 + Math.random() * 14, life: 1 + Math.random() * 0.8, t: 0, s: 3 + Math.random() * 3 }); sfx('boom', { k: 'bomb', r: 30, x }); }
@@ -1467,32 +1496,62 @@ function liftStep(dt) {
   p.x = ship.x + p.xr; p.y = DECK_Y + WH + (p.el ? p.el.y : 0);
 }
 const PICK_CARDS = [0, 1, 2].map(i => ({ x: 165 + i * 215, y: 150, w: 200, h: 200 }));
-function drawPick(c) {   // 격납고 보급: 가진 달러 안에서 로켓·폭탄을 산다 (기관총과 탄 9,600발은 무료)
-  const B = SHOP_BTN, btn = (r, txt, on, col) => { c.fillStyle = on ? (col || 'rgba(52,120,190,0.95)') : 'rgba(60,70,84,0.7)'; c.beginPath(); c.roundRect(r.x, r.y, r.w, r.h, 10); c.fill(); c.fillStyle = on ? '#fff' : '#8d9aab'; c.font = '800 16px system-ui,sans-serif'; c.textAlign = 'center'; c.fillText(txt, r.x + r.w / 2, r.y + r.h / 2 + 6); };
-  c.fillStyle = 'rgba(11,23,38,0.97)'; c.beginPath(); c.roundRect(140, 70, 680, 332, 14); c.fill(); c.strokeStyle = '#ffd23f'; c.lineWidth = 2; c.stroke();
-  c.textAlign = 'left'; c.fillStyle = '#ffd23f'; c.font = '800 22px system-ui,sans-serif'; c.fillText('Hangar — supply', 164, 104);
-  c.textAlign = 'right'; c.fillStyle = '#ffe27a'; c.font = '900 22px system-ui,sans-serif'; c.fillText(fmt$(money()), 796, 104);
-  c.textAlign = 'left'; c.fillStyle = '#b9c7d8'; c.font = '600 13px system-ui,sans-serif'; c.fillText((LANG === 'ko' ? '급유·수리 무료 · 기관총: ' + GN().k : 'Refuel and repair are free · gun: ' + GN().n) + (LANG === 'ko' ? ' (탄 무료) · ◀ ▶ 로 종류 선택' : ' (free ammo) · ◀ ▶ picks the type'), 164, 128);
-  const row = (y, icon, name, k, price) => {
-    c.fillStyle = 'rgba(30,44,62,0.95)'; c.beginPath(); c.roundRect(160, y - 6, 640, 58, 10); c.fill();
-    c.save(); c.translate(196, y + 23); icon(); c.restore();
-    c.textAlign = 'left'; c.fillStyle = '#fff'; c.font = '800 18px system-ui,sans-serif'; c.fillText(name, 234, y + 18);
-    const T = k === 'rk' ? RK() : BM(), ko = LANG === 'ko'; c.fillStyle = '#9fb3c8'; c.font = '700 12px system-ui,sans-serif'; const ks = Object.keys(k === 'rk' ? RKTS : BMBS), nu = ks.filter(isUnl).length; c.fillText((ko ? '실은 수 ' : 'Aboard ') + p.ammo[k] + ' · ' + fmt$(T.price) + (ko ? ' / 개 · ' : ' each · ') + (ko ? T.dk : T.d) + (nu < ks.length ? (ko ? ' · 🔒 ' : ' · 🔒 ') + (ks.length - nu) + (ko ? '종 잠김' : ' locked') : ''), 234, y + 38);
-  };
-  const ko0 = LANG === 'ko';
-  row(150, () => { for (let k = -1; k <= 1; k++) { c.fillStyle = '#cfd5da'; c.fillRect(-16, k * 9 - 2, 26, 4); c.fillStyle = '#c0392b'; c.beginPath(); c.moveTo(10, k * 9 - 2); c.lineTo(16, k * 9); c.lineTo(10, k * 9 + 2); c.fill(); } }, ko0 ? RK().k : RK().n, 'rk', RK().price);
-  row(214, () => { for (let k = -1; k <= 1; k++) { c.fillStyle = '#2b2f33'; c.beginPath(); c.ellipse(k * 13, 0, 6, 10, 0, 0, 7); c.fill(); c.fillStyle = '#4a5058'; c.fillRect(k * 13 - 3, -14, 6, 4); } }, ko0 ? BM().k : BM().n, 'bm', BM().price);
-  btn(B.rkL, '◀', true); btn(B.rkR, '▶', true); btn(B.bmL, '◀', true); btn(B.bmR, '▶', true);
-  const G0 = G.buy || { rk: 0, bm: 0 }, rkOk = money() >= RK().price && payUsed() + RK().slot <= payCap(), bmOk = money() >= BM().price && payUsed() + BM().slot <= payCap();
-  btn(B.rkM, '−4', G0.rk > 0); btn(B.rkP, '+4', rkOk); btn(B.rkF, 'Fill', rkOk, 'rgba(160,112,20,0.95)');
-  btn(B.bmM, '−6', G0.bm > 0); btn(B.bmP, '+6', bmOk); btn(B.bmF, 'Fill', bmOk, 'rgba(160,112,20,0.95)');
-  const u = payUsed(), cap = payCap(); c.textAlign = 'left'; c.fillStyle = '#cfd8e3'; c.font = '700 13px system-ui,sans-serif'; c.fillText('Payload', 164, 296);
-  c.fillStyle = '#243447'; c.fillRect(234, 286, 330, 12); c.fillStyle = u >= cap ? '#ff8a5c' : '#59d37a'; c.fillRect(234, 286, 330 * clamp(u / cap, 0, 1), 12);
-  c.fillStyle = '#cfd8e3'; c.fillText(Math.round(u * 10) / 10 + ' / ' + cap, 574, 297);
-  const spent = G0.rk * RK().price + G0.bm * BM().price; c.textAlign = 'right'; c.fillStyle = '#ffd23f'; c.fillText('This visit ' + fmt$(spent), 796, 297);
-  if (G.shopMsg) { c.textAlign = 'center'; c.fillStyle = '#ff9a7a'; c.font = '700 13px system-ui,sans-serif'; c.fillText(G.shopMsg, 480, 320); }
-  btn(B.go, 'Take off (Space)', true, 'rgba(52,150,84,0.95)');
-  c.textAlign = 'center'; c.fillStyle = '#9fb0c4'; c.font = '600 12px system-ui,sans-serif'; c.fillText('1 / 2: +rockets / +bombs · 3 / 4: fill · Q / W: rocket type · A / S: bomb type · Space: take off', 480, 396); c.textAlign = 'left';
+function drawPick(c) {   // 격납고 보급: 가진 달러 안에서 로켓·폭탄을 산다 (기관총과 탄 9,600발, 급유·수리는 무료)
+  const ko = LANG === 'ko', L = shopLayout(), F = (w, px) => w + ' ' + px + 'px system-ui,sans-serif';
+  if (G.shopM0 === undefined) G.shopM0 = money();   // 이번 보급에서 쓴 돈을 보여 주려고 들어올 때의 돈을 기억한다
+  const rr = (x, y, w, h, r, fill, stroke) => { c.beginPath(); c.roundRect(x, y, w, h, r); if (fill) { c.fillStyle = fill; c.fill(); } if (stroke) { c.strokeStyle = stroke; c.lineWidth = 2; c.stroke(); } };
+  const btn = (r, txt, on, col, sub) => { rr(r.x, r.y, r.w, r.h, 10, on ? col : 'rgba(52,62,76,0.85)'); c.textAlign = 'center'; c.fillStyle = on ? '#fff' : '#7d8a9b'; c.font = F(800, 18); c.fillText(txt, r.x + r.w / 2, r.y + r.h / 2 + (sub ? -2 : 6)); if (sub) { c.font = F(700, 11); c.fillStyle = on ? 'rgba(255,255,255,0.8)' : '#6c788a'; c.fillText(sub, r.x + r.w / 2, r.y + r.h / 2 + 15); } };
+  // 바탕과 제목
+  c.fillStyle = 'rgba(7,14,25,0.97)'; c.fillRect(0, 0, W, H);
+  c.textAlign = 'left'; c.fillStyle = '#ffd23f'; c.font = F(900, 26); c.fillText(ko ? '격납고 보급' : 'Hangar supply', 26, 40);
+  c.fillStyle = '#9fb0c4'; c.font = F(600, 13); c.fillText(ko ? '급유·수리·기관총 탄약은 무료 · 기관총: ' + GN().k : 'Fuel, repairs and gun ammo are free · gun: ' + GN().n, 26, 62);
+  rr(700, 12, 236, 56, 12, 'rgba(255,210,63,0.12)', 'rgba(255,210,63,0.55)');
+  c.textAlign = 'left'; c.fillStyle = '#d8c27a'; c.font = F(700, 13); c.fillText(ko ? '가진 돈' : 'Wallet', 716, 45);
+  c.textAlign = 'right'; c.fillStyle = '#ffe27a'; c.font = F(900, 28); c.fillText(fmt$(money()), 922, 51);
+  // 무기 카드 두 장
+  const icon = (k, x, y) => { c.save(); c.translate(x, y); if (k === 'rk') { for (let j = -1; j <= 1; j++) { c.fillStyle = '#cfd5da'; c.fillRect(-14, j * 7 - 1.5, 22, 3); c.fillStyle = '#c0392b'; c.beginPath(); c.moveTo(8, j * 7 - 2); c.lineTo(13, j * 7); c.lineTo(8, j * 7 + 2); c.fill(); } } else { for (let j = -1; j <= 1; j++) { c.fillStyle = '#3a4048'; c.beginPath(); c.ellipse(j * 10, 1, 4.5, 8, 0, 0, 7); c.fill(); c.fillStyle = '#5a626c'; c.fillRect(j * 10 - 2.5, -10, 5, 3); } } c.restore(); };
+  for (const k of SHOP_KINDS) {
+    const C = L.cards[k], T = shopT(k), cur = shopCur(k), n = p.ammo[k] || 0, accent = k === 'rk' ? '#ff9a4a' : '#8fb4e0';
+    rr(C.x, C.y, C.w, C.h, 14, 'rgba(24,38,56,0.98)', 'rgba(120,150,190,0.25)');
+    icon(k, C.x + 30, C.y + 24);
+    c.textAlign = 'left'; c.fillStyle = '#fff'; c.font = F(900, 20); c.fillText(k === 'rk' ? (ko ? '로켓' : 'Rockets') : (ko ? '폭탄' : 'Bombs'), C.x + 52, C.y + 31);
+    c.textAlign = 'right'; c.fillStyle = n > 0 ? accent : '#7d8a9b'; c.font = F(900, 20); c.fillText((ko ? '실은 수 ' : 'Aboard ') + n + (ko ? (k === 'rk' ? '발' : '개') : ''), C.x + C.w - 14, C.y + 31);
+    // 종류 칩: 이름·값, 고른 것은 노랗게, 잠긴 것은 자물쇠
+    for (const ch of C.chips) {
+      const D = shopTab(k)[ch.id], un = isUnl(ch.id), on = ch.id === cur, r = ch.r;
+      rr(r.x, r.y, r.w, r.h, 9, on ? 'rgba(255,210,63,0.2)' : un ? 'rgba(44,62,86,0.95)' : 'rgba(30,38,48,0.95)', on ? '#ffd23f' : un ? 'rgba(140,170,210,0.35)' : null);
+      c.textAlign = 'center'; c.fillStyle = on ? '#ffe27a' : un ? '#e8eef5' : '#5c6878'; c.font = F(800, 14); c.fillText((un ? '' : '🔒 ') + (ko ? D.sk : D.s), r.x + r.w / 2, r.y + 22);
+      c.font = F(700, 12); c.fillStyle = on ? '#ffd23f' : un ? '#9fb3c8' : '#4c5664'; c.fillText(un ? fmt$(D.price) + (ko ? ' / 개' : ' ea') : (ko ? '아이템으로 해금' : 'item unlock'), r.x + r.w / 2, r.y + 40);
+    }
+    // 고른 종류 설명
+    const iy = C.y + 168; rr(C.x + 12, iy, C.w - 24, 88, 10, 'rgba(12,22,36,0.9)');
+    c.textAlign = 'left'; c.fillStyle = '#fff'; c.font = F(800, 16); c.fillText(ko ? T.k : T.n, C.x + 26, iy + 26);
+    c.fillStyle = '#b9c7d8'; c.font = F(600, 13); c.fillText(ko ? T.dk : T.d, C.x + 26, iy + 48);
+    const pw = k === 'rk' ? T.mul : T.mul * (T.lb >= 1000 ? 2 : 1), pips = clamp(Math.round(pw / (k === 'rk' ? 0.45 : 0.5)), 1, 5);
+    c.fillStyle = '#8fa3b8'; c.font = F(700, 12); c.fillText(ko ? '위력' : 'Power', C.x + 26, iy + 72);
+    for (let j = 0; j < 5; j++) { c.fillStyle = j < pips ? accent : 'rgba(140,160,190,0.25)'; c.fillRect(C.x + 62 + j * 16, iy + 62, 12, 12); }
+    c.fillStyle = '#8fa3b8'; c.fillText((ko ? '무게 ' : 'Weight ') + T.slot + (ko ? '칸 · 최대 ' : ' slots · max ') + shopMax(k) + (ko ? (k === 'rk' ? '발' : '개') : '') + (T.multi ? (ko ? ' · 한 번에 ' + T.multi + '발' : ' · ' + T.multi + ' per shot') : ''), C.x + 152, iy + 72);
+    // 개수 조절
+    const st = shopStep(k), canAdd = money() >= T.price && payUsed() + T.slot <= payCap() + 1e-6;
+    btn(C.minus, '−' + st, n > 0, 'rgba(70,90,120,0.95)');
+    rr(C.cnt.x, C.cnt.y, C.cnt.w, C.cnt.h, 10, 'rgba(12,22,36,0.9)');
+    c.textAlign = 'center'; c.fillStyle = '#fff'; c.font = F(900, 22); c.fillText(n + (ko ? (k === 'rk' ? '발' : '개') : ''), C.cnt.x + C.cnt.w / 2, C.cnt.y + 26);
+    c.fillStyle = '#9fb3c8'; c.font = F(700, 12); c.fillText(fmt$(n * T.price) + (ko ? '어치' : ' worth'), C.cnt.x + C.cnt.w / 2, C.cnt.y + 45);
+    btn(C.plus, '+' + st, canAdd, 'rgba(52,120,190,0.95)', fmt$(st * T.price));
+    btn(C.fill, ko ? '가득' : 'Fill', canAdd, 'rgba(176,122,20,0.95)');
+    btn(C.empty, ko ? '비우기' : 'Empty', n > 0, 'rgba(120,64,58,0.95)');
+  }
+  // 아래: 함께 쓰는 적재량, 이번 보급 금액, 출격
+  const u = payUsed(), cap = payCap(), uR = (p.ammo.rk || 0) * RK().slot, bx = 26, by = 470, bw = 596;
+  c.textAlign = 'left'; c.fillStyle = '#cfd8e3'; c.font = F(800, 14); c.fillText((ko ? '적재량 (로켓·폭탄 같이 씀)  ' : 'Payload (shared)  ') + Math.round(u * 10) / 10 + ' / ' + cap + (ko ? '칸' : ''), bx, by - 8);
+  rr(bx, by, bw, 18, 9, '#1c2a3c'); c.save(); c.beginPath(); c.roundRect(bx, by, bw, 18, 9); c.clip();
+  c.fillStyle = '#ff9a4a'; c.fillRect(bx, by, bw * clamp(uR / cap, 0, 1), 18); c.fillStyle = '#8fb4e0'; c.fillRect(bx + bw * clamp(uR / cap, 0, 1), by, bw * clamp((u - uR) / cap, 0, 1), 18); c.restore();
+  const spent = G.shopM0 - money(); c.fillStyle = spent > 0 ? '#ffb38a' : spent < 0 ? '#8ee6a0' : '#9fb0c4'; c.font = F(800, 14);
+  c.textAlign = 'right'; c.fillText((ko ? '이번 보급 ' : 'This visit ') + (spent > 0 ? '−' + fmt$(spent) : spent < 0 ? '+' + fmt$(-spent) : '$0'), bx + bw, by - 8); c.textAlign = 'left';
+  c.fillStyle = '#9fb0c4'; c.font = F(600, 12); c.fillText(ko ? '키보드: 1·2 추가 · 5·6 빼기 · 3·4 가득 · Q W / A S 종류 · Backspace 비우기 · Space 출격' : 'Keys: 1·2 add · 5·6 remove · 3·4 fill · Q W / A S type · Backspace empty · Space take off', bx, by + 40);
+  if (G.shopMsg) { c.textAlign = 'center'; c.fillStyle = '#ff9a7a'; c.font = F(800, 14); c.fillText(G.shopMsg, 480, 438); }
+  btn(L.go, ko ? '출격 ▶' : 'Take off ▶', true, 'rgba(46,150,82,0.98)', 'Space');
+  c.textAlign = 'left';
 }
 
 function drawHangar(c) {
@@ -4417,8 +4476,9 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyN') G.camWing = !G.camWing;   // 동료기 시점 전환
   if ((e.code === 'KeyR' || e.code === 'Enter') && G.result) { afterCrash(); return; }   // 결과창을 닫는 키는 다른 동작(무장 고르기 등)을 하지 않는다
   if (hangarOpen()) {
-    if (e.code === 'Digit1') shopBuy('rk', 4); else if (e.code === 'Digit2') shopBuy('bm', 6); else if (e.code === 'Digit3') shopBuy('rk', 999); else if (e.code === 'Digit4') shopBuy('bm', 999);
+    if (e.code === 'Digit1') shopBuy('rk', shopStep('rk')); else if (e.code === 'Digit2') shopBuy('bm', shopStep('bm')); else if (e.code === 'Digit3') shopBuy('rk', 999); else if (e.code === 'Digit4') shopBuy('bm', 999);
     else if (e.code === 'Backspace') { shopBuy('rk', -999); shopBuy('bm', -999); }
+    else if (e.code === 'Digit5') shopBuy('rk', -shopStep('rk')); else if (e.code === 'Digit6') shopBuy('bm', -shopStep('bm'));
     else if (e.code === 'KeyQ') cycleType('rk', -1); else if (e.code === 'KeyW') cycleType('rk', 1); else if (e.code === 'KeyA') cycleType('bm', -1); else if (e.code === 'KeyS') cycleType('bm', 1);
     else if (e.code === 'Space' || e.code === 'Enter') shopGo();
     e.preventDefault(); return;

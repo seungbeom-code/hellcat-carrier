@@ -849,10 +849,14 @@ const GUNT = {
   c20: { n: '20mm Hispano ×4', k: '20mm 기관포 ×4', ic: '💥', price: 3000, rate: 9, dm: 2.6, spread: 0.025, life: 1.1, boom: 1, tc: '#ffe066', snd: 'gun20', d: 'Slow, hard-hitting exploding shells', dk: '느리지만 강한 작렬탄' },
   gat: { n: '"Buzzsaw" Gatling', k: "개틀링 '버즈소'", ic: '🌀', price: 4500, rate: 30, dm: 0.65, spread: 0.05, tc: '#ff5ad8', d: 'Huge rate of fire, wide spread', dk: '엄청난 연사력, 넓게 퍼진다' }
 };
-const RKTS = {
-  hvar: { n: 'HVAR 5-inch', k: 'HVAR 5인치', s: 'HVAR', sk: 'HVAR', price: 20, slot: 1, cd: 0.25, r: 14, mul: 1, d: 'Standard rocket', dk: '표준 로켓' },
-  tiny: { n: 'Tiny Tim 11.75-inch', k: '타이니 팀 (초대형)', s: 'Tiny Tim', sk: '타이니 팀', price: 80, slot: 3, cd: 0.9, r: 30, mul: 2.2, big: 1, d: 'Huge blast, slow to fire', dk: '거대한 폭발, 발사 간격이 길다' },
-  clus: { n: 'Cluster rocket', k: '확산 로켓', s: 'Cluster', sk: '확산 로켓', price: 45, slot: 1.5, cd: 0.35, r: 10, mul: 0.8, sub: 6, d: 'Bursts into 6 more explosions', dk: '맞으면 주변에 6번 더 터진다' }
+const RKTS = {   // 로켓은 2인치에서 출발해 아이템으로 하나씩 풀며 강해진다
+  r2: { n: '2-inch rocket', k: '2인치 로켓', s: '2"', sk: '2인치', price: 8, slot: 0.6, cd: 0.3, r: 9, mul: 0.45, d: 'Basic rocket, small blast', dk: '기본 로켓, 작은 폭발' },
+  r3: { n: '3-inch rocket', k: '3인치 로켓', s: '3"', sk: '3인치', price: 14, slot: 0.8, cd: 0.28, r: 11, mul: 0.7, d: 'Bigger warhead', dk: '더 큰 탄두' },
+  r3x2: { n: '3-inch twin', k: '3인치 2연발', s: '3" x2', sk: '3인치 ×2', price: 14, slot: 0.8, cd: 0.32, r: 11, mul: 0.7, multi: 2, d: 'Fires 2 rockets at once', dk: '한 번에 2발씩 발사' },
+  hvar: { n: 'HVAR 5-inch', k: 'HVAR 5인치', s: 'HVAR', sk: 'HVAR', price: 20, slot: 1, cd: 0.25, r: 14, mul: 1, d: 'Heavy 5-inch rocket', dk: '강력한 5인치 로켓' },
+  hvarx4: { n: 'HVAR quad salvo', k: '5인치 4연장', s: 'HVAR x4', sk: '5인치 ×4', price: 20, slot: 1, cd: 0.6, r: 14, mul: 1, multi: 4, d: 'Fires 4 rockets at once', dk: '한 번에 4발 동시 발사' },
+  clus: { n: 'Cluster rocket', k: '확산 로켓', s: 'Cluster', sk: '확산 로켓', price: 45, slot: 1.5, cd: 0.35, r: 10, mul: 0.8, sub: 6, d: 'Bursts into 6 more explosions', dk: '맞으면 주변에 6번 더 터진다' },
+  tiny: { n: 'Tiny Tim 11.75-inch', k: '타이니 팀 (초대형)', s: 'Tiny Tim', sk: '타이니 팀', price: 80, slot: 3, cd: 0.9, r: 30, mul: 2.2, big: 1, d: 'Huge blast, slow to fire', dk: '거대한 폭발, 발사 간격이 길다' }
 };
 const BMBS = {
   gp: { n: '250 kg bomb', k: '250kg 폭탄', s: '250 kg', sk: '250kg', price: 8, slot: 0.5, lb: 550, mul: 1, d: 'Standard bomb', dk: '표준 폭탄' },
@@ -874,19 +878,20 @@ const PASS = {
 };
 const SLOT3_PRICE = 5000, HARD = { pill: 1, bunker: 1, tower: 1 };
 // 무기 해금: 처음에는 기본 기관총·HVAR 로켓·250kg 폭탄만. 나머지는 아이템으로 얻으면 영구히 풀린다 (강한 무기일수록 높은 등급)
-const UNLOCK = { ap: ['gun', 2], inc: ['gun', 3], c20: ['gun', 3], gat: ['gun', 4], clus: ['rk', 2], tiny: ['rk', 4], hvy: ['bm', 2], nap: ['bm', 2], clu: ['bm', 3], bus: ['bm', 3] };
-const isUnl = id => id === 'm2' || id === 'hvar' || id === 'gp' || !!(G.save && ((G.save.unl && G.save.unl[id]) || (G.save.guns && G.save.guns[id])));
+const UNLOCK = { ap: ['gun', 2], inc: ['gun', 3], c20: ['gun', 3], gat: ['gun', 4], r3: ['rk', 1], r3x2: ['rk', 2], hvar: ['rk', 2], hvarx4: ['rk', 3], clus: ['rk', 3], tiny: ['rk', 4], hvy: ['bm', 2], nap: ['bm', 2], clu: ['bm', 3], bus: ['bm', 3] };
+const isUnl = id => id === 'm2' || id === 'r2' || id === 'gp' || !!(G.save && ((G.save.unl && G.save.unl[id]) || (G.save.guns && G.save.guns[id])));
 const GN = () => { const id = (G.save && G.save.gun) || 'm2'; return isUnl(id) && GUNT[id] ? GUNT[id] : GUNT.m2; };
-const RK = () => { const id = (G.save && G.save.rkT) || 'hvar'; return isUnl(id) && RKTS[id] ? RKTS[id] : RKTS.hvar; };
+const RKid = () => { const id = (G.save && G.save.rkT) || 'r2'; return isUnl(id) && RKTS[id] ? id : 'r2'; };
+const RK = () => RKTS[RKid()];
 const BM = () => { const id = (G.save && G.save.bmT) || 'gp'; return isUnl(id) && BMBS[id] ? BMBS[id] : BMBS.gp; };
 const has = id => !!(G.save && G.save.eq && G.save.eq.includes(id) && G.scene === 'play');
 const slots = () => (G.save && G.save.slots) || 2;
 const owned = (kind, id) => kind === 'gun' ? isUnl(id) : !!(G.save.pass && G.save.pass[id]);
 const magK = () => (has('magnet') ? 1.5 : 1);
 const FIREZ = [];   // 네이팜 불바다
-function setRkType(id) { if (!RKTS[id] || id === (G.save.rkT || 'hvar')) return; const old = RK(); G.save.money = money() + p.ammo.rk * old.price; p.ammo.rk = 0; if (G.buy) G.buy.rk = 0; G.save.rkT = id; saveProg(); }   // 종류를 바꾸면 실은 로켓은 산 값에 되판다
+function setRkType(id) { if (!RKTS[id] || id === RKid()) return; const old = RK(); G.save.money = money() + p.ammo.rk * old.price; p.ammo.rk = 0; if (G.buy) G.buy.rk = 0; G.save.rkT = id; saveProg(); }   // 종류를 바꾸면 실은 로켓은 산 값에 되판다
 function setBmType(id) { if (!BMBS[id] || id === (G.save.bmT || 'gp')) return; const old = BM(); G.save.money = money() + p.ammo.bm * old.price; p.ammo.bm = 0; if (G.buy) G.buy.bm = 0; G.save.bmT = id; saveProg(); }
-function cycleType(k, d) { const keys = Object.keys(k === 'rk' ? RKTS : BMBS).filter(isUnl), cur = k === 'rk' ? (isUnl(G.save.rkT || 'hvar') ? G.save.rkT || 'hvar' : 'hvar') : (isUnl(G.save.bmT || 'gp') ? G.save.bmT || 'gp' : 'gp'); if (keys.length < 2) { G.shopMsg = 'Other types are locked — find them as item drops'; return; } const i = (keys.indexOf(cur) + d + keys.length) % keys.length; if (k === 'rk') setRkType(keys[i]); else setBmType(keys[i]); sfx('click'); }
+function cycleType(k, d) { const keys = Object.keys(k === 'rk' ? RKTS : BMBS).filter(isUnl), cur = k === 'rk' ? RKid() : (isUnl(G.save.bmT || 'gp') ? G.save.bmT || 'gp' : 'gp'); if (keys.length < 2) { G.shopMsg = 'Other types are locked — find them as item drops'; return; } const i = (keys.indexOf(cur) + d + keys.length) % keys.length; if (k === 'rk') setRkType(keys[i]); else setBmType(keys[i]); sfx('click'); }
 function rocketBoom(q, x, y, sea) {   // 로켓 종류마다 다른 폭발
   const R = RKTS[q.rt] || RKTS.hvar; G.expMul = R.mul; try { explode(x, y, R.r, 'rocket', sea); } finally { G.expMul = 1; }
   if (R.big) { FX.push({ k: 'flash', x, y: y + 3, vx: 0, vy: 0, life: 0.4, t: 0 }); for (let k = 0; k < 10; k++) FX.push({ k: 'fire', x: x + (Math.random() - 0.5) * 20, y: y + Math.random() * 8, vx: (Math.random() - 0.5) * 30, vy: 6 + Math.random() * 14, life: 1 + Math.random() * 0.8, t: 0, s: 3 + Math.random() * 3 }); sfx('boom', { k: 'bomb', r: 30, x }); }
@@ -1312,6 +1317,7 @@ const ITEMS = {
 };
 for (const id in UNLOCK) { const [kind, r] = UNLOCK[id], W = kind === 'gun' ? GUNT[id] : kind === 'rk' ? RKTS[id] : BMBS[id];
   ITEMS['u_' + id] = { r, unl: id, n: W.n + ' unlocked!', k: W.k + ' 해금!', ic: kind === 'gun' ? W.ic : kind === 'rk' ? '🚀' : '💣', d: 'New weapon — ' + (kind === 'gun' ? 'equip it in the Arsenal' : 'pick it in the hangar') + ' · ' + W.d, dk: '새 무기 — ' + (kind === 'gun' ? '정비창에서 장착' : '격납고에서 선택') + ' · ' + W.dk }; }
+const UNLOCK_W = [0, 0.3, 0.12, 0.04, 0.012];   // 같은 등급의 보통 아이템(1)에 비한 무기 해금 아이템의 무게: 고급 0.3 · 희귀 0.12 · 영웅 0.04 · 전설 0.012
 const POOL = [['fuel', 'kit', 'pouch'], ['rcrate', 'bcrate', 'roll'], ['tune', 'gold', 'armor'], ['insignia', 'chest'], ['medal', 'prop']];
 // 유닛마다: [떨어질 확률, 등급별 가중치(일반·고급·희귀·영웅·전설), 현상금, 떨어뜨리는 개수]
 const DROP = {
@@ -1326,7 +1332,8 @@ function rollRarity(w) { const tot = w.reduce((a, b) => a + b, 0); let r = Math.
 function dropItems(src, x, y) {
   const D = DROP[src]; if (!D) return;
   for (let k = 0; k < D[3]; k++) {
-    if (Math.random() >= Math.min(1, D[0] * (has('lucky') ? 1.5 : 1))) continue; const ri = rollRarity(has('lucky') ? D[1].map((w, i) => w * (i >= 2 ? 1.7 : 1)) : D[1]), pool = POOL[ri].concat(Object.keys(UNLOCK).filter(u => UNLOCK[u][1] === ri && !isUnl(u) && !LOOT.some(L => L.it === 'u_' + u)).map(u => 'u_' + u)), id = pool[Math.floor(Math.random() * pool.length)];   // 아직 안 풀린 무기도 같은 등급 아이템과 같은 확률로 섞인다
+    if (Math.random() >= Math.min(1, D[0] * (has('lucky') ? 1.5 : 1))) continue; const ri = rollRarity(has('lucky') ? D[1].map((w, i) => w * (i >= 2 ? 1.7 : 1)) : D[1]), locked = Object.keys(UNLOCK).filter(u => UNLOCK[u][1] === ri && !isUnl(u) && !LOOT.some(L => L.it === 'u_' + u)).map(u => 'u_' + u), wl = UNLOCK_W[ri], tot = POOL[ri].length + locked.length * wl; let pick = Math.random() * tot, id = POOL[ri][POOL[ri].length - 1];
+    for (const it of POOL[ri].concat(locked)) { pick -= it.startsWith('u_') ? wl : 1; if (pick < 0) { id = it; break; } }   // 무기 해금은 등급이 높을수록 극히 드물다
     LOOT.push({ x: x + (k - (D[3] - 1) / 2) * 9, y: y + 4, it: id, t: -k * 0.25 }); if (ri >= 2) sfx('lootdrop', { r: ri });
   }
 }
@@ -2009,7 +2016,7 @@ function hurt(d, why) {
   if (p.mode !== 'air' || G.result) return; d *= 0.65 * (1 - 0.1 * upLv('arm')) * (G.t < (G.bufArm || 0) ? 0.5 : 1);
   G.lastHitT = G.t; if (has('rage')) G.bufRage = G.t + 6;
   if (has('shield') && (G.shield || 0) > 0) { const ab = Math.min(G.shield, d); G.shield -= ab; d -= ab; G.shieldHitT = G.t; if (d <= 0.001) { sfx('ehit', { x: p.x }); return; } }   // 보호막이 먼저 막는다
-  p.hp -= d; p.smokeT = G.t + 1.4; sfx('hit');   // 쉬운 난이도: 적의 공격력 -35%, 맞으면 잠시 하얀 연기
+  p.hp -= d; p.smokeT = G.t + 0.35; sfx('hit');   // 쉬운 난이도: 적의 공격력 -35%, 맞으면 잠시 하얀 연기
   for (let i = 0, n = 3 + Math.min(4, Math.round(d)); i < n; i++) FX.push({ k: 'dirt', x: p.x + (Math.random() - 0.5) * 7, y: p.y + (Math.random() - 0.5) * 2.5, vx: p.vx * 0.5 + (Math.random() - 0.5) * 22, vy: (Math.random() - 0.4) * 14 + 2, life: 0.25 + Math.random() * 0.3, t: 0, s: 0.18 + Math.random() * 0.16, c: i % 2 ? '#c9ced4' : '#3f72b8' });   // 작은 티끌
   if (p.hp <= 0) crash(why || 'Shot down.');
 }
@@ -2143,7 +2150,7 @@ function missionStep(dt) {
   soldierStep(dt); islandStep();
   if (G.tick && G.tick.length) { const T = G.tick[0]; if (T.t0 === undefined) T.t0 = G.t; if (G.t - T.t0 > 6) G.tick.shift(); }   // 속보 한 줄은 6초 동안 보인다
   if (G.carrierHp < 70 && Math.abs(ship.x + DECK_L / 2 - cam.x) < W / cam.z + DECK_L / 2 && Math.random() < dt * 6) FX.push({ k: 'smoke', x: ship.x + 40 + Math.random() * (DECK_L - 90), y: DECK_Y + 2, vx: ship.v - 6, vy: 5, life: 1.6, t: 0, s: 2 + Math.random() * 2 });
-  if (p.mode === 'air' && G.t < (p.smokeT || 0) && Math.random() < dt * 20) FX.push({ k: 'trail', x: p.x - Math.cos(p.th) * 6 + (Math.random() - 0.5) * 2, y: p.y - Math.sin(p.th) * 6 + (Math.random() - 0.5), vx: p.vx * 0.3, vy: 3, life: 0.9, t: 0, s: 1.3 });   // 피격 직후 하얀 연기
+  if (p.mode === 'air' && G.t < (p.smokeT || 0) && Math.random() < dt * 20) FX.push({ k: 'trail', x: p.x - Math.cos(p.th) * 6 + (Math.random() - 0.5) * 2, y: p.y - Math.sin(p.th) * 6 + (Math.random() - 0.5), vx: p.vx * 0.3, vy: 3, life: 0.45, t: 0, s: 1.3 });   // 피격 직후 하얀 연기
   if (SMOKY[p.mode] && p.hp < 40 && Math.random() < dt * 12) { let ex = p.x - Math.cos(p.th) * 5, ey = p.y - Math.sin(p.th) * 5;   // 연기는 기체 뒤쪽(꼬리 부근)에서 난다. 회전 중에는 돌아가는 기체를 따라간다
     if (p.flip > 0) { const f = clamp(1 - p.flip / DECK_FLIP_T, 0, 1), ph = (p.flipFrom > 0 ? 0 : Math.PI) + Math.PI * f; ex = p.x - Math.cos(ph) * 5; ey = p.y + 0.6; }
     else if (p.turn > 0) { const f = clamp(1 - p.turn / TURN_T, 0, 1), ph = (p.v0 > 0 ? 0 : Math.PI) + Math.PI * f; ex = p.x - Math.cos(ph) * 5; ey = p.y + Math.sin(Math.PI * f) * 1.0 + 0.6; }
@@ -2603,8 +2610,13 @@ function fireRocket() {
   if ((p.mode !== 'air' && !deckArmOk()) || p.off) return;
   if (p.ammo.rk <= 0) return noAmmo(0);
   if (gunOn() || p.turn > 0 || G.t < p.rkT) return;
-  const RT = RK(), dx = Math.cos(p.th), dy = Math.sin(p.th); if (!(has('recycle') && Math.random() < 0.25)) p.ammo.rk--; p.rkT = G.t + RT.cd; sfx('rocket'); if (RT.big) sfx('boom', { k: 'shell', x: p.x }); if (p.ammo.rk === 0) lastShot(0);
-  { const [fvx, fvy] = fireVel(); PROJ.push({ k: 'r', x: p.x + dx * 8, y: p.y + dy * 8 - (p.mode === 'air' ? 1 : 0), vx: fvx + dx * 130, vy: fvy + dy * 130, life: 14, rt: (G.save && G.save.rkT) || 'hvar' }); }
+  const RT = RK(), rid = RKid(), n = Math.min(RT.multi || 1, p.ammo.rk), [fvx, fvy] = fireVel(); p.rkT = G.t + RT.cd; sfx('rocket'); if (n > 1) sfx('rocket'); if (RT.big) sfx('boom', { k: 'shell', x: p.x });
+  for (let k = 0; k < n; k++) {   // 여러 발이면 양 날개 아래에서 살짝 벌어지며 동시에 나간다
+    if (!(has('recycle') && Math.random() < 0.25)) p.ammo.rk--;
+    const off = n > 1 ? (k - (n - 1) / 2) : 0, a = p.th + off * 0.012, dx = Math.cos(a), dy = Math.sin(a), px = -Math.sin(p.th) * off * 1.1, py = Math.cos(p.th) * off * 1.1;
+    PROJ.push({ k: 'r', x: p.x + dx * 8 + px, y: p.y + dy * 8 + py - (p.mode === 'air' ? 1 : 0), vx: fvx + dx * 130, vy: fvy + dy * 130, life: 14, rt: rid });
+  }
+  if (p.ammo.rk <= 0) { p.ammo.rk = 0; lastShot(0); }
 }
 const ROCKET_RANGE = 2000, ROCKET_V = 450;   // 로켓 사거리(m)와 추진 중 최고 속도(m/s): 사거리를 넘으면 추력이 0이 된다
 const TORP_RANGE = 1500;   // 어뢰 사거리(m): 떨어뜨린 자리에서 이만큼 달리면 힘이 다한다
@@ -3690,7 +3702,7 @@ function drawProj(c) {
     }
     if (q.k === 'x') continue;
     world(q.x, q.y, () => {
-      c.rotate(Math.atan2(q.vy, q.vx)); if (q.rt === 'tiny') c.scale(2.2, 2.2); else if (q.bt === 'blet') c.scale(0.45, 0.45); else if (q.bt === 'nap') c.scale(1.15, 1.3);
+      c.rotate(Math.atan2(q.vy, q.vx)); if (q.rt === 'tiny') c.scale(2.2, 2.2); else if (q.rt === 'r2') c.scale(0.65, 0.65); else if (q.rt === 'r3' || q.rt === 'r3x2') c.scale(0.8, 0.8); else if (q.bt === 'blet') c.scale(0.45, 0.45); else if (q.bt === 'nap') c.scale(1.15, 1.3);
       if (q.k === 'r') { if (q.burn !== false) { c.fillStyle = '#ff9f3c'; c.beginPath(); c.moveTo(-2.6, 0); c.lineTo(-6, 0.6); c.lineTo(-6, -0.6); c.closePath(); c.fill(); } c.fillStyle = '#cfd5da'; c.fillRect(-2.6, -0.35, 3.6, 0.7); c.fillStyle = '#c0392b'; c.beginPath(); c.moveTo(1, -0.35); c.lineTo(2, 0); c.lineTo(1, 0.35); c.closePath(); c.fill(); }
       else { const big = q.lb >= 1000; c.fillStyle = '#2b2f33'; c.beginPath(); c.ellipse(0, 0, big ? 2.6 : 1.9, big ? 1.1 : 0.8, 0, 0, 7); c.fill(); c.fillStyle = '#4a5058'; c.fillRect(-3.3, -0.9, 0.9, 1.8); }
     });

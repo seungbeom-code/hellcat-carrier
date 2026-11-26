@@ -2471,9 +2471,9 @@ function hitTree(x, y) {
   }
   return null;
 }
-function hitTreeSeg(q, dt) {   // 빠른 로켓·폭탄: 이번에 지나온 길 전체에서 나무 아래쪽 절반에 닿았는지 본다 (한 번에 몇 m씩 움직여 줄기를 건너뛰지 않게)
+function hitTreeSeg(q, dt, any) {   // 빠른 로켓·폭탄: 이번에 지나온 길 전체에서 나무 아래쪽 절반에 닿았는지 본다 (한 번에 몇 m씩 움직여 줄기를 건너뛰지 않게)
   const x0 = q.x - q.vx * dt, y0 = q.y - q.vy * dt, n = Math.max(1, Math.ceil(Math.hypot(q.vx, q.vy) * dt / 0.8));
-  for (let k = 1; k <= n; k++) { const x = x0 + (q.x - x0) * k / n, y = y0 + (q.y - y0) * k / n, t = hitTree(x, y); if (t && y <= t.y + t.H * 0.5) return { t, x, y }; }
+  for (let k = 1; k <= n; k++) { const x = x0 + (q.x - x0) * k / n, y = y0 + (q.y - y0) * k / n, t = hitTree(x, y); if (t && (any || y <= t.y + t.H * 0.5)) return { t, x, y }; }
   return null;
 }
 function chips(x, y, n, cols, sz) { sz = sz || 1; for (let i = 0; i < n; i++) FX.push({ k: 'dirt', x: x + (Math.random() - 0.5) * 2, y, vx: (Math.random() - 0.5) * 16 * sz, vy: (4 + Math.random() * 12) * (0.7 + 0.3 * sz), life: 0.5 + Math.random() * 0.7, t: 0, s: (0.4 + Math.random() * 0.5) * sz, c: cols[i % cols.length] }); }
@@ -2708,9 +2708,10 @@ function stepProj(dt) {
       if (sd) { if (q.k === 'r') rocketBoom(q, q.x, Math.max(q.y, gh(q.x)), false); else { const R = q.lb >= 1000 ? 52 : 23; explode(q.x, Math.max(q.y, gh(q.x)), R, 'none', false); for (const o of SOLD) if (o.alive && Math.abs(o.x - q.x) < R * 0.5 + 2) killSoldier(o); } killSoldier(sd); PROJ.splice(i, 1); continue; }
     }
     let tree; const hit = hitTest(q.x, q.y, q.k === 'b' ? 0.5 : q.k === 'm' ? 2 : 1.5),   // 기관총도 건물·벙커·대공포·함선의 포에 피해를 준다
-      tseg = q.k === 'r' || q.k === 'm' ? hitTreeSeg(q, dt) : null, tree0 = q.k === 'b' ? hitTree(q.x, q.y) : tseg ? tseg.t : null,   // 기관총·로켓·폭탄 모두 나무에 닿는지 본다
+      tseg = q.k === 'r' || q.k === 'm' ? hitTreeSeg(q, dt) : q.k === 'b' ? hitTreeSeg(q, dt, true) : null, tree0 = tseg ? tseg.t : null,   // 기관총·로켓·폭탄 모두 나무에 닿는지 본다
       g = gh(q.x), ground = g > 0 && q.y <= g, sea = !ground && q.y <= 0;
     tree = tree0;
+    if (tree && q.k === 'b') { q.pass = q.pass || new Set(); if (q.pass.has(tree)) tree = null; else { q.pass.add(tree); if (Math.random() >= 0.5) tree = null; else if (!hit) { q.x = tseg.x; q.y = tseg.y; } } }   // 기관총탄은 나무에 닿아도 50%만 걸리고, 나머지는 잎·가지 사이로 지나간다 (나무마다 한 번만 정한다)
     if (tree && (q.k === 'r' || q.k === 'm')) { q.pass = q.pass || new Set(); if (q.pass.has(tree)) tree = null; else { q.pass.add(tree); if (Math.random() >= 0.5) tree = null; else if (!hit) { q.x = tseg.x; q.y = tseg.y; } } }   // 로켓·폭탄은 나무 아래쪽 절반에 닿으면 50% 확률로 터진다 (윗부분 잎은 그냥 지나간다, 나무마다 한 번만 정한다)
     if (!(hit || tree || ground || sea)) { if (q.life <= 0) PROJ.splice(i, 1); continue; }
     if (q.k === 'b') {

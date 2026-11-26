@@ -167,6 +167,12 @@ function airStep(dt) {
   const th = gam + al, ux = vf / V, uy = vy / V, aL = f.aL * ge;
   vf += (f.aT * Math.cos(th) - f.aD * ux - aL * uy) * dt;
   vy += (f.aT * Math.sin(th) - f.aD * uy + aL * ux - GRAV) * dt;
+  if (!p.gear && !p.stalled) {   // 약한 난기류: 몇 초마다 바뀌는 위아래 바람. 낮게·빠르게 날수록 조금 더 흔들린다 (착함 접근 중에는 없다)
+    p.gT = (p.gT || 0) - dt; if (p.gT <= 0) { p.gT = 0.7 + Math.random() * 1.4; p.gTg = (Math.random() - 0.5) * (h < 150 ? 1.8 : 1.1) * clamp(V / 120, 0.5, 1.2); }
+    p.gA = (p.gA || 0) + ((p.gTg || 0) - (p.gA || 0)) * Math.min(1, dt * 1.6); vy += p.gA * dt;
+  } else p.gA = 0;
+  p.gLoad = aL / GRAV;   // 지금 당기는 g (비행운·화면 표현에 쓴다)
+  if (p.gLoad > 2.6 && V > 85 && Math.random() < dt * 40) { const bx = -s * Math.cos(gam) * 1.5, by = -Math.sin(gam) * 1.5; for (const w of [-0.5, 0.35]) FX.push({ k: 'vapor', x: p.x + bx, y: p.y + by + w, vx: 0, vy: 0, life: 0.35 + 0.15 * Math.min(1, p.gLoad - 2.6), t: 0, s: 0.35 }); }   // 급하게 당기면 날개 끝에서 하얀 비행운
   if (p.y > MAX_ALT - 80 && vy > 0) { vy = Math.min(vy, Math.max(0, MAX_ALT - p.y) * 0.4); }   // 600m 가까이 가면 부드럽게 멈춘다
   if (p.y > 250 && kts() < stallKt() * 1.08 && (!G.toast || G.toast.until < G.t)) G.toast = { text: p.y > 420 ? 'Air too thin, stalling! Lower the nose and build speed' : 'Stalling! Lower the nose and build speed', grade: 'yellow', until: G.t + 2.5 };   // 고도 제한 대신 실속
   const thF = Math.atan2(vy, vf) + al;
@@ -457,6 +463,7 @@ function drawFx() {
     if (q.k === 'flash') { c.fillStyle = 'rgba(255,244,200,' + (1 - k) + ')'; c.beginPath(); c.arc(X, Y, (10 + k * 34) * cam.z, 0, 7); c.fill(); }
     else if (q.k === 'fire') { c.fillStyle = k < 0.35 ? 'rgba(255,225,90,0.95)' : k < 0.7 ? 'rgba(255,130,40,' + (0.9 - k * 0.3) + ')' : 'rgba(70,70,70,' + (1 - k) * 1.6 + ')'; c.beginPath(); c.arc(X, Y, q.s * (0.7 + k) * cam.z, 0, 7); c.fill(); }
     else if (q.k === 'trail') { c.fillStyle = 'rgba(246,248,251,' + (0.62 * (1 - k)) + ')'; c.beginPath(); c.arc(X, Y, q.s * (0.7 + k * 1.5) * cam.z, 0, 7); c.fill(); }   // 로켓 뒤쪽 하얀 연기
+    else if (q.k === 'vapor') { c.fillStyle = 'rgba(250,252,255,' + (0.5 * (1 - k)) + ')'; c.beginPath(); c.arc(X, Y, Math.max(0.8, q.s * (1 + k * 1.4) * cam.z), 0, 7); c.fill(); }   // 비행운
     else if (q.k === 'smoke') { c.fillStyle = 'rgba(60,62,66,' + (0.55 * (1 - k)) + ')'; c.beginPath(); c.arc(X, Y, q.s * (0.8 + k * 1.6) * cam.z, 0, 7); c.fill(); }
     else if (q.k === 'muz') {   // 총구 화염: 앞으로 뻗는 불꽃
       const L = Math.max(q.s * cam.z, 7), ca = Math.cos(q.a), sa = -Math.sin(q.a), nx = -sa, ny = ca, w = L * 0.28;
@@ -4014,8 +4021,16 @@ function drawWorld() {
         const f = clamp(1 - p.turn / TURN_T, 0, 1);
         { const ph = (p.v0 > 0 ? 0 : Math.PI) + Math.PI * f; c.rotate((p.tp || 0) * Math.cos(ph)); drawPlane3D(ph, Math.sin(Math.PI * f) * 1.0, p.gear); }   // 기울어진 채 돌면 기수가 위·아래를 향한 채로 돈다
       } else {
-        c.rotate(p.th); c.scale(1, p.s);
-        drawPlane({ gear: p.gear, flaps: p.flaps, hook: p.hook, thr: p.fuel > 0 ? p.thr : 0 });
+        let jit = 0, roll = 0;
+        if (p.mode === 'air' && !G.paused) {
+          jit = (p.fuel > 0 ? Math.sin(G.t * 53) * 0.004 * p.thr : 0);   // 엔진 진동
+          const sk = stallKt(), near = p.stalled ? 1 : clamp(1 - (kts() - sk) / (sk * 0.15), 0, 1);
+          if (near > 0) jit += (Math.random() - 0.5) * 0.05 * near;   // 실속 직전 버핏: 기체가 덜덜 떨린다
+          if (p.stalled) roll = Math.sin(G.t * 3.3) * 0.55 + Math.sin(G.t * 7.1) * 0.12;   // 실속 중: 날개가 좌우로 흔들린다
+        }
+        c.rotate(p.th + jit); c.scale(1, p.s);
+        if (Math.abs(roll) > 0.04) drawPlane3D(0, roll, p.gear);
+        else drawPlane({ gear: p.gear, flaps: p.flaps, hook: p.hook, thr: p.fuel > 0 ? p.thr : 0 });
       }
     });
   }

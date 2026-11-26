@@ -328,7 +328,7 @@ function endCrash(sea) {
 function crashBuildings(o, hitSet) {   // 떨어지는 비행기가 건물 몸체에 닿으면 건물이 부서지고 비행기는 속도를 잃는다
   let hit = false;
   for (const t of TARGETS) {
-    if (!t.alive || SHIPS[t.type] || hitSet.has(t) || Math.abs(t.x - o.x) > BOX[t.type].w / 2 + 2 || o.y > t.y + BOX[t.type].h + 1 || o.y < t.y - 3) continue;
+    if (!t.alive || t.boss || SHIPS[t.type] || hitSet.has(t) || Math.abs(t.x - o.x) > BOX[t.type].w / 2 + 2 || o.y > t.y + BOX[t.type].h + 1 || o.y < t.y - 3) continue;
     hitSet.add(t); applyDmg(t, 999); hit = true; sfx('hit'); FX.push({ k: 'flash', x: o.x, y: o.y, vx: 0, vy: 0, life: 0.2, t: 0 });
   }
   if (hit) { o.vx *= 0.5; o.vy *= 0.5; }
@@ -338,7 +338,7 @@ function plowThrough(o, x, y, vx, hitSet) {   // 미끄러지는 기체가 지�
   const sp = Math.abs(vx); let k = 1;
   for (const q of SOLD) if (q.alive && Math.abs(q.x - x) < 5) killSoldier(q);
   for (const t of TARGETS) {
-    if (!t.alive || SHIPS[t.type] || hitSet.has(t) || Math.abs(t.x - x) > BOX[t.type].w / 2 + 3 || y > t.y + BOX[t.type].h + 2) continue;
+    if (!t.alive || t.boss || SHIPS[t.type] || hitSet.has(t) || Math.abs(t.x - x) > BOX[t.type].w / 2 + 3 || y > t.y + BOX[t.type].h + 2) continue;
     hitSet.add(t); if (t.type === 'runway') killParkedNear(t, x, y, 12); else applyDmg(t, 999); k *= t.type === 'runway' ? 0.9 : 0.45; sfx('hit');   // 추락한 비행기에 부딪힌 건물은 완전히 부서진다
     FX.push({ k: 'flash', x, y: y + 1, vx: 0, vy: 0, life: 0.2, t: 0 });
   }
@@ -1088,7 +1088,7 @@ function bossStep(dt) {
     const seen = p.mode === 'air' && !(G.pCloud > 0.5), d = Math.hypot(p.x - t.x, p.y - (t.y + B.h / 2)), isl = t.isl >= 0 ? ISLANDS[t.isl] : null;
     for (let i = 0; i < t.cd.length; i++) t.cd[i] -= dt;
     t.fx = Math.max(0, t.fx - dt);
-    if (p.mode === 'air' && Math.abs(p.x - t.x) < B.w / 2 && p.y > t.y && p.y < t.y + B.h) crash('Flew into the ' + (LANG === 'ko' ? B.k : B.n) + '.');   // 들이받으면 추락
+    if (p.mode === 'air' && Math.abs(p.x - t.x) < B.w / 2 && p.y > t.y && p.y < t.y + B.h) { crash('Flew into the ' + (LANG === 'ko' ? B.k : B.n) + '.'); if (p.mode === 'fall' || p.mode === 'slide') endCrash(false); }   // 들이받으면 내 비행기만 그 자리에서 터진다 (보스는 피해 없음)
     if (!B.fly) {   // 지상 보스: 섬 위를 오가며 걷는다 (쏠 때는 멈춘다)
       const lo = isl ? isl.a + B.w / 2 + 40 : t.x, hi = isl ? isl.b - B.w / 2 - 40 : t.x;
       if (t.fx <= 0) { t.x += t.dir * B.sp * dt; t.an += dt * B.sp * 0.32; if (t.x < lo) { t.x = lo; t.dir = 1; } if (t.x > hi) { t.x = hi; t.dir = -1; } }

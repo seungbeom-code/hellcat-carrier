@@ -926,11 +926,11 @@ const RKTS = {   // 로켓은 2인치에서 출발해 아이템으로 하나씩 
   tiny: { n: 'Tiny Tim 11.75-inch', k: '타이니 팀 (초대형)', s: 'Tiny Tim', sk: '타이니 팀', price: 95, slot: 3, cd: 0.9, r: 30, mul: 2.2, big: 1, d: 'Huge blast, slow to fire', dk: '거대한 폭발, 발사 간격이 길다' }
 };
 const BMBS = {
-  gp: { n: '250 kg bomb', k: '250kg 폭탄', s: '250 kg', sk: '250kg', price: 12, slot: 0.5, lb: 550, mul: 1, d: 'Standard bomb', dk: '표준 폭탄' },
-  hvy: { n: '1,000 kg bomb', k: '1,000kg 대형 폭탄', s: '1,000 kg', sk: '1,000kg', price: 30, slot: 1.5, lb: 1000, mul: 1, d: 'Double damage, huge blast', dk: '2배 피해, 거대한 폭발' },
-  nap: { n: 'Napalm', k: '네이팜탄', s: 'Napalm', sk: '네이팜', price: 28, slot: 0.8, lb: 550, mul: 0.6, nap: 1, d: 'Leaves a sea of fire that burns everything', dk: '떨어진 곳에 불바다가 남아 주변을 태운다' },
-  clu: { n: 'Cluster bomb', k: '확산탄', s: 'Cluster', sk: '확산탄', price: 34, slot: 1, lb: 550, mul: 0.5, clu: 1, d: 'Opens into 10 bomblets over the target', dk: '목표 위에서 작은 폭탄 10발로 갈라진다' },
-  bus: { n: 'Bunker buster', k: '벙커버스터', s: 'Buster', sk: '벙커버스터', price: 45, slot: 1, lb: 550, mul: 1, hard: 4, d: 'x4 damage to bunkers and towers', dk: '벙커·타워에 4배 피해' }
+  gp: { n: '250 kg bomb', k: '250kg 폭탄', s: '250 kg', sk: '250kg', price: 12, slot: 0.5, lb: 550, mul: 1, dm: 1, R: 23, sp: 0, sz: 1, d: 'Light and cheap. Needs a direct hit', dk: '가볍고 싸다. 직격해야 부서진다' },
+  m500: { n: '500 kg bomb', k: '500kg 폭탄', s: '500 kg', sk: '500kg', price: 26, slot: 0.9, lb: 1100, mul: 1, dm: 2, R: 34, sp: 14, sz: 1.25, d: 'x2 damage; near misses still hurt', dk: '2배 피해, 조금 빗나가도 옆 건물이 다친다' },
+  hvy: { n: '1,000 kg bomb', k: '1,000kg 대형 폭탄', s: '1,000 kg', sk: '1,000kg', price: 42, slot: 1.5, lb: 2200, mul: 1, dm: 3, R: 52, sp: 24, sz: 1.5, d: 'x3 damage; the wide blast wrecks nearby targets', dk: '3배 피해, 넓은 폭발이 주변 건물까지 부순다' },
+  nap: { n: 'Napalm', k: '네이팜탄', s: 'Napalm', sk: '네이팜', price: 30, slot: 0.8, lb: 550, mul: 0.6, dm: 0.6, R: 18, sp: 0, sz: 1, nap: 1, d: 'A spreading sea of fire; concrete bunkers resist it', dk: '넓게 번지는 불바다, 콘크리트 벙커는 잘 버틴다' },
+  clu: { n: 'Cluster bomb', k: '클러스터 폭탄', s: 'Cluster', sk: '클러스터', price: 34, slot: 1, lb: 550, mul: 0.5, dm: 0.5, R: 23, sp: 0, sz: 1.1, clu: 1, d: 'Opens into 10 bomblets over the target', dk: '목표 위에서 작은 폭탄 10발로 갈라진다' }
 };
 const PASS = {
   shield: { n: 'Energy Shield', k: '에너지 보호막', ic: '🔵', price: 3000, d: 'Absorbs 30 damage, recharges after 5 s', dk: '피해 30을 막고, 5초 안 맞으면 다시 찬다' },
@@ -945,7 +945,7 @@ const PASS = {
 };
 const SLOT3_PRICE = 5000, HARD = { pill: 1, bunker: 1, tower: 1 };
 // 무기 해금: 처음에는 기본 기관총·HVAR 로켓·250kg 폭탄만. 나머지는 아이템으로 얻으면 영구히 풀린다 (강한 무기일수록 높은 등급)
-const UNLOCK = { ap: ['gun', 2], inc: ['gun', 3], c20: ['gun', 3], gat: ['gun', 4], r3: ['rk', 1], r3x2: ['rk', 2], hvar: ['rk', 2], hvarx4: ['rk', 3], clus: ['rk', 3], tiny: ['rk', 4], hvy: ['bm', 2], nap: ['bm', 2], clu: ['bm', 3], bus: ['bm', 3] };
+const UNLOCK = { ap: ['gun', 2], inc: ['gun', 3], c20: ['gun', 3], gat: ['gun', 4], r3: ['rk', 1], r3x2: ['rk', 2], hvar: ['rk', 2], hvarx4: ['rk', 3], clus: ['rk', 3], tiny: ['rk', 4], m500: ['bm', 1], hvy: ['bm', 2], nap: ['bm', 2], clu: ['bm', 3] };
 const isUnl = id => id === 'm2' || id === 'r2' || id === 'gp' || !!(G.save && ((G.save.unl && G.save.unl[id]) || (G.save.guns && G.save.guns[id])));
 const GN = () => { const id = (G.save && G.save.gun) || 'm2'; return isUnl(id) && GUNT[id] ? GUNT[id] : GUNT.m2; };
 const RKid = () => { const id = (G.save && G.save.rkT) || 'r2'; return isUnl(id) && RKTS[id] ? id : 'r2'; };
@@ -965,7 +965,8 @@ function rocketBoom(q, x, y, sea) {   // 로켓 종류마다 다른 폭발
   if (R.big) { FX.push({ k: 'flash', x, y: y + 3, vx: 0, vy: 0, life: 0.4, t: 0 }); for (let k = 0; k < 10; k++) FX.push({ k: 'fire', x: x + (Math.random() - 0.5) * 20, y: y + Math.random() * 8, vx: (Math.random() - 0.5) * 30, vy: 6 + Math.random() * 14, life: 1 + Math.random() * 0.8, t: 0, s: 3 + Math.random() * 3 }); sfx('boom', { k: 'bomb', r: 30, x }); }
   if (R.sub) for (let k = 0; k < R.sub; k++) PROJ.push({ k: 'x', x: x + (Math.random() - 0.5) * 56, y: y + Math.random() * 5, t: 0.07 + k * 0.06, r: 9, mul: 0.55, life: 2 });
 }
-function bombMul(q, t) { const B = BMBS[q.bt] || BMBS.gp; return B.mul * (B.hard && HARD[t.type] ? B.hard : 1); }
+const bombT = q => BMBS[q.bt] || BMBS.gp;   // 떨어지는 폭탄의 종류 (동료기 폭탄은 250kg)
+function bombMul(q, t) { return bombT(q).dm; }
 function stepArsenal(dt) {   // 매 순간: 불바다, 불붙은 표적·적기, 보호막·자가 수리
   for (let i = FIREZ.length - 1; i >= 0; i--) {
     const z = FIREZ[i]; if (G.t > z.until) { FIREZ.splice(i, 1); continue; }
@@ -979,7 +980,7 @@ function stepArsenal(dt) {   // 매 순간: 불바다, 불붙은 표적·적기,
     }
     if (el < 1.5 && Math.random() < dt * 30) { const x = cx + z.dir * hw * (0.8 + Math.random() * 0.2), gy = Math.max(0, gh(x)); FX.push({ k: 'fire', x, y: gy + 0.5, vx: z.dir * 18, vy: 2, life: 0.5, t: 0, s: 1.6 }); }   // 번지는 앞머리
     if (Math.random() < dt * 9 * fade) { const x = cx + (Math.random() * 2 - 1) * hw; FX.push({ k: 'smoke', x, y: Math.max(0, gh(x)) + 4, vx: -2, vy: 6, life: 1.8, t: 0, s: 2.2 }); }
-    for (const t of TARGETS) if (t.alive && t.type !== 'runway' && !SHIPS[t.type] && Math.abs(t.x - cx) < hw + (BOX[t.type] ? BOX[t.type].w / 2 : 4)) applyDmg(t, 1.6 * dt * (0.4 + 0.6 * fade));
+    for (const t of TARGETS) if (t.alive && t.type !== 'runway' && !SHIPS[t.type] && Math.abs(t.x - cx) < hw + (BOX[t.type] ? BOX[t.type].w / 2 : 4)) applyDmg(t, 1.6 * dt * (0.4 + 0.6 * fade) * (t.type === 'pill' || t.type === 'bunker' ? 0.2 : 1));   // 콘크리트 벙커는 불에 잘 견딘다
     for (const o of SOLD) if (o.alive && Math.abs(o.x - cx) < hw) killSoldier(o);
     for (const tr of TREES) if (tr.alive && Math.abs(tr.x - cx) < hw && Math.random() < dt * 0.8) { tr.alive = false; chips(tr.x, tr.y + 2, 6, ['#3a2a1a', '#7a5a36']); }
   }
@@ -1527,7 +1528,7 @@ function drawPick(c) {   // 격납고 보급: 가진 달러 안에서 로켓·�
     const iy = C.y + 168; rr(C.x + 12, iy, C.w - 24, 88, 10, 'rgba(12,22,36,0.9)');
     c.textAlign = 'left'; c.fillStyle = '#fff'; c.font = F(800, 16); c.fillText(ko ? T.k : T.n, C.x + 26, iy + 26);
     c.fillStyle = '#b9c7d8'; c.font = F(600, 13); c.fillText(ko ? T.dk : T.d, C.x + 26, iy + 48);
-    const pw = k === 'rk' ? T.mul : T.mul * (T.lb >= 1000 ? 2 : 1), pips = clamp(Math.round(pw / (k === 'rk' ? 0.45 : 0.5)), 1, 5);
+    const pw = k === 'rk' ? T.mul : T.dm, pips = clamp(Math.round(pw / (k === 'rk' ? 0.45 : 0.5)), 1, 5);
     c.fillStyle = '#8fa3b8'; c.font = F(700, 12); c.fillText(ko ? '위력' : 'Power', C.x + 26, iy + 72);
     for (let j = 0; j < 5; j++) { c.fillStyle = j < pips ? accent : 'rgba(140,160,190,0.25)'; c.fillRect(C.x + 62 + j * 16, iy + 62, 12, 12); }
     c.fillStyle = '#8fa3b8'; c.fillText((ko ? '무게 ' : 'Weight ') + T.slot + (ko ? '칸 · 최대 ' : ' slots · max ') + shopMax(k) + (ko ? (k === 'rk' ? '발' : '개') : '') + (T.multi ? (ko ? ' · 한 번에 ' + T.multi + '발' : ' · ' + T.multi + ' per shot') : ''), C.x + 152, iy + 72);
@@ -1865,7 +1866,7 @@ const GOALS = {
   defend: (m, M) => m.wave >= M.waves.length && !(m.queue && m.queue.length) && !ENE.some(e => !e.dead && (e.type === 'd4y' || e.type === 'b6n')),
   fleet: (m, M) => !TARGETS.some(t => M.fleet.includes(t.type) && t.alive)
 };
-function loadSave() { let v = null; try { v = JSON.parse(localStorage.getItem('hellcat-save')); } catch (_) {} if (!v || !Array.isArray(v.stars)) v = { stars: Array(10).fill(0) }; v.lvl = Math.min(20, v.lvl || 1); v.best = v.best || 0; v.sum = v.sum || 0; if (!v.st) { v.st = {}; v.base = v.sum; } return v; }
+function loadSave() { let v = null; try { v = JSON.parse(localStorage.getItem('hellcat-save')); } catch (_) {} if (!v || !Array.isArray(v.stars)) v = { stars: Array(10).fill(0) }; v.lvl = Math.min(20, v.lvl || 1); if (v.unl && v.unl.bus) { v.unl.m500 = 1; delete v.unl.bus; } if (v.bmT === 'bus') v.bmT = 'gp'; v.best = v.best || 0; v.sum = v.sum || 0; if (!v.st) { v.st = {}; v.base = v.sum; } return v; }
 function saveProg() { try { localStorage.setItem('hellcat-save', JSON.stringify(G.save)); } catch (_) {} }
 const unlocked = i => i === 0 || (G.save.stars[i - 1] || 0) > 0;
 const rankOf = n => n < 3 ? 'Ensign' : n < 6 ? 'Lt (jg)' : n < 10 ? 'Lieutenant' : n < 15 ? 'Lt Cmdr' : n < 20 ? 'Commander' : n < 30 ? 'Captain' : 'Admiral';   // 깬 최고 레벨로 정하는 계급
@@ -2742,13 +2743,14 @@ function bombImpact(q, hit, g, sea) {   // 폭탄은 표적에 직격했을 때�
     for (const o of SOLD) if (o.alive && Math.abs(o.x - q.x) < 7) killSoldier(o); if (hit && hit.type !== 'runway' && !SHIPS[hit.type]) applyDmg(hit, 4.5); else if (hit && hit.type === 'runway') killParkedNear(hit, q.x, q.y, 8); return;
   }
   if (q.bt === 'nap' && !sea) { const y = Math.max(q.y, g); FIREZ.push({ x: q.x, y, w: 10, t0: G.t, until: G.t + 8, dir: q.vx >= 0 ? 1 : -1, maxW: 95 }); explode(q.x, y, 18, 'none', false); for (let k = 0; k < 16; k++) FX.push({ k: 'fire', x: q.x + (Math.random() - 0.5) * 40, y: y + Math.random() * 4, vx: (Math.random() - 0.5) * 20, vy: 6 + Math.random() * 12, life: 1.2 + Math.random(), t: 0, s: 2.5 + Math.random() * 2.5 }); sfx('boom', { k: 'bomb', r: 30, x: q.x }); if (hit && hit.type !== 'runway' && !SHIPS[hit.type]) applyDmg(hit, (DMG.bomb[hit.type] || 0) * 0.6); return; }   // 네이팜: 불바다
-  const R = q.lb >= 1000 ? 52 : 23;   // 폭발 범위(직격 연출·병사 살상 반경): 살짝 넓힘
+  const BT = bombT(q), R = BT.R;   // 폭발 범위(직격 연출·병사 살상 반경)
   if (sea) { explode(q.x, 0, R, 'none', true); return; }
   if (!hit) {
     const y = Math.max(q.y, g); chips(q.x, y + 0.5, 14, ['#6e4e2c', '#8a6b43', '#a8885a', '#4d3720'], 1.5); dirtBurst(q.x, y, 1.5); FX.push({ k: 'flash', x: q.x, y: y + 1, vx: 0, vy: 0, life: 0.12, t: 0 });
     for (let i = 0; i < 4; i++) FX.push({ k: 'smoke', x: q.x + (Math.random() - 0.5) * 4, y: y + 1, vx: (Math.random() - 0.5) * 6, vy: 3 + Math.random() * 4, life: 0.8 + Math.random() * 0.5, t: 0, s: 1.2 + Math.random() * 1.2 });
     alarmFauna(q.x, y, 170); sfx('thump', { x: q.x });
     for (const o of SOLD) if (o.alive && Math.abs(o.x - q.x) < R * 0.5 + 2) killSoldier(o);   // 빗나가도 폭발 근처의 병사는 죽는다
+    if (BT.sp) { explode(q.x, y, R * 0.7, 'none', false); bombSplash(q, null, y); }   // 큰 폭탄은 가까이 빗나가도 주변 건물이 다친다
     return;
   }
   explode(q.x, q.y, R, 'none', false);   // 직격: 큰 폭발 연출
@@ -2757,7 +2759,16 @@ function bombImpact(q, hit, g, sea) {   // 폭탄은 표적에 직격했을 때�
   if (SHIPS[hit.type]) { hit.hitAt = G.t; if (!G.toast || G.toast.until < G.t) G.toast = { text: 'Ships sink only to torpedoes · rockets knock out their guns', grade: 'yellow', until: G.t + 3 }; return; }
   if (hit.type === 'runway') { killParkedNear(hit, q.x, q.y, 14); return; }
   if (hit.type === 'barracks') hit.hitSide = q.x < hit.x ? -1 : 1;   // 맞은 쪽부터 무너진다
-  applyDmg(hit, (DMG.bomb[hit.type] || 0) * (q.lb >= 1000 ? 2 : 1) * bombMul(q, hit));   // 250kg 소형탄의 폭발력 (이전의 2배)
+  applyDmg(hit, (DMG.bomb[hit.type] || 0) * bombMul(q, hit));   // 직격 피해: 250kg ×1 · 500kg ×2 · 1,000kg ×3
+  if (BT.sp) bombSplash(q, hit, q.y);
+}
+function bombSplash(q, hit, y) {   // 500kg·1,000kg: 폭발 범위 안의 다른 건물에 절반 피해 (보스·배·활주로 제외)
+  const BT = bombT(q);
+  for (const t of TARGETS) {
+    if (t === hit || !t.alive || t.boss || SHIPS[t.type] || t.type === 'runway' || !BOX[t.type]) continue;
+    if (Math.abs(t.x - q.x) - BOX[t.type].w / 2 > BT.sp || y > t.y + BOX[t.type].h + BT.sp) continue;
+    applyDmg(t, (DMG.bomb[t.type] || 0) * BT.dm * 0.5);
+  }
 }
 function gunHitTarget(t, q) {
   if (t.type !== 'runway') t.hitAt = G.t;   // 기관총탄이 맞았다: 건물은 조금씩 깎이고, 군함은 선체가 아니라 갑판의 대공포·기관총이 상한다
@@ -2840,7 +2851,7 @@ function stepProj(dt) {
     if (q.k === 'b') { const sd = SOLD.find(o => o.alive && o.st !== 'enter' && Math.abs(q.x - o.x) < 4.5 && q.y >= o.y - 0.5 && q.y <= o.y + 8); if (sd) { killSoldier(sd); PROJ.splice(i, 1); continue; } }
     if (q.k === 'r' || q.k === 'm') {   // 로켓·폭탄도 병사를 직접 맞힌다 (빠른 탄이 건너뛰지 않게 한 프레임 이동 거리만큼 판정을 넓힌다)
       const sd = SOLD.find(o => o.alive && o.st !== 'enter' && Math.abs(q.x - o.x) < 4.5 + Math.abs(q.vx) * dt * 0.6 && q.y >= o.y - 0.5 - Math.abs(q.vy) * dt * 0.6 && q.y <= o.y + 8 + Math.abs(q.vy) * dt * 0.6);
-      if (sd) { if (q.k === 'r') rocketBoom(q, q.x, Math.max(q.y, gh(q.x)), false); else { const R = q.lb >= 1000 ? 52 : 23; explode(q.x, Math.max(q.y, gh(q.x)), R, 'none', false); for (const o of SOLD) if (o.alive && Math.abs(o.x - q.x) < R * 0.5 + 2) killSoldier(o); } killSoldier(sd); PROJ.splice(i, 1); continue; }
+      if (sd) { if (q.k === 'r') rocketBoom(q, q.x, Math.max(q.y, gh(q.x)), false); else { const R = bombT(q).R; explode(q.x, Math.max(q.y, gh(q.x)), R, 'none', false); for (const o of SOLD) if (o.alive && Math.abs(o.x - q.x) < R * 0.5 + 2) killSoldier(o); } killSoldier(sd); PROJ.splice(i, 1); continue; }
     }
     let tree; const hit = hitTest(q.x, q.y, q.k === 'b' ? 0.5 : q.k === 'm' ? 2 : 1.5),   // 기관총도 건물·벙커·대공포·함선의 포에 피해를 준다
       tseg = q.k === 'r' || q.k === 'm' ? hitTreeSeg(q, dt) : q.k === 'b' ? hitTreeSeg(q, dt, true) : null, tree0 = tseg ? tseg.t : null,   // 기관총·로켓·폭탄 모두 나무에 닿는지 본다
@@ -2854,7 +2865,7 @@ function stepProj(dt) {
       else if (hit) gunHitTarget(hit, q);
       else if (sea) { FX.push({ k: 'splash', x: q.x, y: 0, vx: 0, vy: 3, life: 0.4, t: 0 }); if (Math.random() < 0.3) sfx('wsplash', { s: 0, x: q.x }); }
       else { dirtBurst(q.x, g, 1); alarmFauna(q.x, g, 110); for (const o of SOLD) if (o.alive && Math.abs(o.x - q.x) < 4) killSoldier(o); }
-    } else if (q.k === 'm' && tree && !hit) { const R = q.lb >= 1000 ? 52 : 23; explode(q.x, q.y, R, 'none', false); for (const o of SOLD) if (o.alive && Math.abs(o.x - q.x) < R * 0.5 + 2) killSoldier(o); tree.hp = 0; treeHit(tree, 0); }   // 폭탄이 나무에 걸려 터졌다: 나무는 쓰러지고 건물은 피해가 없다
+    } else if (q.k === 'm' && tree && !hit) { const R = bombT(q).R; explode(q.x, q.y, R, 'none', false); for (const o of SOLD) if (o.alive && Math.abs(o.x - q.x) < R * 0.5 + 2) killSoldier(o); tree.hp = 0; treeHit(tree, 0); }   // 폭탄이 나무에 걸려 터졌다: 나무는 쓰러지고 건물은 피해가 없다
     else if (q.k === 'm') bombImpact(q, hit, g, sea);
     else { rocketBoom(q, q.x, Math.max(q.y, g), sea); if (tree) { tree.hp = 0; treeHit(tree, 0); } }   // 로켓이 나무에 걸리면 폭발하면서 그 나무는 반드시 쓰러진다
     PROJ.splice(i, 1);
@@ -3815,7 +3826,7 @@ function drawProj(c) {
     world(q.x, q.y, () => {
       c.rotate(Math.atan2(q.vy, q.vx)); if (q.rt === 'tiny') c.scale(2.2, 2.2); else if (q.rt === 'r2') c.scale(0.65, 0.65); else if (q.rt === 'r3' || q.rt === 'r3x2') c.scale(0.8, 0.8); else if (q.bt === 'blet') c.scale(0.45, 0.45); else if (q.bt === 'nap') c.scale(1.15, 1.3);
       if (q.k === 'r') { if (q.burn !== false) { c.fillStyle = '#ff9f3c'; c.beginPath(); c.moveTo(-2.6, 0); c.lineTo(-6, 0.6); c.lineTo(-6, -0.6); c.closePath(); c.fill(); } c.fillStyle = '#cfd5da'; c.fillRect(-2.6, -0.35, 3.6, 0.7); c.fillStyle = '#c0392b'; c.beginPath(); c.moveTo(1, -0.35); c.lineTo(2, 0); c.lineTo(1, 0.35); c.closePath(); c.fill(); }
-      else { const big = q.lb >= 1000; c.fillStyle = '#2b2f33'; c.beginPath(); c.ellipse(0, 0, big ? 2.6 : 1.9, big ? 1.1 : 0.8, 0, 0, 7); c.fill(); c.fillStyle = '#4a5058'; c.fillRect(-3.3, -0.9, 0.9, 1.8); }
+      else { const z = bombT(q).sz || 1; c.scale(z, z); c.fillStyle = '#2b2f33'; c.beginPath(); c.ellipse(0, 0, 1.9, 0.8, 0, 0, 7); c.fill(); c.fillStyle = '#4a5058'; c.fillRect(-3.3, -0.9, 0.9, 1.8); }
     });
   }
   c.lineCap = 'round';
@@ -3938,7 +3949,7 @@ function demoBot(dt, auto) {
     const h = p.y - 2.5 - (gt.y + BOX[gt.type].h * 0.6), gg = GRAV * 2.4, v0 = p.vy - 15, tf = (v0 + Math.sqrt(Math.max(0, v0 * v0 + 2 * gg * h))) / gg, ix = p.x + p.vx * tf, er = (ix - gt.x) * dir, lp = levelPitch(), agl = p.y - Math.max(0, gh(p.x));
     u = clamp(-er / 30, -1, 1);   // 폭탄이 짧게 떨어질 자리면 기수를 조금 들어 얕게, 길면 더 숙인다
     if (lp > -0.2) u = Math.min(u, 0); if (lp > -0.15) u = -1; else if (lp < -0.8) u = 1;   // 급강하 각도는 약 9~46도 사이를 지킨다
-    if (h > 0 && agl > 90 && lp < -0.1 && Math.abs(er) < BOX[gt.type].w * 0.3 + 2 && !(D.salvo > 0)) { const per = (DMG.bomb[gt.type] || 10) * (p.ammo.lb >= 1000 ? 2 : 1); D.salvo = clamp(Math.ceil(gt.hp / per) + 1, 1, 6); D.salvoT = 0; D.bTgt = gt; }
+    if (h > 0 && agl > 90 && lp < -0.1 && Math.abs(er) < BOX[gt.type].w * 0.3 + 2 && !(D.salvo > 0)) { const per = Math.max(1, (DMG.bomb[gt.type] || 10) * BM().dm); D.salvo = clamp(Math.ceil(gt.hp / per) + 1, 1, 6); D.salvoT = 0; D.bTgt = gt; }
   }
   if (D.atk === 'dive' && (!gt || !gt.alive)) D.atk = 'pull';
   if (D.atk === 'dive' && D.bTgt === gt && !(D.salvo > 0)) D.atk = 'pull';   // 다 떨어뜨렸으면 빠져나온다

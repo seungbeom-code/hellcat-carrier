@@ -315,6 +315,7 @@ function plowThrough(o, x, y, vx, hitSet) {   // 미끄러지는 기체가 지�
   }
   return k;
 }
+const SLIDE_FRIC = 21;   // 추락 후 땅에서 미끄러질 때의 감속(m/s²): 예전 7의 3배라 훨씬 짧게 멈춘다
 function crashStep(dt) {
   p.slT += dt;
   if (Math.random() < dt * 25) FX.push({ k: Math.random() < 0.5 ? 'fire' : 'smoke', x: p.x - p.vx * 0.03, y: p.y + 0.5, vx: 0, vy: 2, life: 0.9, t: 0, s: 1.8 });
@@ -336,7 +337,7 @@ function crashStep(dt) {
   const g0 = gh(p.x); p.x += p.vx * dt; const g1 = gh(p.x);
   if (g1 <= 0) { p.y = 1; return endCrash(true); }   // 해안 밖으로 미끄러져 바다로
   const slope = (g1 - g0) / Math.max(0.01, Math.abs(p.vx * dt)) * Math.sign(p.vx);
-  p.vx -= Math.sign(p.vx) * (7 + Math.max(0, slope) * 25) * dt;
+  p.vx -= Math.sign(p.vx) * (SLIDE_FRIC + Math.max(0, slope) * 25) * dt;
   p.y = g1 + 1; p.vy = 0; p.th = Math.atan2(g1 - g0, p.vx * dt || 1);
   if (Math.random() < dt * 30) { FX.push({ k: 'spark', x: p.x, y: g1 + 0.3, vx: -p.vx * 0.3 + (Math.random() - 0.5) * 10, vy: 3 + Math.random() * 6, life: 0.4, t: 0 }); chips(p.x, g1 + 0.2, 1, ['#6e4e2c', '#8a6b43']); }
   p.vx *= plowThrough(p, p.x, p.y, p.vx, p.slHit);
@@ -1626,7 +1627,7 @@ function enemyStep(dt) {
       if (e.slide) {   // 섬에 떨어진 적기: 관성으로 미끄러지며 나무·병사·건물을 들이받는다
         const g0 = gh(e.x); e.x += e.vx * dt; const g1 = gh(e.x); e.slT += dt;
         if (g1 <= 0) { explode(e.x, 0, 10, 'none', true); ENE.splice(i, 1); continue; }
-        e.vx -= Math.sign(e.vx) * (7 + Math.max(0, (g1 - g0) / Math.max(0.01, Math.abs(e.vx * dt)) * Math.sign(e.vx)) * 25) * dt; e.y = g1 + 1; e.h = Math.atan2(g1 - g0, e.vx * dt || 1);
+        e.vx -= Math.sign(e.vx) * (SLIDE_FRIC + Math.max(0, (g1 - g0) / Math.max(0.01, Math.abs(e.vx * dt)) * Math.sign(e.vx)) * 25) * dt; e.y = g1 + 1; e.h = Math.atan2(g1 - g0, e.vx * dt || 1);
         if (Math.random() < dt * 30) FX.push({ k: 'spark', x: e.x, y: g1 + 0.3, vx: -e.vx * 0.3 + (Math.random() - 0.5) * 10, vy: 3 + Math.random() * 6, life: 0.4, t: 0 });
         if (Math.random() < dt * 20) FX.push({ k: Math.random() < 0.5 ? 'fire' : 'smoke', x: e.x, y: e.y, vx: 0, vy: 2, life: 0.9, t: 0, s: 1.6 });
         e.vx *= plowThrough(e, e.x, e.y, e.vx, e.hit);

@@ -2639,7 +2639,6 @@ function bombImpact(q, hit, g, sea) {   // 폭탄은 표적에 직격했을 때�
     for (let i = 0; i < 4; i++) FX.push({ k: 'smoke', x: q.x + (Math.random() - 0.5) * 4, y: y + 1, vx: (Math.random() - 0.5) * 6, vy: 3 + Math.random() * 4, life: 0.8 + Math.random() * 0.5, t: 0, s: 1.2 + Math.random() * 1.2 });
     alarmFauna(q.x, y, 170); sfx('thump', { x: q.x });
     for (const o of SOLD) if (o.alive && Math.abs(o.x - q.x) < R * 0.5 + 2) killSoldier(o);   // 빗나가도 폭발 근처의 병사는 죽는다
-    if (!G.toast || G.toast.until < G.t) G.toast = { text: 'Near miss! A bomb only damages what it hits directly', grade: 'yellow', until: G.t + 2.5 };
     return;
   }
   explode(q.x, q.y, R, 'none', false);   // 직격: 큰 폭발 연출
@@ -4913,7 +4912,7 @@ function hint() {
     return kts() >= TAKEOFF_KT ? 'Good! Lifting off at the deck end' : 'Rolling… reach ' + TAKEOFF_KT + ' kt before the deck end to lift off';
   }
   if (p.mode === 'deck') return '';
-  if (p.turn > 0) return 'Turning — you lose a little speed and height';
+  if (p.turn > 0) return '';   // 선회 중 안내는 띄우지 않는다
   if (G.lso) return '';
   if (G.t - p.liftT < 5) return 'Climbing gently — ▲ to climb more';
   if (G.m) { const low = p.fuel / p.fuelMax < 0.3, empty = p.ammo.gun <= 0 && p.ammo.rk <= 0 && p.ammo.bm <= 0 && !(p.ammo.tp > 0); if (low || empty) return (low ? 'Fuel is low' : 'Out of ammo') + '. Return to the carrier and resupply on the elevator'; if (Math.abs(xr - DECK_L / 2) > APP_R + 400) return ''; }

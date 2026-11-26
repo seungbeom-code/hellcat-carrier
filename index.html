@@ -4750,7 +4750,10 @@ function lsoSmall(c) {
 //  접근 중: 몸을 낮추고 지켜본다 · 와이어에 걸림/엘리베이터 위: 두 팔을 머리 위로 엇갈려 "정지" · 유도: 팔을 흔들어 "이리 오라"
 //  방향이 반대: 깃발을 머리 위로 크게 휘둘러 "돌아서라" · 엘리베이터 가까이: 손바닥을 누르듯 "천천히" · 출격 준비: 깃발을 머리 위에서 돌려 "엔진 올려"
 //  발진: 한쪽 무릎을 꿇고 깃발로 앞쪽을 가리킨다 · 갑판에서 떨어짐: 두 팔을 머리 위로 크게 흔드는 비상 신호
-function deckSig() {
+function deckSig() {   // 신호수는 원래 자리(FM_X)에서 움직이지 않는다. 발진 신호 말고는 늘 비행기 쪽을 본다
+  const s = deckSig0(); s.tx = FM_X; if (s.k !== 'launch') s.face = p.x - ship.x >= FM_X ? 1 : -1; return s;
+}
+function deckSig0() {
   const t = G.t, PI = Math.PI, cl = x => clamp(x, 10, DECK_L - 10), at = (x) => G.fmx === undefined ? FM_X : G.fmx;
   const faceP = x => (p.xr >= x ? 1 : -1);   // 비행기 쪽을 본다
   const S = (k, tx, face, aR, aL, cr, one) => ({ k, tx: cl(tx), face, aR, aL, cr: cr || 0, one: !!one });
@@ -4852,7 +4855,7 @@ function drawShip0() {
     {   // 갑판 신호수: 내 비행기가 지금 무엇을 하는지에 맞춰 신호한다
       const sig = deckSig(); G.fmSig = sig.k;
       if (G.fmx === undefined) G.fmx = FM_X;
-      G.fmx += (sig.tx - G.fmx) * 0.07;   // 천천히 걸어서 자리를 옮긴다
+      G.fmx = FM_X;   // 제자리에 서 있는다
       const fxc = G.fmx, dirm = sig.face; G.fmDir = dirm;
       const la = (o, t) => o === undefined ? t : o + (t - o) * 0.28;   // 팔은 부드럽게 옮긴다
       G.fmAR = la(G.fmAR, sig.aR); G.fmAL = la(G.fmAL, sig.aL); G.fmCr = (G.fmCr || 0) + (sig.cr - (G.fmCr || 0)) * 0.12;

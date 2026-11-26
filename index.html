@@ -4994,12 +4994,13 @@ function drawMiniMap(c) {
   ISLANDS.forEach(s => { c.fillStyle = s.cleared ? '#ffffff' : '#4f8a45'; c.beginPath(); c.moveTo(mx(s.a), base + 1); for (let x = s.a; x <= s.b; x += Math.max(20, (s.b - s.a) / 12)) c.lineTo(mx(x), base - gh(x) * vf); c.lineTo(mx(s.b), base + 1); c.closePath(); c.fill(); });
   c.fillStyle = '#2f8f3c'; TREES.forEach(t => { if (t.alive) c.fillRect(mx(t.x) - 0.5, base - gh(t.x) * vf - 2.6, 1, 2.6); });   // 나무: 땅 위로 살짝 솟은 아주 작은 초록 눈금
   TARGETS.forEach(t => { if (t.type === 'runway' && t.alive) { c.fillStyle = '#ffe14a'; c.fillRect(mx(t.x - RUNWAY_L / 2), base - gh(t.x) * vf - 2, Math.max(3, mx(t.x + RUNWAY_L / 2) - mx(t.x - RUNWAY_L / 2)), 1.6); } });   // 비행장 활주로: 노란 띠
-  TARGETS.forEach(t => { if (t.alive && !SHIPS[t.type]) { c.fillStyle = '#ff5a3c'; c.fillRect(mx(t.x) - 1, base - gh(t.x) * vf - 3, 2, 2); } });
+  TARGETS.forEach(t => { if (t.alive && !t.boss && !SHIPS[t.type]) { c.fillStyle = '#ff5a3c'; c.fillRect(mx(t.x) - 1, base - gh(t.x) * vf - 3, 2, 2); } });
   TARGETS.forEach(t => { if (t.alive && SHIPS[t.type]) { const w = Math.max(3, BOX[t.type].w * (x1 - x0) / (wmax - wmin)), hh = CLS(t.type) === 'dd' ? 2 : 3; c.fillStyle = '#ff5a3c'; c.fillRect(mx(t.x) - w / 2, base - hh - 0.5, w, hh); c.fillStyle = 'rgba(255,255,255,0.45)'; c.fillRect(mx(t.x) - w / 2, base - hh - 0.5, w, 0.7); } });   // 배는 실제 길이에 비례한 막대
   c.fillStyle = '#ffe14a'; SOLD.forEach(o => { if (o.alive && o.st !== 'enter') c.fillRect(mx(o.x) - 0.75, base - gh(o.x) * vf - 4.5, 1.5, 2.5); });   // 일본군 병사: 노란 작은 점
   c.fillStyle = '#ffe14a'; TARGETS.forEach(t => { if (t.inside > 0) c.fillRect(mx(t.x) - 0.75, base - gh(t.x) * vf - 6.5, 1.5, 2.5); });   // 벙커 안에서 수리 중인 병사
   c.fillStyle = '#ff8a5c'; ENE.forEach(e => { if (!e.dead) c.fillRect(mx(e.x) - 1, base - clamp(e.y / CEIL, 0, 1) * (h - 7) - 3, 2, 2); });
   PROJ.forEach(q => { if (q.k !== 'r' && q.k !== 'm' && q.k !== 't') return; c.fillStyle = q.k === 'r' ? '#ffb347' : q.k === 't' ? '#7fd8ff' : '#f2f2f2'; c.beginPath(); c.arc(mx(q.x), base - clamp(Math.max(0, q.y) / CEIL, 0, 1) * (h - 7) - 2, 1.6, 0, 7); c.fill(); });   // 내가 쏜 로켓(주황), 폭탄(흰색), 어뢰(하늘색)
+  drawMiniBoss(c);
   c.fillStyle = '#c3ccd6'; c.fillRect(mx(ship.x), base - 3, Math.max(8, mx(ship.x + DECK_L) - mx(ship.x)), 3); c.fillRect(mx(ship.x + DECK_L / 2), base - 6, 3, 3);
  
   const px = mx(p.x), py = base - clamp(p.y / CEIL, 0, 1) * (h - 7) - 2, d = p.s >= 0 ? 1 : -1;
@@ -5008,12 +5009,25 @@ function drawMiniMap(c) {
   c.textAlign = 'left';
 }
 
+function drawMiniBoss(c) {   // 미니맵의 보스: 고동치는 자주색 마름모 + 해골, 몸집에 비례한 바닥 띠 (하늘 보스는 고도에 맞춰 떠 있다). 흐린 HUD 위에도 또렷하게 한 번 더 그린다
+  const x0 = 100, x1 = 860, y0 = 3, h = 22, wmin = G.map ? G.map.a : -1000, wmax = G.map ? G.map.b : 8000;
+  const mx = x => x0 + clamp((x - wmin) / (wmax - wmin), 0, 1) * (x1 - x0), base = y0 + h - 3, vf = (x1 - x0) / (wmax - wmin) * 0.6;
+  for (const t of TARGETS) {
+    if (!t.boss || !t.alive || t.gone) continue; const B = BOSSES[t.bk]; if (!B) continue;
+    const bx = mx(t.x), by = Math.max(y0 + 5, B.fly ? base - clamp(t.y / CEIL, 0, 1) * (h - 7) - 3 : Math.min(base - 5, base - gh(t.x) * vf - 5)), pu = 0.5 + 0.5 * Math.sin(G.t * 6), r = 5.5 + pu * 1.2;
+    const bw = Math.max(5, B.w * (x1 - x0) / (wmax - wmin)); c.fillStyle = '#ff3de6'; c.fillRect(bx - bw / 2, base - 1.2, bw, 2);   // 차지하는 넓이
+    c.save(); c.globalAlpha = 0.25 + 0.35 * pu; c.fillStyle = '#ff3de6'; c.beginPath(); c.arc(bx, by, r + 3.5, 0, 7); c.fill(); c.restore();   // 고동치는 빛
+    c.fillStyle = '#ff3de6'; c.strokeStyle = '#ffffff'; c.lineWidth = 1.2; c.beginPath(); c.moveTo(bx, by - r); c.lineTo(bx + r, by); c.lineTo(bx, by + r); c.lineTo(bx - r, by); c.closePath(); c.fill(); c.stroke();
+    c.fillStyle = '#fff'; c.beginPath(); c.arc(bx, by - 0.6, 2.3, 0, 7); c.fill(); c.fillRect(bx - 1.4, by + 0.8, 2.8, 1.6); c.fillStyle = '#3a0a34'; c.fillRect(bx - 1.5, by - 1.3, 1.1, 1.1); c.fillRect(bx + 0.4, by - 1.3, 1.1, 1.1); c.fillRect(bx - 0.3, by + 1.2, 0.6, 1.2);   // 해골
+  }
+}
 const HUD_ALPHA = 0.5;   // 화면 표시(UI)의 불투명도
 function drawHudFaded() {   // HUD를 따로 그린 뒤 3분의 1 불투명도로 겹친다
   if (!hudCv || hudCv.width !== cv.width || hudCv.height !== cv.height) { hudCv = document.createElement('canvas'); hudCv.width = cv.width; hudCv.height = cv.height; hudCx = koWrap(hudCv.getContext('2d')); }
   const m = ctx0.getTransform(); hudCx.setTransform(1, 0, 0, 1, 0, 0); hudCx.clearRect(0, 0, hudCv.width, hudCv.height); hudCx.setTransform(m);
   ctx = hudCx; try { drawHUD(); } finally { ctx = ctx0; }
   ctx0.save(); ctx0.setTransform(1, 0, 0, 1, 0, 0); ctx0.globalAlpha = HUD_ALPHA; ctx0.drawImage(hudCv, 0, 0); ctx0.restore();
+  if (G.scene === 'play' && TARGETS.some(t => t.boss && t.alive && !t.gone)) { ctx0.save(); ctx0.setTransform(m); try { drawMiniBoss(ctx0); } finally { ctx0.restore(); } }   // 보스 표시는 흐리지 않게
   try { drawFwdView(m); } catch (e) { ctx = ctx0; }
   try { drawLootBanner(m); } catch (e) {}
   try { drawBossUI(m); } catch (e) {}

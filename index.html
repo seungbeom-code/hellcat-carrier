@@ -1387,7 +1387,8 @@ function drawParked(c, t, burnt) {
     c.restore();
   });
 }
-function spawnEnemy(type, x, y, rank) { const ftr = type !== 'd4y' && type !== 'b6n', rk = ftr ? (rank || enemyRank(type, (G.cur && G.cur.lvl) || 1)) : 0; ENE.push({ rk, vk: ftr ? RK_V[rk] : 1, nk: ftr ? RK_G[rk] : 1, type, x, y, h: Math.PI, v: ES[type].v, bank: 0, att: false, xt: 0, seeT: 0, sx: x, sy: y, svx: 0, svy: 0, ex: 0, ey: 0, hp: ES[type].hp * (ftr ? RK_HP[rk] : 1), hpM: ES[type].hp * (ftr ? RK_HP[rk] : 1), st: 'app', tm: 0, bt: 0, cd: 1 + Math.random() * 2, rel: false, dead: false, vx: 0, vy: 0, btm: 0 }); }
+const ENE_HP_K = 3;   // 적기 체력 배율 (예전의 3배)
+function spawnEnemy(type, x, y, rank) { const ftr = type !== 'd4y' && type !== 'b6n', rk = ftr ? (rank || enemyRank(type, (G.cur && G.cur.lvl) || 1)) : 0; ENE.push({ rk, vk: ftr ? RK_V[rk] : 1, nk: ftr ? RK_G[rk] : 1, type, x, y, h: Math.PI, v: ES[type].v, bank: 0, att: false, xt: 0, seeT: 0, sx: x, sy: y, svx: 0, svy: 0, ex: 0, ey: 0, hp: ENE_HP_K * ES[type].hp * (ftr ? RK_HP[rk] : 1), hpM: ENE_HP_K * ES[type].hp * (ftr ? RK_HP[rk] : 1), st: 'app', tm: 0, bt: 0, cd: 1 + Math.random() * 2, rel: false, dead: false, vx: 0, vy: 0, btm: 0 }); }
 function spawnWave(l) { const m = G.m; (m.queue = m.queue || []).push(...l); }
 function hitCarrier(d) { if (G.sink) return; G.carrierHp = Math.max(0, G.carrierHp - d); explode(ship.x + 60 + Math.random() * (DECK_L - 120), DECK_Y + 2, 18, 'none', false); G.toast = { text: 'The carrier is hit!', grade: 'brown', until: G.t + 3 }; }
 function hurt(d, why) {

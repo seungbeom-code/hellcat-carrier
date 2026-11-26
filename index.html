@@ -843,7 +843,7 @@ const smooth = k => k * k * (3 - 2 * k);
 function overElev() { return p.mode === 'taxi' && p.flip <= 0 && G.t >= p.lock && Math.abs(p.xr - ELEV_C) <= ELEV_R && (p.xr - ELEV_C) * p.s <= 3; }   // 중앙을 3m 넘게 지나쳤으면 안 된다: 돌아서서 다시 와야 한다 (뒤로 가지 않는다)
 function hangarOpen() { return p.mode === 'lift' && !!p.el && p.el.st === 'pick'; }
 // ───────── 달러: 처음에 기본으로 지급받고, 적을 부수면 현상금, 작전에 성공하면 보수. 로켓·폭탄과 강화를 산다 (기관총과 탄은 무료) ─────────
-const START_MONEY = 3000, RK_PRICE = 40, BM_PRICE = 15;
+const START_MONEY = 3000;   // 처음 지급: 기본 로켓을 가득 싣고도 강화 하나를 살 수 있는 돈
 const money = () => (G.save && G.save.money !== undefined ? G.save.money : START_MONEY);
 const fmt$ = n => '$' + Math.round(n).toLocaleString('en-US');
 function addMoney(n, x, y) {
@@ -889,26 +889,26 @@ const GUNT = {
   gat: { n: '"Buzzsaw" Gatling', k: "개틀링 '버즈소'", ic: '🌀', price: 4500, rate: 30, dm: 0.65, spread: 0.05, tc: '#ff5ad8', d: 'Huge rate of fire, wide spread', dk: '엄청난 연사력, 넓게 퍼진다' }
 };
 const RKTS = {   // 로켓은 2인치에서 출발해 아이템으로 하나씩 풀며 강해진다
-  r2: { n: '2-inch rocket', k: '2인치 로켓', s: '2"', sk: '2인치', price: 8, slot: 0.6, cd: 0.3, r: 9, mul: 0.45, d: 'Basic rocket, small blast', dk: '기본 로켓, 작은 폭발' },
-  r3: { n: '3-inch rocket', k: '3인치 로켓', s: '3"', sk: '3인치', price: 14, slot: 0.8, cd: 0.28, r: 11, mul: 0.7, d: 'Bigger warhead', dk: '더 큰 탄두' },
-  r3x2: { n: '3-inch twin', k: '3인치 2연발', s: '3" x2', sk: '3인치 ×2', price: 14, slot: 0.8, cd: 0.32, r: 11, mul: 0.7, multi: 2, d: 'Fires 2 rockets at once', dk: '한 번에 2발씩 발사' },
-  hvar: { n: 'HVAR 5-inch', k: 'HVAR 5인치', s: 'HVAR', sk: 'HVAR', price: 20, slot: 1, cd: 0.25, r: 14, mul: 1, d: 'Heavy 5-inch rocket', dk: '강력한 5인치 로켓' },
-  hvarx4: { n: 'HVAR quad salvo', k: '5인치 4연장', s: 'HVAR x4', sk: '5인치 ×4', price: 20, slot: 1, cd: 0.6, r: 14, mul: 1, multi: 4, d: 'Fires 4 rockets at once', dk: '한 번에 4발 동시 발사' },
-  clus: { n: 'Cluster rocket', k: '확산 로켓', s: 'Cluster', sk: '확산 로켓', price: 45, slot: 1.5, cd: 0.35, r: 10, mul: 0.8, sub: 6, d: 'Bursts into 6 more explosions', dk: '맞으면 주변에 6번 더 터진다' },
-  tiny: { n: 'Tiny Tim 11.75-inch', k: '타이니 팀 (초대형)', s: 'Tiny Tim', sk: '타이니 팀', price: 80, slot: 3, cd: 0.9, r: 30, mul: 2.2, big: 1, d: 'Huge blast, slow to fire', dk: '거대한 폭발, 발사 간격이 길다' }
+  r2: { n: '2-inch rocket', k: '2인치 로켓', s: '2"', sk: '2인치', price: 14, slot: 0.6, cd: 0.3, r: 9, mul: 0.45, d: 'Basic rocket, small blast', dk: '기본 로켓, 작은 폭발' },
+  r3: { n: '3-inch rocket', k: '3인치 로켓', s: '3"', sk: '3인치', price: 22, slot: 0.8, cd: 0.28, r: 11, mul: 0.7, d: 'Bigger warhead', dk: '더 큰 탄두' },
+  r3x2: { n: '3-inch twin', k: '3인치 2연발', s: '3" x2', sk: '3인치 ×2', price: 22, slot: 0.8, cd: 0.32, r: 11, mul: 0.7, multi: 2, d: 'Fires 2 rockets at once', dk: '한 번에 2발씩 발사' },
+  hvar: { n: 'HVAR 5-inch', k: 'HVAR 5인치', s: 'HVAR', sk: 'HVAR', price: 32, slot: 1, cd: 0.25, r: 14, mul: 1, d: 'Heavy 5-inch rocket', dk: '강력한 5인치 로켓' },
+  hvarx4: { n: 'HVAR quad salvo', k: '5인치 4연장', s: 'HVAR x4', sk: '5인치 ×4', price: 32, slot: 1, cd: 0.6, r: 14, mul: 1, multi: 4, d: 'Fires 4 rockets at once', dk: '한 번에 4발 동시 발사' },
+  clus: { n: 'Cluster rocket', k: '확산 로켓', s: 'Cluster', sk: '확산 로켓', price: 60, slot: 1.5, cd: 0.35, r: 10, mul: 0.8, sub: 6, d: 'Bursts into 6 more explosions', dk: '맞으면 주변에 6번 더 터진다' },
+  tiny: { n: 'Tiny Tim 11.75-inch', k: '타이니 팀 (초대형)', s: 'Tiny Tim', sk: '타이니 팀', price: 95, slot: 3, cd: 0.9, r: 30, mul: 2.2, big: 1, d: 'Huge blast, slow to fire', dk: '거대한 폭발, 발사 간격이 길다' }
 };
 const BMBS = {
-  gp: { n: '250 kg bomb', k: '250kg 폭탄', s: '250 kg', sk: '250kg', price: 8, slot: 0.5, lb: 550, mul: 1, d: 'Standard bomb', dk: '표준 폭탄' },
-  hvy: { n: '1,000 kg bomb', k: '1,000kg 대형 폭탄', s: '1,000 kg', sk: '1,000kg', price: 35, slot: 1.5, lb: 1000, mul: 1, d: 'Double damage, huge blast', dk: '2배 피해, 거대한 폭발' },
-  nap: { n: 'Napalm', k: '네이팜탄', s: 'Napalm', sk: '네이팜', price: 22, slot: 0.8, lb: 550, mul: 0.6, nap: 1, d: 'Leaves a sea of fire that burns everything', dk: '떨어진 곳에 불바다가 남아 주변을 태운다' },
-  clu: { n: 'Cluster bomb', k: '확산탄', s: 'Cluster', sk: '확산탄', price: 28, slot: 1, lb: 550, mul: 0.5, clu: 1, d: 'Opens into 10 bomblets over the target', dk: '목표 위에서 작은 폭탄 10발로 갈라진다' },
-  bus: { n: 'Bunker buster', k: '벙커버스터', s: 'Buster', sk: '벙커버스터', price: 40, slot: 1, lb: 550, mul: 1, hard: 4, d: 'x4 damage to bunkers and towers', dk: '벙커·타워에 4배 피해' }
+  gp: { n: '250 kg bomb', k: '250kg 폭탄', s: '250 kg', sk: '250kg', price: 12, slot: 0.5, lb: 550, mul: 1, d: 'Standard bomb', dk: '표준 폭탄' },
+  hvy: { n: '1,000 kg bomb', k: '1,000kg 대형 폭탄', s: '1,000 kg', sk: '1,000kg', price: 30, slot: 1.5, lb: 1000, mul: 1, d: 'Double damage, huge blast', dk: '2배 피해, 거대한 폭발' },
+  nap: { n: 'Napalm', k: '네이팜탄', s: 'Napalm', sk: '네이팜', price: 28, slot: 0.8, lb: 550, mul: 0.6, nap: 1, d: 'Leaves a sea of fire that burns everything', dk: '떨어진 곳에 불바다가 남아 주변을 태운다' },
+  clu: { n: 'Cluster bomb', k: '확산탄', s: 'Cluster', sk: '확산탄', price: 34, slot: 1, lb: 550, mul: 0.5, clu: 1, d: 'Opens into 10 bomblets over the target', dk: '목표 위에서 작은 폭탄 10발로 갈라진다' },
+  bus: { n: 'Bunker buster', k: '벙커버스터', s: 'Buster', sk: '벙커버스터', price: 45, slot: 1, lb: 550, mul: 1, hard: 4, d: 'x4 damage to bunkers and towers', dk: '벙커·타워에 4배 피해' }
 };
 const PASS = {
   shield: { n: 'Energy Shield', k: '에너지 보호막', ic: '🔵', price: 3000, d: 'Absorbs 30 damage, recharges after 5 s', dk: '피해 30을 막고, 5초 안 맞으면 다시 찬다' },
   nano: { n: 'Repair Nanites', k: '자가 수리 나노', ic: '🧬', price: 2500, d: '+1.5 airframe/s when not hit for 3 s', dk: '3초 안 맞으면 초당 기체 +1.5' },
-  magnet: { n: 'Golden Magnet', k: '황금 자석', ic: '🧲', price: 2000, d: '+50% money from bounties and items', dk: '현상금·아이템 돈 +50%' },
-  lucky: { n: 'Lucky Charm', k: '행운의 부적', ic: '🍀', price: 2800, d: 'More drops, rarer items', dk: '아이템이 더 자주, 더 좋게 나온다' },
+  magnet: { n: 'Golden Magnet', k: '황금 자석', ic: '🧲', price: 3500, d: '+50% money from bounties and items', dk: '현상금·아이템 돈 +50%' },
+  lucky: { n: 'Lucky Charm', k: '행운의 부적', ic: '🍀', price: 3500, d: 'More drops, rarer items', dk: '아이템이 더 자주, 더 좋게 나온다' },
   burner: { n: 'Afterburner', k: '애프터버너', ic: '🚀', price: 2200, d: 'Thrust +15%', dk: '추력 +15%' },
   flare: { n: 'Flare Dispenser', k: '플레어 발사기', ic: '🎇', price: 1800, d: 'Enemy fighters miss far more', dk: '적 전투기 사격이 훨씬 빗나간다' },
   stealth: { n: 'Stealth Paint', k: '스텔스 도장', ic: '🌫️', price: 2400, d: 'Ground guns aim far worse', dk: '지상 화기의 조준이 크게 나빠진다' },

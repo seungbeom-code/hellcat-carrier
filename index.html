@@ -3737,7 +3737,7 @@ function autoLand(D, dt, K) {   // 항모로 돌아가 착함: 멀리서 3도쯤
     gd = dx > 1700 ? clamp((yd - p.y) * 0.01, -0.12, 0.12) : -0.06 + clamp((yd - p.y) * 0.015, -0.08, 0.08);
     if (dx < 70 && p.y - deckH < 6) gd = -0.025;   // 닿기 직전에는 살짝 들어 부드럽게
   }
-  const gm = Math.atan2(p.vy, Math.abs(p.vx)), er = gd - gm, near = dx >= 0 && dx < 700 && p.gear; let u = er > (near ? 0.025 : 0.008) ? 1 : er < -(near ? 0.025 : 0.008) ? -1 : 0;   // 바퀴를 내린 마지막 접근에서는 손을 떼고 게임의 착함 경사 유지에 맡긴다 (크게 벗어날 때만 고친다)
+  const gm = Math.atan2(p.vy, Math.abs(p.vx)), er = gd - gm, near = dx >= 0 && dx < 700 && p.gear; let u = Math.abs(er) < (near ? 0.006 : 0.003) ? 0 : clamp(er * (near ? 11 : 12), -1, 1);   // 바퀴를 내린 마지막 접근에서는 손을 떼고 게임의 착함 경사 유지에 맡긴다 (크게 벗어날 때만 고친다)
   if (near && levelPitch() < -0.06) u = Math.max(u, 0);   // 기수를 더 숙이지 않는다
   if ((dx >= 0 && dx < 140 || dx < 0 && inZone) && p.y - deckH < 12) { const lp = levelPitch(); u = lp < -0.085 || p.vy < -4.6 ? 1 : lp > 0.1 || p.vy > -1.5 ? -1 : 0; }   // 갑판 바로 위: 기수를 수평 가까이 두고 천천히 내려앉는다
   if (kts() < stallKt() * 1.15) u = Math.min(u, 0);   // 느리면 당기지 않는다 (실속 방지)
@@ -3747,8 +3747,9 @@ function autoLand(D, dt, K) {   // 항모로 돌아가 착함: 멀리서 3도쯤
 }
 function demoBot(dt, auto) {
   const D = auto ? G.auto : G.demo; D.t += dt;
+  { const lp = levelPitch(); D.rate = D.lpPrev === undefined || p.turn > 0 || p.mode !== 'air' ? 0 : clamp(angd(lp, D.lpPrev) / dt, -3, 3); D.lpPrev = lp; }   // 기수가 도는 속도 (제동용)
   const K = (u, l, r, f) => { const rev = p.s > 0 ? l : r; if (p.mode === 'air' && rev && D.revHeld && p.turn <= 0) { l = 0; r = 0; D.revHeld = false; } else D.revHeld = p.mode === 'air' && !!rev;   // 돌아서기 키는 눌렀다 떼기를 되풀이한다 (게임은 새로 누를 때만 선회를 시작한다)
-    keys.ArrowUp = u > 0; keys.ArrowDown = u < 0; keys.ArrowLeft = !!l; keys.ArrowRight = !!r; G.demoFire = !!f; };
+    const ua = clamp(+u || 0, -1, 1); G.botIn = ua; keys.ArrowUp = ua > 0.5; keys.ArrowDown = ua < -0.5; keys.ArrowLeft = !!l; keys.ArrowRight = !!r; G.demoFire = !!f; };   // 아날로그 조종: 목표와의 차이만큼만 살살 누른다
   if (G.result) { K(0); D.ct += dt; if (D.ct > 2.5) { if (auto) { D.ct = 0; D.rearm = false; afterCrash(); } else startDemo(); } return; }
   if (!auto && D.t > 110) { startDemo(); return; }
   if (!auto) { p.hp = 100; p.fuel = p.fuelMax; if (p.ammo.rk < 3) p.ammo.rk = 30; if (p.ammo.bm < 3) p.ammo.bm = 30; if (!(p.ammo.tp > 0)) p.ammo.tp = 6; if (p.ammo.gun < 300) p.ammo.gun = 3000; }   // 데모만 탄·연료를 채운다
@@ -3775,20 +3776,20 @@ function demoBot(dt, auto) {
   if (diveMode && G.bossT && G.bossT.alive && !BOSSES[G.bossT.bk].fly && (G.bossT.x - p.x) * dir > 40 && (G.bossT.x - p.x) * dir < 3000) gt = G.bossT;   // 지상 보스가 앞에 있으면 먼저 노린다
   if (!diveMode && D.atk) D.atk = null;
   if (diveMode && D.atk !== 'dive' && D.atk !== 'pull') alt = Math.max(330, ground + 90);   // 공격 전에는 330m 이상으로 올라가 있는다
-  let u = p.y < alt - 6 ? 1 : p.y > alt + 10 ? -1 : 0;
+  let u = clamp((alt - p.y) * 0.018 - p.vy * 0.05, -1, 1);   // 높이 차이와 오르내리는 속도에 비례해 부드럽게
   const ld = en ? leadAim(en) : null;
-  const steer = a => { const pt = clamp(dir > 0 ? angd(a, 0) : angd(Math.PI, a), p.y - ground < 130 ? -0.06 : -0.36, 0.8), now = dir > 0 ? angd(p.th, 0) : angd(Math.PI, p.th), er = pt - now; return er > 0.012 ? 1 : er < -0.012 ? -1 : 0; };   // 위가 +: 왼쪽으로 날 때도 기수를 들면 +   // 급강하는 피한다: 내려다보는 각도에 한계를 둔다 (땅이 가까우면 더 작게)
+  const steer = a => { const pt = clamp(dir > 0 ? angd(a, 0) : angd(Math.PI, a), p.y - ground < 130 ? -0.06 : -0.36, 0.8), now = dir > 0 ? angd(p.th, 0) : angd(Math.PI, p.th), er = pt - now; return clamp(er * 16 - (D.rate || 0) * 1.6, -1, 1); };   // 차이에 비례 + 기수가 도는 속도만큼 미리 늦춘다 (지나치지 않게)   // 위가 +: 왼쪽으로 날 때도 기수를 들면 +   // 급강하는 피한다: 내려다보는 각도에 한계를 둔다 (땅이 가까우면 더 작게)
   if (ld && ld.dist < 1000) u = steer(ld.ang);   // 적기가 있으면 선두 각도로 기수를 맞춘다
   else if (!diveMode && tgt && !en && Math.abs(tgt.x - p.x) < 750 && p.y - tgt.y > 20) u = steer(Math.atan2(tgt.y + 2 - p.y, tgt.x - p.x));   // 표적이 가까우면 기수를 표적에 맞춘다 (땅이 가까워지면 아래에서 다시 올라간다)
   if (diveMode && gt && !(ld && ld.dist < 1000)) {   // 급강하 공격: 목표가 앞쪽 비스듬히 아래(약 20~45도)에 오면 내리꽂는다
     const dxT = (gt.x - p.x) * dir, h = p.y - (gt.y + 2);
     if (!D.atk && p.y >= 290 && dxT > h * 0.9 && dxT < h * 2.6) { D.atk = 'dive'; D.bTgt = null; }
     if (D.atk === 'dive') { const a = Math.atan2(gt.y + 2 + (bombDive ? 28 : 0) - p.y, gt.x - p.x),   // 폭탄은 떨어지며 아래로 처지므로 목표 조금 위를 겨눈다
-      pt = clamp(dir > 0 ? angd(a, 0) : angd(Math.PI, a), -0.75, 0.3), er = pt - levelPitch(); u = er > 0.012 ? 1 : er < -0.012 ? -1 : 0; if (dxT < 60) D.atk = 'pull'; }
+      pt = clamp(dir > 0 ? angd(a, 0) : angd(Math.PI, a), -0.75, 0.3), er = pt - levelPitch(); u = clamp(er * 14 - (D.rate || 0) * 1.4, -1, 1); if (dxT < 60) D.atk = 'pull'; }
   }
   if (bombDive && D.atk === 'dive' && gt && D.bTgt !== gt) {   // 급강하 폭격: 내리꽂는 동안 폭탄이 떨어질 자리를 계속 계산해, 목표와 겹치는 순간(지면 위 90m 이상) 필요한 만큼 연달아 떨어뜨린다
     const h = p.y - 2.5 - (gt.y + BOX[gt.type].h * 0.6), gg = GRAV * 2.4, v0 = p.vy - 15, tf = (v0 + Math.sqrt(Math.max(0, v0 * v0 + 2 * gg * h))) / gg, ix = p.x + p.vx * tf, er = (ix - gt.x) * dir, lp = levelPitch(), agl = p.y - Math.max(0, gh(p.x));
-    u = er > 3 ? -1 : er < -3 ? 1 : 0;   // 폭탄이 짧게 떨어질 자리면 기수를 조금 들어 얕게, 길면 더 숙인다
+    u = clamp(-er / 30, -1, 1);   // 폭탄이 짧게 떨어질 자리면 기수를 조금 들어 얕게, 길면 더 숙인다
     if (lp > -0.2) u = Math.min(u, 0); if (lp > -0.15) u = -1; else if (lp < -0.8) u = 1;   // 급강하 각도는 약 9~46도 사이를 지킨다
     if (h > 0 && agl > 90 && lp < -0.1 && Math.abs(er) < BOX[gt.type].w * 0.3 + 2 && !(D.salvo > 0)) { const per = (DMG.bomb[gt.type] || 10) * (p.ammo.lb >= 1000 ? 2 : 1); D.salvo = clamp(Math.ceil(gt.hp / per) + 1, 1, 6); D.salvoT = 0; D.bTgt = gt; }
   }
@@ -4352,7 +4353,7 @@ let keyIn = 0, prevRev = false;
 function readKeys(dt) {
   ctl.up = !!keys.ArrowUp || touch.on.up > 0; ctl.down = !!keys.ArrowDown || touch.on.down > 0;
   ctl.left = !!keys.ArrowLeft || touch.on.left > 0; ctl.right = !!keys.ArrowRight || touch.on.right > 0;
-  const tgt = ctl.up ? 1 : ctl.down ? -1 : 0;
+  const bot = (G.scene === 'title' || (G.scene === 'play' && G.auto)) && G.botIn !== undefined, tgt = bot ? G.botIn : ctl.up ? 1 : ctl.down ? -1 : 0;   // 자동 조종·데모는 아날로그 값
   keyIn += (tgt - keyIn) * Math.min(1, dt * 9);   // 키 입력을 부드럽게 (기수가 덜컥거리지 않게)
   p.in = keyIn;
   const rev = p.s > 0 ? ctl.left : ctl.right;

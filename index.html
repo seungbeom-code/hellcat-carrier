@@ -633,7 +633,7 @@ function sfx0(n, o) {
   else if (n === 'eshot') gunShot(o.g, o.dist, j);
   else if (n === 'snap') { nz({ type: 'highpass', f0: 3600 * j, f1: 2000, q: 0.9, dur: 0.018, vol: 0.55, att: 0.0003 }); nz({ type: 'bandpass', f0: 1300 * j, f1: 500, q: 1.4, dur: 0.12, vol: 0.12, att: 0.004 }); }   // 총알이 바로 옆을 스칠 때: 초음속 '딱' 하는 소리와 짧은 바람 소리
   else if (n === 'egun') { nz({ type: 'lowpass', f0: 4300 * j, f1: 1100, dur: 0.06, vol: 0.85, att: 0.001, rev: 0.16 }); nz({ brown: true, type: 'lowpass', f0: 880, f1: 190, dur: 0.075, vol: 1.0, att: 0.002 }); sin(185 * j, 85, 0.05, 0.4, 0); }   // 적 기관총: 아군 총소리(gun)를 살짝 높고 짧게 변형한 것
-  else if (n === 'gun') { nz({ type: 'lowpass', f0: 5200 * j, f1: 900, dur: 0.07, vol: 0.9, att: 0.001, rev: 0.12 }); nz({ brown: true, type: 'lowpass', f0: 700, f1: 150, dur: 0.09, vol: 1.2, att: 0.002 }); sin(150 * j, 70, 0.06, 0.45, 0); }
+  else if (n === 'gun') { nz({ type: 'highpass', f0: 4200 * j, f1: 2200, dur: 0.022, vol: 0.55, att: 0.0005 }); nz({ brown: true, type: 'lowpass', f0: 950 * j, f1: 140, dur: 0.11, vol: 1.25, att: 0.001, sat: 1.6, rev: 0.12 }); sin(125 * j, 55, 0.075, 0.5, 0); nz({ type: 'bandpass', f0: 3100 * j, q: 7, dur: 0.02, vol: 0.07, d: 0.035 }); }   // 12.7mm 기관총 6정: 날카로운 파열 + 묵직한 몸통 + 노리쇠 쇳소리
   else if (n === 'hit') { nz({ type: 'bandpass', f0: 2600, f1: 900, q: 1.2, dur: 0.07, vol: 0.9, att: 0.001 }); nz({ type: 'bandpass', f0: 1500 * j, f1: 1400 * j, q: 14, dur: 0.25, vol: 0.05, att: 0.001, rev: 0.1 }); sin(190, 95, 0.09, 0.4, 0); }   // 금속에 맞는 둔탁한 소리와 울림
   else if (n === 'rocket') { sin(140, 45, 0.12, 0.7, 0); nz({ type: 'highpass', f0: 3500, f1: 1500, dur: 0.06, vol: 0.55, att: 0.001, rev: 0.15 }); nz({ type: 'bandpass', f0: 2200, f1: 700, q: 0.8, dur: 0.9, vol: 0.3, d: 0.04, att: 0.01, sat: 1.4, rev: 0.25 }); crackle(18, 0.7, 2600, 0.05, 0.05, 0.1); nz({ brown: true, type: 'lowpass', f0: 500, f1: 90, dur: 0.8, vol: 0.45, d: 0.03, att: 0.01 }); }   // 로켓 발사: 쿵 하는 점화음 + 쉬익 하고 멀어지는 분사음
   else if (n === 'bomb') { nz({ type: 'highpass', f0: 3000, dur: 0.02, vol: 0.25, att: 0.001 }); nz({ type: 'bandpass', f0: 2800, f1: 850, q: 14, dur: 1.0, vol: 0.12, d: 0.15, att: 0.2 }); }   // 투하 고리 소리와 떨어지며 낮아지는 휘파람
@@ -642,14 +642,96 @@ function sfx0(n, o) {
   else if (n === 'barrier') { blast(0.3, { noDebris: true }); nz({ type: 'bandpass', f0: 1400, f1: 400, q: 4, dur: 0.6, vol: 0.2 }); }
   else if (n === 'clunk') { nz({ brown: true, type: 'lowpass', f0: 520, f1: 110, dur: 0.14, vol: 2.0, att: 0.002 }); nz({ type: 'bandpass', f0: 2200, f1: 1800, q: 6, dur: 0.06, vol: 0.3, att: 0.001 }); }
   else if (n === 'flag') { nz({ type: 'bandpass', f0: 1400, f1: 700, q: 0.8, dur: 0.22, vol: 0.18, att: 0.02 }); }
-  else if (n === 'stall') { sin(520, 520, 0.1, 0.2, 0, 0, 'sawtooth', 1200); }
+  else if (n === 'stall') { nz({ brown: true, type: 'lowpass', f0: 180 * j, f1: 90, dur: 0.26, vol: 0.9, att: 0.01, sat: 1.4 }); nz({ type: 'bandpass', f0: 650 * j, f1: 420, q: 2.5, dur: 0.2, vol: 0.12, att: 0.02 }); sin(38 * j, 30, 0.24, 0.35, 0); }   // 실속: 삑 소리 대신 기체가 덜덜 떨리는 진동(버핏)과 흐트러진 바람 소리
   else if (n === 'green') { bell(880, 0, 0.14); bell(1175, 0.2, 0.12); }
   else if (n === 'yellow') { bell(740, 0, 0.14); }
   else if (n === 'brown') { nz({ brown: true, type: 'lowpass', f0: 320, f1: 100, dur: 0.25, vol: 0.5 }); }
   else if (n === 'red') { horn(230, 0.5, 0.2, 0); }
   else if (n === 'cut') { nz({ type: 'bandpass', f0: 2300, f1: 2600, q: 9, dur: 0.28, vol: 0.5, att: 0.02 }); }
   else if (n === 'waveoff') { horn(290, 0.18, 0.09, 0); horn(290, 0.18, 0.09, 0.26); }
-  else if (n === 'lift') { nz({ brown: true, type: 'lowpass', f0: 420, f1: 380, dur: 1.8, vol: 0.4, att: 0.3 }); nz({ type: 'bandpass', f0: 1500, f1: 1100, q: 0.8, dur: 1.8, vol: 0.04, att: 0.3 }); }
+  else if (n === 'lift') { sfx0('clunk'); nz({ brown: true, type: 'lowpass', f0: 420, f1: 380, dur: 1.8, vol: 0.4, att: 0.3 }); nz({ type: 'bandpass', f0: 1500, f1: 1100, q: 0.8, dur: 1.8, vol: 0.04, att: 0.3 }); sin(62, 58, 1.7, 0.12, 0.1, 0, 'triangle'); nz({ brown: true, type: 'lowpass', f0: 520, f1: 110, dur: 0.16, vol: 1.6, att: 0.002, d: 1.75 }); nz({ type: 'bandpass', f0: 2100, q: 6, dur: 0.07, vol: 0.2, d: 1.76 }); }   // 엘리베이터: 걸쇠 '철컥' → 유압 모터 웅웅 → 멈출 때 '쿵'
+  else if (n === 'ehit') { nz({ type: 'bandpass', f0: 3400 * j, f1: 1800, q: 3, dur: 0.035, vol: 0.35, att: 0.0005 }); nz({ type: 'bandpass', f0: 5200 * j, q: 18, dur: 0.12, vol: 0.03, att: 0.001 }); }   // 내 총알이 적기 금속판을 때리는 '팅'
+  else if (n === 'capture') { const T = sound.ctx.currentTime + 0.05; [[67, 0, 0.16], [72, 0.18, 0.16], [76, 0.36, 0.16], [79, 0.54, 0.7]].forEach(([m, d, l]) => mBrass(T + d, m, l, 0.16, sound.out || sound.master)); }   // 섬 탈환: 짧은 나팔 소리
+}
+// ───────── 배경 음악 (파일 없이 합성): 제목 화면의 행진곡풍 주제, 작전 중의 낮은 긴장 음악(적기가 가까우면 작은북이 붙는다), 승리·패배의 짧은 곡 ─────────
+const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
+const MUS = { g: null, song: null, next: 0, step: 0, int: 0, sting: null };
+function musOut() { const a = sound.ctx; if (!MUS.g) { MUS.g = a.createGain(); MUS.g.gain.value = 0; MUS.g.connect(sound.master); MUS.rs = a.createGain(); MUS.rs.gain.value = 0.35; MUS.g.connect(MUS.rs); MUS.rs.connect(sound.rev); } return MUS.g; }
+function env(g, T, vol, att, hold, rel) { g.gain.setValueAtTime(0.0001, T); g.gain.linearRampToValueAtTime(vol, T + att); g.gain.setValueAtTime(vol, T + att + hold); g.gain.linearRampToValueAtTime(0.0001, T + att + hold + rel); return T + att + hold + rel; }
+function mPad(T, notes, dur, vol, out) {   // 현악·합창 같은 부드러운 화음
+  const a = sound.ctx, f = a.createBiquadFilter(), g = a.createGain(); f.type = 'lowpass'; f.frequency.value = 850; f.Q.value = 0.3; f.connect(g); g.connect(out);
+  const end = env(g, T, vol, Math.min(0.7, dur * 0.3), dur * 0.45, dur * 0.4);
+  for (const m of notes) for (const dt of [-7, 7]) { const o = a.createOscillator(); o.type = 'sawtooth'; o.frequency.value = mtof(m); o.detune.value = dt; o.connect(f); o.start(T); o.stop(end + 0.05); }
+}
+function mBrass(T, m, dur, vol, out) {   // 금관(나팔·호른): 소리 나는 순간 밝아졌다가 가라앉고, 길면 비브라토
+  const a = sound.ctx, f = a.createBiquadFilter(), g = a.createGain(); f.type = 'lowpass'; f.Q.value = 1.2;
+  f.frequency.setValueAtTime(450, T); f.frequency.linearRampToValueAtTime(2600, T + 0.05); f.frequency.exponentialRampToValueAtTime(1300, T + 0.3);
+  f.connect(g); g.connect(out); const end = env(g, T, vol, 0.035, Math.max(0.02, dur - 0.08), 0.12);
+  const lfo = a.createOscillator(), lg = a.createGain(); lfo.frequency.value = 5.3; lg.gain.setValueAtTime(0, T); lg.gain.linearRampToValueAtTime(dur > 0.4 ? 7 : 0, T + Math.min(0.45, dur)); lfo.connect(lg); lfo.start(T); lfo.stop(end + 0.05);
+  [['sawtooth', 0], ['square', 5]].forEach(([ty, dt]) => { const o = a.createOscillator(); o.type = ty; o.frequency.value = mtof(m); o.detune.value = dt; lg.connect(o.detune); const og = a.createGain(); og.gain.value = ty === 'square' ? 0.35 : 1; o.connect(og); og.connect(f); o.start(T); o.stop(end + 0.05); });
+}
+function mBass(T, m, dur, vol, out) { const a = sound.ctx, o = a.createOscillator(), f = a.createBiquadFilter(), g = a.createGain(); o.type = 'triangle'; o.frequency.value = mtof(m); f.type = 'lowpass'; f.frequency.value = 420; o.connect(f); f.connect(g); g.connect(out); const end = env(g, T, vol, 0.02, dur * 0.7, dur * 0.3); o.start(T); o.stop(end + 0.05); }
+function mTimp(T, m, vol, out) {   // 팀파니: 음높이가 살짝 내려가며 길게 울린다
+  const a = sound.ctx, o = a.createOscillator(), g = a.createGain(); o.frequency.setValueAtTime(mtof(m), T); o.frequency.exponentialRampToValueAtTime(mtof(m) * 0.96, T + 0.7); o.connect(g); g.connect(out);
+  g.gain.setValueAtTime(0.0001, T); g.gain.linearRampToValueAtTime(vol, T + 0.008); g.gain.exponentialRampToValueAtTime(0.001, T + 1.3); o.start(T); o.stop(T + 1.35);
+  const s = a.createBufferSource(), f = a.createBiquadFilter(), ng = a.createGain(); s.buffer = sound.brown; f.type = 'lowpass'; f.frequency.value = 260; s.connect(f); f.connect(ng); ng.connect(out);
+  ng.gain.setValueAtTime(vol * 0.9, T); ng.gain.exponentialRampToValueAtTime(0.001, T + 0.25); s.start(T, Math.random()); s.stop(T + 0.3);
+}
+function mSnare(T, vol, out) {   // 군악대 작은북
+  const a = sound.ctx, s = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain(); s.buffer = sound.noise; f.type = 'bandpass'; f.frequency.value = 2400; f.Q.value = 0.7; s.connect(f); f.connect(g); g.connect(out);
+  g.gain.setValueAtTime(vol, T); g.gain.exponentialRampToValueAtTime(0.001, T + 0.13); s.start(T, Math.random()); s.stop(T + 0.15);
+  const o = a.createOscillator(), og = a.createGain(); o.type = 'triangle'; o.frequency.setValueAtTime(205, T); o.frequency.exponentialRampToValueAtTime(150, T + 0.06); o.connect(og); og.connect(out); og.gain.setValueAtTime(vol * 0.6, T); og.gain.exponentialRampToValueAtTime(0.001, T + 0.08); o.start(T); o.stop(T + 0.1);
+}
+// 곡: 마디마다 화음(ch), 베이스(b), 선율([음, 8분음표 길이]…). 라 단조(D minor)의 영웅적인 행진곡풍
+const SONGS = {
+  title: { bpm: 92, vol: 0.2, bars: [
+    { ch: [50, 57, 62, 65], b: 38, mel: [[69, 3], [74, 1], [74, 2], [76, 1], [77, 1]] },
+    { ch: [46, 53, 58, 62], b: 34, mel: [[74, 4], [72, 2], [70, 2]] },
+    { ch: [53, 57, 60, 65], b: 41, mel: [[69, 3], [72, 1], [77, 2], [76, 1], [74, 1]] },
+    { ch: [48, 55, 60, 64], b: 36, mel: [[76, 6], [0, 2]] },
+    { ch: [50, 57, 62, 65], b: 38, mel: [[77, 3], [76, 1], [74, 2], [69, 2]] },
+    { ch: [43, 55, 58, 62], b: 31, mel: [[70, 3], [74, 1], [79, 4]] },
+    { ch: [45, 57, 61, 64], b: 33, mel: [[76, 3], [74, 1], [73, 2], [76, 2]] },
+    { ch: [45, 57, 61, 64], b: 33, mel: [[69, 6], [0, 2]] }] },
+  mission: { bpm: 84, vol: 0.15, bars: [
+    { ch: [50, 57, 62, 65], b: 38, mot: [62, 65] }, { ch: [50, 57, 62, 65], b: 38, mot: [62, 69] },
+    { ch: [46, 53, 58, 62], b: 34, mot: [62, 65] }, { ch: [46, 53, 58, 62], b: 34, mot: [65, 70] },
+    { ch: [43, 55, 58, 62], b: 31, mot: [62, 67] }, { ch: [43, 55, 58, 62], b: 31, mot: [67, 70] },
+    { ch: [45, 57, 61, 64], b: 33, mot: [61, 64] }, { ch: [45, 57, 61, 64], b: 33, mot: [64, 69] }] }
+};
+function musBar(S, bar, T, bd, out, int) {   // 한 마디를 미리 예약한다
+  const e = bd / 8;   // 8분음표 길이
+  if (S === SONGS.title) {
+    mPad(T, bar.ch, bd + 0.15, 0.05, out); mBass(T, bar.b, bd / 2, 0.22, out); mBass(T + bd / 2, bar.b + 7, bd / 2, 0.18, out);
+    mTimp(T, bar.b, 0.5, out); mTimp(T + bd / 2, bar.b + 7 - 12, 0.3, out);
+    [2, 6].forEach(k => mSnare(T + k * e, 0.16, out)); mSnare(T + 7 * e, 0.07, out); mSnare(T + 7.5 * e, 0.09, out);
+    let k = 0; for (const [m, l] of bar.mel) { if (m) mBrass(T + k * e, m, l * e * 0.95, 0.075, out); k += l; }
+  } else {
+    mPad(T, bar.ch, bd + 0.2, 0.045, out); mBass(T, bar.b, bd * 0.9, 0.2, out); mTimp(T, bar.b, 0.32, out);
+    if (int > 0.15) {   // 적기가 가까우면: 작은북 행진 리듬과 호른의 짧은 동기
+      for (let k = 0; k < 8; k++) mSnare(T + k * e, (k % 2 ? 0.05 : 0.1) * int, out);
+      mTimp(T + bd / 2, bar.b, 0.25 * int, out);
+      if (int > 0.5) { mBrass(T + 2 * e, bar.mot[0], e * 0.9, 0.06 * int, out); mBrass(T + 3 * e, bar.mot[1], e * 2.6, 0.06 * int, out); }
+    }
+  }
+}
+function musSting(win) {   // 작전 결과: 승리는 밝은 나팔과 팀파니 연타, 패배는 낮게 가라앉는 금관
+  const a = sound.ctx, out = musOut(), T = a.currentTime + 0.1; MUS.g.gain.setTargetAtTime(0.22, a.currentTime, 0.05);
+  if (win) { [62, 66, 69, 74].forEach((m, i) => mBrass(T + i * 0.16, m, 0.15, 0.09, out)); [62, 66, 69, 74].forEach(m => mBrass(T + 0.7, m, 1.8, 0.06, out)); mPad(T + 0.7, [50, 57, 62, 66], 2.6, 0.05, out); for (let i = 0; i < 10; i++) mTimp(T + 0.7 - 0.5 + i * 0.05, 38, 0.12 + i * 0.03, out); mTimp(T + 0.7, 38, 0.6, out); }
+  else { mPad(T, [38, 50, 53, 57], 3.2, 0.06, out); [[62, 0, 0.9], [61, 0.9, 0.9], [58, 1.8, 1.6]].forEach(([m, d, l]) => mBrass(T + d, m - 12, l, 0.08, out)); mTimp(T, 38, 0.5, out); mTimp(T + 1.8, 34, 0.45, out); }
+}
+function musicStep(t) {
+  if (!sound.ctx || sound.ctx.state !== 'running') return; const out = musOut();
+  if (G.scene === 'result') { if (MUS.sting !== G.res && G.res && !sound.muted) { MUS.sting = G.res; MUS.song = null; musSting(G.res.win); } return; }
+  MUS.sting = null;
+  const want = G.scene === 'play' ? 'mission' : 'title', S = SONGS[want];
+  let near = 0; if (want === 'mission') for (const e of ENE) if (!e.dead && Math.hypot(e.x - p.x, e.y - p.y) < 1800) { near = 1; break; }
+  MUS.int += (near - MUS.int) * 0.02;
+  if (MUS.song !== want) { MUS.song = want; MUS.next = t + 0.15; MUS.step = 0; }
+  MUS.g.gain.setTargetAtTime(sound.muted ? 0 : S.vol, t, 0.8);
+  const bd = 4 * 60 / S.bpm;
+  if (MUS.next < t - 0.3) MUS.next = t + 0.1;   // 탭을 비웠다 돌아오면 밀린 마디를 한꺼번에 울리지 않고 지금부터 다시
+  while (MUS.next < t + 0.6) { if (!sound.muted) musBar(S, S.bars[MUS.step % S.bars.length], MUS.next, bd, out, MUS.int); MUS.step++; MUS.next += bd; }
 }
 const IS_PHONE = (() => { try { return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '') || (typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches); } catch (_) { return false; } })();   // 폰·태블릿(터치 기기)이면 비행 중 엔진·바람 소리를 내지 않는다
 // 첫 화면의 데모 비행에서도 소리가 나도록 시작하자마자 오디오를 준비한다. 브라우저가 막으면 처음 화면을 만지거나 키를 누르는 순간 켠다
@@ -667,6 +749,7 @@ function updateSound(dt) {
   sound.eg.gain.setTargetAtTime(!alive || (IS_PHONE && p.mode === 'air') ? 0 : p.mode === 'air' ? 0.035 + 0.045 * thr : p.mode === 'lift' ? 0.008 : moving ? 0.02 + 0.03 * thr : 0.012, t, 0.35);   // 엔진은 늘 켜져 있고 소리도 늘 난다 (부드럽고 작게, 세게 밀면 조금 커진다)
   sound.wg.gain.setTargetAtTime(p.mode === 'air' && !IS_PHONE ? Math.min(0.06, V * V * 0.000007) : 0, t, 0.2);
   if (G.lso !== sound.lastSig) { if (G.lso === 'CUT') sfx('cut'); if (G.lso === 'WAVEOFF') sfx('waveoff'); sound.lastSig = G.lso; }
+  try { musicStep(t); } catch (_) {}
   sound.stallT -= dt;
   if (p.mode === 'air' && p.turn <= 0 && kts() < stallKt() * 1.04 && sound.stallT <= 0) { sfx('stall'); sound.stallT = 0.28; }
 }
@@ -1324,7 +1407,7 @@ function islandStep() {   // 섬의 모든 건물과 일본군이 없어져야 �
   ISLANDS.forEach((s, k) => {
     if (s.cleared) return;
     if (TARGETS.some(t => t.isl === k && (t.alive || t.inside > 0) && !SHIPS[t.type] && t.type !== 'runway') || SOLD.some(o => o.alive && o.isl === k)) return;
-    s.cleared = true; s.clearT = G.t;
+    s.cleared = true; s.clearT = G.t; sfx('capture', { x: (s.a + s.b) / 2 });
     const nm = G.cur.place + (ISLANDS.length > 1 ? ' island ' + (k + 1) : '');
     (G.tick = G.tick || []).push({ text: nm + ' retaken — the Japanese surrender and raise a white flag' });
     sfx('green');
@@ -1946,7 +2029,7 @@ function stepProj(dt) {
     if (q.k === 'b' && bulletVsParked(q)) { PROJ.splice(i, 1); continue; }
     const en = (q.k === 'b' || q.k === 'r') ? ENE.find(e => !e.dead && Math.abs(q.x - e.x) < 12 && Math.abs(q.y - e.y) < 6) : null;
     if (en) {
-      if (q.k === 'b') { en.hp -= 0.5; for (let j = 0; j < 2; j++) FX.push({ k: 'spark', x: q.x, y: q.y, vx: (Math.random() - 0.5) * 18, vy: 3 + Math.random() * 8, life: 0.3, t: 0 }); if (en.hp <= 0) killEnemy(en); }
+      if (q.k === 'b') { en.hp -= 0.5; if (G.t - (G.ehitT || 0) > 0.07) { G.ehitT = G.t; sfx('ehit', { x: q.x }); } for (let j = 0; j < 2; j++) FX.push({ k: 'spark', x: q.x, y: q.y, vx: (Math.random() - 0.5) * 18, vy: 3 + Math.random() * 8, life: 0.3, t: 0 }); if (en.hp <= 0) killEnemy(en); }
       else { if (Math.random() < 0.7 && !en.dead) killEnemy(en); explode(q.x, q.y, 14, 'rocket', false); }   // 로켓이 적기에 직격하면 일정 확률(70%)로 즉시 파괴
       PROJ.splice(i, 1); continue;
     }

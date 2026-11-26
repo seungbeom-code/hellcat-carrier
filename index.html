@@ -4751,6 +4751,54 @@ function lsoSmall(c) {
   c.restore();
 }
 
+// ───────── 갑판 신호수의 신호: 내 비행기의 상태에 맞춰 고른다 ─────────
+//  접근 중: 몸을 낮추고 지켜본다 · 와이어에 걸림/엘리베이터 위: 두 팔을 머리 위로 엇갈려 "정지" · 유도: 팔을 흔들어 "이리 오라"
+//  방향이 반대: 깃발을 머리 위로 크게 휘둘러 "돌아서라" · 엘리베이터 가까이: 손바닥을 누르듯 "천천히" · 출격 준비: 깃발을 머리 위에서 돌려 "엔진 올려"
+//  발진: 한쪽 무릎을 꿇고 깃발로 앞쪽을 가리킨다 · 갑판에서 떨어짐: 두 팔을 머리 위로 크게 흔드는 비상 신호
+function deckSig() {
+  const t = G.t, PI = Math.PI, cl = x => clamp(x, 10, DECK_L - 10), at = (x) => G.fmx === undefined ? FM_X : G.fmx;
+  const faceP = x => (p.xr >= x ? 1 : -1);   // 비행기 쪽을 본다
+  const S = (k, tx, face, aR, aL, cr, one) => ({ k, tx: cl(tx), face, aR, aL, cr: cr || 0, one: !!one });
+  const here = at();
+  const rest = (k, tx) => { const x = tx === undefined ? here : tx; return S(k || 'rest', x, faceP(x), -0.9 + Math.sin(t * 1.3) * 0.04, -1.75, 0); };
+  const stop = (tx) => { const x = tx === undefined ? here : tx; return S('stop', x, faceP(x), PI * 0.63 + Math.sin(t * 4) * 0.04, PI * 0.37 - Math.sin(t * 4) * 0.04, 0); };   // 두 팔을 머리 위로 엇갈린다
+  const nearShip = Math.abs(p.x - ship.x - DECK_L / 2) < DECK_L / 2 + 300;
+  if (p.off || p.mode === 'dslide' || (nearShip && (p.mode === 'down' || p.mode === 'fall' || p.mode === 'slide'))) return S('emergency', here, faceP(here), PI / 2 + Math.sin(t * 10) * 0.6, PI / 2 - Math.sin(t * 10) * 0.6, 0);   // 비상(갑판에서 떨어짐·갑판 위 사고·배 근처 추락): 두 팔을 머리 위로 크게 흔든다
+  if (p.mode === 'deck' && p.landing) {   // 착함 직후: 와이어에 걸리면 "정지", 걸리기 전에는 몸을 낮추고 지켜본다
+    if (p.eng) return stop();
+    return S('watch', here, faceP(here), -0.6, -1.6, 0.55);
+  }
+  if (p.mode === 'deck') {   // 발진 활주 (출격·터치 앤 고): 한쪽 무릎을 꿇고 깃발로 이륙 방향을 가리킨다
+    return S('launch', here, p.s >= 0 ? 1 : -1, -0.14 + Math.sin(t * 5) * 0.03, -1.25, 1, true);
+  }
+  if (p.mode === 'lift') {   // 엘리베이터: 내려가고 올라오는 동안 "정지", 격납고에 있는 동안은 옆에서 기다린다
+    const x = ELEV_A + ELEV_W + 7, st = p.el ? p.el.st : '';
+    if (st === 'pick' || st === 'svc') return S('wait', x, -1, -0.9, -1.75, 0);
+    return stop(x);
+  }
+  if (p.mode === 'taxi') {
+    if (G.t < p.lock && G.fmTask === 'elev') return stop();   // 막 멈췄다: 후크를 풀 때까지 "정지"
+    if (G.fmTask === 'elev') {   // 엘리베이터로 유도: 엘리베이터 너머에 서서 비행기를 부른다
+      const dist = ELEV_C - p.xr, sg = dist >= 0 ? 1 : -1, x = ELEV_C + sg * 17, face = -sg;
+      if (p.flip > 0 || (Math.abs(dist) > ELEV_R && dist * p.s < 0) || (Math.abs(dist) <= ELEV_R && (p.xr - ELEV_C) * p.s > 3)) return S('turn', x, face, PI / 2 + Math.sin(t * 4) * 0.9, 0.05, 0);   // 반대를 보고 있다: "돌아서라"
+      if (overElev() && Math.abs(dist) < 1.5) return stop(x);   // 엘리베이터 한가운데: "정지"
+      if (Math.abs(dist) < 28) return S('slow', x, face, -0.35 + Math.sin(t * 6) * 0.25, -0.45 + Math.sin(t * 6) * 0.25, 0.15);   // 가까워졌다: "천천히"
+      return S('come', x, face, 0.85 + Math.sin(t * 6) * 0.55, 0.75 + Math.sin(t * 6) * 0.55, 0);   // "이리 오라": 두 팔을 들어 앞뒤로 흔든다
+    }
+    // 출격 준비 (엘리베이터에서 올라왔다): 비행기 앞쪽에 서서 깃발을 머리 위에서 돌린다 → ▶ 를 누르면 발진 신호
+    const x = p.xr + (p.s >= 0 ? 1 : -1) * 16;
+    if (p.flip > 0) return S('turn', x, faceP(x), PI / 2 + Math.sin(t * 4) * 0.9, 0.05, 0);
+    if (Math.abs(p.vr) > 0.5) return S('come', x, faceP(x), 0.85 + Math.sin(t * 6) * 0.55, 0.75 + Math.sin(t * 6) * 0.55, 0);
+    return S('runup', x, faceP(x), PI / 2 + Math.sin(t * 9) * 0.38, -1.35, 0);
+  }
+  if (p.mode === 'air') {
+    if (p.liftT !== undefined && G.t - p.liftT < 1.6) return S('launch', here, p.s >= 0 ? 1 : -1, -0.14, -1.25, 1, true);   // 막 떠올랐다: 잠깐 그 자세 그대로
+    const xr = p.x - ship.x, closing = (xr < DECK_L / 2 ? 1 : -1) * (p.vx - ship.v) > 0, agl = p.y - DECK_Y;
+    if (p.gear && agl < 140 && agl > -5 && xr > -700 && xr < DECK_L + 700 && (closing || (xr > -20 && xr < DECK_L + 20 && agl < 40))) return S('watch', FM_X, xr < FM_X ? -1 : 1, -0.6, -1.6, 0.55);   // 착함하려고 다가온다: 몸을 낮추고 지켜본다
+    return rest('rest', FM_X);
+  }
+  return rest();
+}
 function drawShip() { const k = DECK_Y; DECK_Y = DECK_Y0; try { drawShip0(); } finally { DECK_Y = k; } }   // 그림은 기준 높이로 그리고 출렁임만큼 통째로 옮긴다
 function drawShip0() {
   const c = ctx;
@@ -4806,40 +4854,15 @@ function drawShip0() {
     // 남은 예비 항공기: 날개 끝을 위로 접어 갑판 뒤쪽에 세워 둔다 (잃을 때마다 하나씩 줄어든다)
     for (let i = 0; i < Math.min(2, Math.max(0, G.lives - 1)); i++) { c.save(); c.translate(224 - i * 15, DECK_Y + 2.95); c.scale(0.92, 0.92); c.globalAlpha = 0.92; drawPlaneFront(c); c.restore(); }   // 뒷배경: 약간 작고 흐리게, 다른 물체와 닿지 않는다
     // 발진 장교와 깃발
-    {   // 갑판 신호수: ① 엘리베이터에서 멀면 엘리베이터 쪽으로 깃발을 가리키며 유도 ② 엘리베이터 위에서는 멈춤 ③ 출발할 때는 이륙 신호만
-      const t = G.t, side = 30;
+    {   // 갑판 신호수: 내 비행기가 지금 무엇을 하는지에 맞춰 신호한다
+      const sig = deckSig(); G.fmSig = sig.k;
       if (G.fmx === undefined) G.fmx = FM_X;
-      let tx = G.fmx, dirm = G.fmDir || 1, aR, aL, cr = 0, one = false;
-      const launchSig = () => {   // 출격 신호: 깃발을 위로 번쩍 들었다가 → 쓸어내리며 앉아 오른쪽(이륙 방향)을 가리키고 → 한쪽 무릎을 굽힌 채 버틴 뒤 일어나기를 되풀이한다
-        const ph = (t * 0.42) % 1, sm = u => u * u * (3 - 2 * u);
-        if (ph < 0.3) { const u = ph / 0.3; aR = 0.2 + (1.65 - 0.2) * sm(u) + Math.sin(t * 9) * 0.1 * u; cr = 0; }
-        else if (ph < 0.55) { const u = sm((ph - 0.3) / 0.25); aR = 1.65 + (-0.14 - 1.65) * u; cr = u; }
-        else if (ph < 0.85) { aR = -0.14 + Math.sin(t * 5) * 0.03; cr = 1; }
-        else { const u = sm((ph - 0.85) / 0.15); aR = -0.14 + 0.34 * u; cr = 1 - u; }
-        aL = -1.25 + (ph < 0.3 ? 0.5 * sm(ph / 0.3) : ph < 0.55 ? 0.5 * (1 - sm((ph - 0.3) / 0.25)) : 0); one = true;
-      };
-      if (p.mode === 'deck' && !p.landing) {   // 출발: 비행기 뒤에서 앞쪽으로 이륙 신호(깃발을 머리 위로 크게 돌린다)만 한다
-        tx = FM_X; dirm = p.s; G.fmDir = dirm;
-        launchSig();
-      } else if (p.mode === 'taxi' || p.mode === 'lift') {
-        const dist = ELEV_C - p.xr;
-        if (p.mode === 'lift' || (Math.abs(dist) <= ELEV_R && G.fmTask === 'elev')) {   // 엘리베이터 위: 멈춤 (두 팔을 들어 올린다)
-          aR = Math.PI / 2 + Math.sin(t * 3) * 0.08; aL = Math.PI / 2 - 0.25;
-        } else if (G.fmTask !== 'elev') {   // 엘리베이터에서 막 나왔다: 이륙 신호 (무릎을 굽히고 깃발을 앞으로)
-          dirm = p.s; G.fmDir = dirm; launchSig();
-        } else {   // 엘리베이터 쪽으로 유도: 비행기가 오른쪽에 있으면 왼쪽으로, 왼쪽에 있으면 오른쪽으로 깃발을 흔든다
-          const sg = dist > 0 ? 1 : -1; dirm = sg; G.fmDir = sg; tx = FM_X;
-          aR = 0.2 + Math.sin(t * 7) * 0.55; aL = -1.6;
-        }
-      } else if (p.mode === 'air' || p.mode === 'deck') {   // 비행 중·착함 중: 비행기를 향해 깃발을 흔든다
-        const a = Math.atan2(p.y - DECK_Y - 4, p.x - (ship.x + G.fmx)); dirm = p.x >= ship.x + G.fmx ? 1 : -1;
-        aR = clamp(dirm > 0 ? a : Math.PI - a, -0.3, Math.PI + 0.3) + Math.sin(t * 6) * 0.35; aL = Math.PI - 0.6 + Math.sin(t * 6 + 1) * 0.3;
-      } else { aR = -1.3; aL = -1.8; }
-      G.fmx += (tx - G.fmx) * 0.07;   // 천천히 걸어서 자리를 옮긴다
-      const fxc = G.fmx;
-      c.save(); c.translate(fxc, DECK_Y); c.scale(2.2 * dirm, 2.2); c.translate(-fxc, -DECK_Y);   // 신호수도 2.2배, 가는 방향을 본다
-      G.fmCr = (G.fmCr || 0) + (cr - (G.fmCr || 0)) * 0.12;   // 부드럽게 웅크렸다 일어선다
-      c.save(); c.translate(fxc, DECK_Y); c.scale(2 / 3, 2 / 3); c.translate(-fxc, -DECK_Y); deckCrew(c, fxc, DECK_Y, aR, aL, 'flag', G.fmCr, one); c.restore();   // 크기는 2/3
+      G.fmx += (sig.tx - G.fmx) * 0.07;   // 천천히 걸어서 자리를 옮긴다
+      const fxc = G.fmx, dirm = sig.face; G.fmDir = dirm;
+      const la = (o, t) => o === undefined ? t : o + (t - o) * 0.28;   // 팔은 부드럽게 옮긴다
+      G.fmAR = la(G.fmAR, sig.aR); G.fmAL = la(G.fmAL, sig.aL); G.fmCr = (G.fmCr || 0) + (sig.cr - (G.fmCr || 0)) * 0.12;
+      c.save(); c.translate(fxc, DECK_Y); c.scale(2.2 * dirm, 2.2); c.translate(-fxc, -DECK_Y);   // 신호수도 2.2배, 신호하는 쪽을 본다
+      c.save(); c.translate(fxc, DECK_Y); c.scale(2 / 3, 2 / 3); c.translate(-fxc, -DECK_Y); deckCrew(c, fxc, DECK_Y, G.fmAR, G.fmAL, 'flag', G.fmCr, sig.one); c.restore();   // 크기는 2/3
       c.restore();
     }
   });

@@ -307,7 +307,7 @@ function crash(why, ditch) {
   if (!ditch && p.mode === 'air' && !onShip && p.y > 3) {   // 바로 터지지 않는다: 떨어지거나(공중) 땅에 닿으면 관성으로 미끄러진다
     G.lives--; if (G.m) G.m.crashes++; p.crashWhy = why; p.slT = 0; p.slHit = new Set(); p.gear = false; p.hook = false;
     const snag = p.turn > 0 || why.includes('tree') || why.includes('ship');   // 선회 중이거나 나무에 걸리면 그 자세로 미끄러지지 않고 걸려서 떨어진다
-    if (p.turn > 0) { p.turn = 0; p.th = Math.atan2(p.vy, p.vx || p.s); }
+    if (p.turn > 0) { p.crashTurn = { f: clamp(1 - p.turn / TURN_T, 0, 1), v0: p.v0, t: G.t }; p.turn = 0; p.th = p.s > 0 ? 0 : Math.PI; }   // 선회 중 격추: 돌던 자세에서 이어서 천천히 기수를 돌리며 떨어진다 (갑자기 튀지 않게)
     if (snag) { p.vx *= 0.5; p.vy = Math.min(p.vy, -3); }
     p.impV = Math.max(0, -p.vy);
     const g = gh(p.x); p.mode = !snag && g > 0 && p.y - g < 5 ? 'slide' : 'fall'; if (p.mode === 'slide') { p.vx *= 0.75; sfx('thump'); } else sfx('hit');
@@ -350,7 +350,7 @@ function crashStep(dt) {
   if (Math.random() < dt * 25) FX.push({ k: Math.random() < 0.5 ? 'fire' : 'smoke', x: p.x - p.vx * 0.03, y: p.y + 0.5, vx: 0, vy: 2, life: 0.9, t: 0, s: 1.8 });
   if (p.mode === 'fall') {
     p.vy -= GRAV * dt; p.vx *= 1 - 0.15 * dt; p.x += p.vx * dt; p.y += p.vy * dt;
-    p.th = Math.atan2(p.vy, p.vx);
+    { const tg = Math.atan2(p.vy, p.vx); p.th += clamp(angd(tg, p.th), -3 * dt, 3 * dt); }   // 기수는 떨어지는 방향으로 천천히 숙여진다
     if (!p.slHit) p.slHit = new Set(); crashBuildings(p, p.slHit);
     const xr = p.x - ship.x;
     if (xr > -4 && xr < DECK_L + 4 && p.y <= DECK_Y + WH) { p.y = DECK_Y + WH; return endCrash(false); }   // 항모 갑판에 떨어짐
@@ -5012,6 +5012,10 @@ function drawWorld() {
   if (p.mode !== 'down' || G.result.kind === 'ditch' || (G.result.kind === 'wreck' && G.result.deck)) {
     world(p.x, p.y, () => {
       if (p.flip > 0) { const f = clamp(1 - p.flip / DECK_FLIP_T, 0, 1); drawPlane3D((p.flipFrom > 0 ? 0 : Math.PI) + Math.PI * f, 0, true); }
+      else if (p.crashTurn && (p.mode === 'fall' || p.mode === 'slide') && G.t - p.crashTurn.t < 0.8) {   // 선회 중 격추된 직후: 돌던 자세를 가까운 쪽으로 마저 돌린다
+        const C = p.crashTurn, u = smooth(clamp((G.t - C.t) / 0.8, 0, 1)), f = C.f >= 0.5 ? C.f + (1 - C.f) * u : C.f * (1 - u), ph = (C.v0 > 0 ? 0 : Math.PI) + Math.PI * f, a = p.s > 0 ? p.th : Math.PI - p.th;
+        c.rotate(Math.atan2(Math.sin(a), Math.cos(a)) * Math.cos(ph)); drawPlane3D(ph, Math.sin(Math.PI * f) * 1.0, false);
+      }
       else if (p.turn > 0) {
         const f = clamp(1 - p.turn / TURN_T, 0, 1);
         { const ph = (p.v0 > 0 ? 0 : Math.PI) + Math.PI * f; c.rotate((p.tp || 0) * Math.cos(ph)); drawPlane3D(ph, Math.sin(Math.PI * f) * 1.0, p.gear); }   // 기울어진 채 돌면 기수가 위·아래를 향한 채로 돈다
@@ -5310,9 +5314,10 @@ function updateCam(dt) {
   let zt = p.mode === 'deck' || p.mode === 'taxi' || p.mode === 'lift' || (p.mode === 'down' && !G.result.sea) ? 2.9 : near ? 2.1 : 1.6;
   zt = Math.max(ZOOM_MIN, Math.min(zt, 0.5 * H / Math.max(p.y, 40)));   // 높이 올라가면 바다가 보이도록 축소하되, 너무 작아지지 않게 한계를 둔다
   cam.z = lerp(cam.z, zt, Math.min(1, dt * (zt < cam.z ? 6 : 1.5)));
-  const dir = p.vx >= 0 ? 1 : -1;
-  const tx = p.x + dir * (0.2 + clamp((kts() - 120) / 900, 0, 0.12)) * W / cam.z, ty = Math.max(p.y * 0.92, H * 0.27 / cam.z);
-  cam.x = lerp(cam.x, tx, Math.min(1, dt * 5)); cam.y = lerp(cam.y, ty, Math.min(1, dt * 6)); cam.y = Math.min(cam.y, Math.max(0.4 * H / cam.z, p.y - 0.3 * H / cam.z));   // 바다가 화면 밖으로 나가지 않게 (아주 높으면 비행기를 따라간다)
+  const dir = p.vx >= 0 ? 1 : -1, wreck = p.mode === 'fall' || p.mode === 'slide' || p.mode === 'down';
+  const lead = wreck ? 0.2 * clamp(Math.abs(p.vx) / 90, 0, 1) : 0.2 + clamp((kts() - 120) / 900, 0, 0.12);   // 추락 중에는 앞을 덜 내다본다 (속도만큼만)
+  const tx = p.x + dir * lead * W / cam.z, ty = Math.max(p.y * 0.92, H * 0.27 / cam.z);
+  cam.x = lerp(cam.x, tx, Math.min(1, dt * (wreck ? 1.6 : 5)));   // 추락하면 카메라가 천천히 따라가 비행기가 튀어 보이지 않게 cam.y = lerp(cam.y, ty, Math.min(1, dt * 6)); cam.y = Math.min(cam.y, Math.max(0.4 * H / cam.z, p.y - 0.3 * H / cam.z));   // 바다가 화면 밖으로 나가지 않게 (아주 높으면 비행기를 따라간다)
 }
 
 function fit() {

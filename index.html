@@ -4660,7 +4660,7 @@ function update(dt) {
   else if (p.mode === 'down' && G.result && G.result.kind === 'wreck' && G.result.deck) { p.x = ship.x + p.xr; p.y = DECK_Y + WH - 0.4; p.vx = ship.v; }   // 갑판 위 잔해는 배와 함께 간다
   else if (p.mode === 'down') { p.y = Math.max(1, p.y - 6 * dt); p.x += p.vx * dt; p.vx *= 1 - Math.min(1, 2 * dt); }
   if (p.mode === 'deck' || p.mode === 'taxi' || p.mode === 'dslide') { const xr = p.x - ship.x; if (xr > -4 && xr < DECK_L + 4) p.y = Math.max(p.y, DECK_Y + WH - (p.mode === 'dslide' ? 0.4 : 0)); }   // 바퀴가 갑판에 닿아 있으면 출렁이는 갑판 높이에 맞춰 갑판 밑으로 내려가지 않는다
-  if (p.mode === 'air' || (p.mode === 'deck' && !p.held)) p.fuel = Math.max(0, p.fuel - (0.03 + 0.25 * p.thr) * dt);
+  if ((p.mode === 'air' || (p.mode === 'deck' && !p.held)) && !CHEAT.god) p.fuel = Math.max(0, p.fuel - (0.03 + 0.25 * p.thr) * dt);   // 무적 치트면 연료도 줄지 않는다
   G.pCloud = p.mode === 'air' ? inCloud(p.x, p.y) : 0; if (G.pCloud > 0.5 && G.scene === 'play' && !G.cloudHint) { G.cloudHint = 1; G.msg = { text: 'In the clouds — enemies cannot see you', until: G.t + 3 }; }
   lootStep(dt); stepArsenal(dt); bossStep(dt); G.lso = lsoSignal(); fireStep(dt); stepProj(dt); missionStep(dt); wingStep(dt);
   { const rp = p; p = foePick(); try { enemyStep(dt); ebStep(dt); flakStep(dt); myAAStep(dt); shellStep(dt); quadStep(dt); towerStep(dt); shipMgStep(dt); } finally { p = rp; } }

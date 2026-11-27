@@ -29,7 +29,8 @@ const SHIP_V = 11;                 // 갑판 맞바람 30노트
 let DECK_Y = 20, shipBob = 0; const DECK_Y0 = 20, DECK_L = 520, WH = 3.2, CS = DECK_L / 260, ISL_DX = 124;   // 갑판 길이는 예전의 2배 (선체 그림은 가로로 2배로 늘이고, 함교는 그대로 두고 자리만 옮긴다)   // 갑판 높이, 길이, 바퀴 밑까지 거리
 const ZONE_B = 240, ZONE_A = 85, ZONE_L = ZONE_B - ZONE_A;   // 어레스팅 와이어 구역: 와이어 3개 (예전 4개에서 선미 쪽 하나를 줄여 함 중앙 쪽으로 좁혔다)
 const WIRES = [0, 1, 2].map(i => ZONE_A + 10 + i * (ZONE_L - 20) / 2);
-const TURN_T = 3.2;   // 선회에 걸리는 시간(초): 예전의 2배라 회전 반경도 2배
+const LIGHT = 3;   // 기체의 가벼움: 조종간에 비행 경로가 3배 빨리 휜다 (속도·실속 속도는 그대로)
+const TURN_T = 1.1;   // 선회에 걸리는 시간(초): 가벼워져서 예전(3.2초)의 1/3
 const HOOK_BACK = 7.5, CRUISE_KT = 270, SLOW_KT = 180, APP_KT = 120;   // 후크 끝 위치, 손을 뗐을 때 순항 속도, 항모 근처 접근 속도
 const MIN_KT = 150;   // 날고 있을 때(바퀴를 올린 상태) 속도는 이 아래로 떨어지지 않는다. 방향 전환 중에도 마찬가지
 const TAKEOFF_KT = 138, ROTATE_KT = 132, TURN_KT = 100;   // 이륙과 선회에 필요한 최소 속도
@@ -125,10 +126,10 @@ function liftLoss() {   // 속도가 느릴수록 양력이 모자란다: 실속
 }
 function surfaceUnder() { const xr = p.x - ship.x; return xr > -10 && xr < DECK_L + 10 ? DECK_Y + WH : Math.max(0, gh(p.x)); }
 // ───────── 공중제비(루프): 속도가 충분할 때 ▲를 계속 누르면 원을 그리며 한 바퀴. 꼭대기(뒤집힌 상태)에서 날아가는 쪽 방향키나 ▼를 누르면 반 바퀴 굴러 바로 서서 반대로 날아간다 (이멜만 턴) ─────────
-const LOOP_KT = 135, LOOP_G = 4.6, LOOP_TOP = 450;   // 루프: 최소 속도, 당기는 g, 꼭대기 한계 높이(공기가 희박해지기 전)
+const LOOP_KT = 135, LOOP_G = 4.6 * LIGHT, LOOP_TOP = 450;   // 루프: 최소 속도, 당기는 g, 꼭대기 한계 높이(공기가 희박해지기 전)
 function loopTry(V, gam) {   // 기수가 약 57도를 넘게 들렸고 속도·높이가 충분하면 루프를 시작한다
   if (p.loop || p.stalled || p.gear || p.in < 0.6 || gam < 0.8 || V * KT < LOOP_KT) return false;
-  const R = Math.min(clamp(V * V / (GRAV * LOOP_G), 60, 170), (LOOP_TOP - p.y) / (1 + Math.cos(gam))), s0 = p.s;   // 남은 높이에 맞춰 루프 크기를 줄인다
+  const R = Math.min(clamp(V * V / (GRAV * LOOP_G), 40, 170), (LOOP_TOP - p.y) / (1 + Math.cos(gam))), s0 = p.s;   // 남은 높이에 맞춰 루프 크기를 줄인다
   if (R < 50) return false; const cx = p.x - s0 * R * Math.sin(gam), cy = p.y + R * Math.cos(gam);
   if (cy - R < Math.max(0, gh(cx)) + 25) return false;   // 아래로 땅에 닿을 만하면 하지 않는다   // 위나 아래로 공간이 모자라면 루프하지 않는다 (그대로 실속)
   p.loop = { s: s0, cx, cy, R, Rmax: R, ph: gam, v: V, revReq: -9 };
@@ -138,7 +139,7 @@ function loopTry(V, gam) {   // 기수가 약 57도를 넘게 들렸고 속도·
 function loopStep(dt) {
   const L = p.loop, s0 = L.s, thrA = (p.fuel > 0 ? p.thr : 0) * airDen() * Math.min(AMAX, PWR / Math.max(L.v, 1)) * 0.9;
   L.v = clamp(L.v + (-GRAV * Math.sin(L.ph) + thrA - KD0 * L.v * L.v * 1.6) * dt, 38, 230);   // 올라가며 느려지고 내려오며 빨라진다
-  const Rt = clamp(L.v * L.v / (GRAV * LOOP_G), 45, L.Rmax); L.R += (Rt - L.R) * Math.min(1, dt * 0.8);   // 느린 꼭대기에서는 조금 더 좁게 돈다
+  const Rt = clamp(L.v * L.v / (GRAV * LOOP_G), 32, L.Rmax); L.R += (Rt - L.R) * Math.min(1, dt * 0.8);   // 느린 꼭대기에서는 조금 더 좁게 돈다
   L.ph += L.v / L.R * dt;
   const nx = L.cx + s0 * L.R * Math.sin(L.ph), ny = L.cy - L.R * Math.cos(L.ph);
   L.cx += (p.x + s0 * L.v * Math.cos(L.ph) * dt) - nx; L.cy += (p.y + L.v * Math.sin(L.ph) * dt) - ny;   // 반지름이 바뀌어도 위치가 튀지 않게 중심을 옮긴다
@@ -187,17 +188,18 @@ function airStep(dt) {
   else if (p.turnPend) p.gh = 0;
   else if (p.gear && p.neutral && G.t - p.liftT > 6) p.gh = Math.max(-0.055, p.gh - 0.15 * dt);
   // 조종은 '몇 g로 당기는가'로 한다: 경로가 휘는 만큼 양력이 필요하고, 느릴수록 낼 수 있는 g가 작아진다 (속도가 모자라면 아무리 당겨도 안 올라간다)
-  let nCmd = Math.cos(gam) + clamp(8 * (p.gh - gam), -1.2, 1.2) + (p.in > 0 ? p.in * Math.min(3.2, 0.3 * V / GRAV) : p.in * Math.min(2.4, 0.22 * V / GRAV));   // 당기는 세기에도 한계: 느릴 때는 기수가 너무 빨리 돌지 않는다
+  let nCmd = Math.cos(gam) + clamp(8 * (p.gh - gam), -1.2, 1.2) / LIGHT + (p.in > 0 ? p.in * Math.min(3.2, 0.3 * V / GRAV) : p.in * Math.min(2.4, 0.22 * V / GRAV));   // 당기는 세기에도 한계: 느릴 때는 기수가 너무 빨리 돌지 않는다
   nCmd = Math.max(-0.6, nCmd);
   let aCmd = clamp(((nCmd * GRAV / (q * df)) - cl0) / 5, (-cm * 0.8 - cl0) / 5, as * 0.96);   // 그 g를 내는 데 필요한 받음각 (실속 받음각 아래로 제한)
   if (p.stalled) aCmd = -0.14;
   // 기수 회전에는 관성이 있다: 조종간을 당기면 기수가 먼저 들리고, 그 다음에 진행 방향이 따라 휜다
   let al = s * p.a, aw = p.aw || 0;
-  aw += (42 * (aCmd - al) - 11 * aw) * dt; al = clamp(al + aw * dt, -0.6, 0.6); p.aw = aw;
+  aw += (120 * (aCmd - al) - 19 * aw) * dt; al = clamp(al + aw * dt, -0.6, 0.6); p.aw = aw;
   const f = aero(V, al), h = p.y - surfaceUnder(), ge = 1 + 0.1 * clamp(1 - Math.max(0, h) / 8, 0, 1);   // 땅(갑판)에 가까우면 지면 효과로 양력이 조금 늘어난다
   const th = gam + al, ux = vf / V, uy = vy / V, aL = f.aL * ge;
-  vf += (f.aT * Math.cos(th) - f.aD * ux - aL * uy) * dt;
-  vy += (f.aT * Math.sin(th) - f.aD * uy + aL * ux - GRAV) * dt;
+  const exL = p.stalled ? 0 : (LIGHT - 1) * (aL - GRAV * Math.cos(gam));   // 가벼운 만큼 남는 힘이 더 크게 경로를 휜다
+  vf += (f.aT * Math.cos(th) - f.aD * ux - (aL + exL) * uy) * dt;
+  vy += (f.aT * Math.sin(th) - f.aD * uy + (aL + exL) * ux - GRAV) * dt;
   if (!p.gear && !p.stalled) {   // 약한 난기류: 몇 초마다 바뀌는 위아래 바람. 낮게·빠르게 날수록 조금 더 흔들린다 (착함 접근 중에는 없다)
     p.gT = (p.gT || 0) - dt; if (p.gT <= 0) { p.gT = 0.7 + Math.random() * 1.4; p.gTg = (Math.random() - 0.5) * (h < 150 ? 1.8 : 1.1) * clamp(V / 120, 0.5, 1.2); }
     p.gA = (p.gA || 0) + ((p.gTg || 0) - (p.gA || 0)) * Math.min(1, dt * 1.6); vy += p.gA * dt;

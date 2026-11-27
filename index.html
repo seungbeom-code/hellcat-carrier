@@ -286,7 +286,7 @@ function lsoSignal() {
 // ───────── 치트키: 무적, 무기 무제한 (일시정지 화면의 버튼, 또는 일시정지 중에 GOD / AMMO 입력) ─────────
 const CHEAT = (() => { const d = { god: false, ammo: false }; try { return Object.assign(d, JSON.parse(localStorage.getItem('hcCheat') || '{}')); } catch (e) { return d; } })();
 const CHEAT_BTN = [{ k: 'god', x: 190, y: 318, w: 180, h: 56 }, { k: 'ammo', x: 390, y: 318, w: 180, h: 56 }, { k: 'boss', x: 590, y: 318, w: 180, h: 56, act: 1 }];
-const CHEAT_NAME = { god: ['Invincible', '무적'], ammo: ['Unlimited weapons', '무기 무제한'], boss: ['Summon all bosses', '보스 전원 출현'] };
+const CHEAT_NAME = { god: ['Invincible', '무적'], ammo: ['Unlimited weapons', '무기 무제한'], boss: ['Summon the boss', '보스 출현'] };
 function cheatSet(k, v) {
   CHEAT[k] = v; try { localStorage.setItem('hcCheat', JSON.stringify(CHEAT)); } catch (e) {}
   sfx('clunk'); const ko = LANG === 'ko'; chatPush((ko ? '치트 ' : 'Cheat: ') + CHEAT_NAME[k][ko ? 1 : 0] + (v ? ' ON' : ' OFF'), { col: '#ff9d3c', life: 4 });
@@ -298,12 +298,12 @@ function cheatType(ch) {   // 일시정지 중에 글자를 치면: GOD → 무�
   else if (G.cheatBuf.endsWith('AMMO')) { cheatSet('ammo', !CHEAT.ammo); G.cheatBuf = ''; }
   else if (G.cheatBuf.endsWith('BOSS')) { cheatBosses(); G.cheatBuf = ''; }
 }
-function cheatBosses() {   // 보스 6종을 한꺼번에 섬 위에 세운다: 가까운 섬부터, 섬마다 겹치지 않게 구역을 나눠 그 안에서만 걷는다
+function cheatBosses() {   // 보스를 섬 위에 세운다 (지금은 2족 보행 병기 테츠진 한 종류): 가까운 섬부터, 섬마다 겹치지 않게 구역을 나눠 그 안에서만 걷는다
   const ko = LANG === 'ko', say = (t, col) => { sfx('clunk'); chatPush(t, { col: col || '#ff9d3c', life: 6 }); };
   if (G.scene !== 'play' || hangarOpen()) return say(ko ? '보스는 출격한 뒤에만 부를 수 있습니다' : 'Bosses can only be summoned in flight');
   const busy = TARGETS.filter(t => t.boss && t.alive && !t.gone).map(t => t.bk);
   const kinds = Object.keys(BOSSES).filter(k => !busy.includes(k)).sort((a, b) => BOSSES[b].w - BOSSES[a].w);   // 큰 보스부터 자리를 잡는다
-  if (!kinds.length) return say(ko ? '보스 6종이 이미 모두 나와 있습니다' : 'All six bosses are already out');
+  if (!kinds.length) return say(ko ? '보스가 이미 나와 있습니다' : 'The boss is already out');
   const room = ISLANDS.map((q, i) => ({ i, a: q.a + 40, b: q.b - 40, d: Math.abs((q.a + q.b) / 2 - p.x) })).sort((u, v) => u.d - v.d);   // 섬마다 남은 빈자리 (가까운 섬부터)
   for (const t of TARGETS) if (t.boss && t.alive && !t.gone && t.isl >= 0) { const r = room.find(r => r.i === t.isl); if (r) r.a = Math.max(r.a, (t.hi !== undefined ? t.hi : t.x) + BOSSES[t.bk].w / 2 + 20); }   // 이미 있는 보스 자리는 비운다
   const made = [], miss = [];
@@ -316,7 +316,7 @@ function cheatBosses() {   // 보스 6종을 한꺼번에 섬 위에 세운다: 
   }
   if (!made.length) return say(ko ? '보스가 설 만한 섬이 없습니다' : 'No island is big enough for a boss');
   G.bossT = made.reduce((a, t) => Math.abs(t.x - p.x) < Math.abs(a.x - p.x) ? t : a);   // 경고·화면 밖 화살표는 가장 가까운 보스
-  say((ko ? '치트 보스 전원 출현: ' : 'Cheat: bosses summoned: ') + made.map(t => ko ? BOSSES[t.bk].k : BOSSES[t.bk].n).join(', '), '#ff6a4a');
+  say((ko ? '치트 보스 출현: ' : 'Cheat: boss summoned: ') + made.map(t => ko ? BOSSES[t.bk].k : BOSSES[t.bk].n).join(', '), '#ff6a4a');
   if (miss.length) say(ko ? '섬이 좁아 ' + miss.length + '종은 나오지 못했습니다' : miss.length + ' could not fit on the islands');
 }
 function cheatAmmo() {   // 무기 무제한: 총알·로켓·폭탄이 줄지 않는다 (안 실었으면 12발씩 준다)
@@ -1140,14 +1140,9 @@ function arsKey(e) {
 
 // ───────── 보스: 작전 중 가끔 나타나는 거대 병기 5종 (직접 디자인한 가상의 병기). 무기로 파괴하면 큰 현상금과 희귀 이상 아이템 3개 ─────────
 const BOSSES = {
-  strider: { n: "Iron Strider 'Tetsujin'", k: "강철 보행병기 '테츠진'", w: 20, h: 27, hp: 320, fly: false, sp: 5, bounty: 3000 },
-  crawler: { n: "Land Fortress 'Mukade'", k: "육상 요새 '무카데'", w: 74, h: 13, hp: 460, fly: false, sp: 3, bounty: 3500 },
-  whale: { n: "Walking Battleship 'Kujira'", k: "보행 전함 '쿠지라'", w: 112, h: 41, hp: 520, fly: false, sp: 2.5, bounty: 4500 },   // 고래형 장갑 선체를 코끼리처럼 굵은 다리 4개 위에 올렸다
-  golem: { n: "Thunder Golem 'Raijin'", k: "뇌전 골렘 '라이진'", w: 18, h: 33, hp: 360, fly: false, sp: 3, bounty: 4000 },
-  dragonfly: { n: "Iron Dragonfly 'Tonbo'", k: "강철 잠자리 '톤보'", w: 54, h: 22, hp: 280, fly: false, sp: 8, bounty: 3500 },   // 다리 6개로 빠르게 걷는 잠자리형 병기 (날개는 접었다)
-  oni: { n: "Heavy Walker 'Onigawara'", k: "강철 오니 '오니가와라'", w: 24, h: 25, hp: 420, fly: false, sp: 3.5, bounty: 4500 }   // 육중한 2족 보행 병기: 회전 기관포·로켓 발사기·유도 미사일 (직접 디자인)
+  strider: { n: "Iron Strider 'Tetsujin'", k: "강철 보행병기 '테츠진'", w: 20, h: 27, hp: 320, fly: false, sp: 5, bounty: 3000 }
 };
-const BOSS_WHY = { strider: 'Shot down by the Iron Strider.', crawler: 'Shot down by the Land Fortress.', whale: 'Shot down by the Walking Battleship.', golem: 'Struck down by the Thunder Golem.', dragonfly: 'Shot down by the Iron Dragonfly.', oni: 'Shot down by the Heavy Walker.' };
+const BOSS_WHY = { strider: 'Shot down by the Iron Strider.' };
 function spawnBoss(kind, x, quiet) {
   const B = BOSSES[kind], type = 'B_' + kind, L = (G.cur && G.cur.lvl) || 1, hp = Math.round(B.hp * (0.8 + 0.03 * L));
   BOX[type] = { w: B.w, h: B.h }; HP[type] = hp; DMG.gun[type] = 0.3; DMG.rocket[type] = 4; DMG.bomb[type] = 10; HARD[type] = 1; DROP[type] = [1, [0, 0, 45, 38, 17], B.bounty, 3];
@@ -1178,11 +1173,7 @@ function bossStep(dt) {
       if (t.fx <= 0) { t.x += t.dir * B.sp * dt; t.an += dt * B.sp * 0.32; if (t.x < lo) { t.x = lo; t.dir = 1; } if (t.x > hi) { t.x = hi; t.dir = -1; } }
       if (seen && d < 1800 && Math.random() < dt * 0.4) t.dir = p.x >= t.x ? 1 : -1;   // 내 쪽을 돌아본다
       t.y = gh(t.x);
-      if (t.bk !== 'crawler' && Math.floor(t.an / Math.PI) !== t.step) { t.step = Math.floor(t.an / Math.PI); dirtBurst(t.x + t.dir * (t.bk === 'whale' ? (t.step % 2 ? 31 : -31) : 3), t.y, t.bk === 'whale' ? 2 : 1.2); if (Math.abs(t.x - cam.x) < 600 && hear(t.x) > 0.3 && Math.random() < 0.5) sfx('thump', { x: t.x }); }   // 쿵쿵 걷는다
-    } else {   // 공중 보스
-      const tx = t.bk === 'whale' ? p.x : p.x - Math.sign(p.vx || 1) * 380, ty = t.bk === 'whale' ? B.alt + Math.sin(G.t * 0.3) * 20 : clamp(p.y + 70, Math.max(gh(t.x), 0) + 90, 430);
-      const ax = clamp((tx - t.x) * 0.25 - t.vx * 0.9, -14, 14), ay = clamp((ty - t.y) * 0.6 - t.vy * 1.4, -12, 12); t.vx = clamp(t.vx + ax * dt, -B.sp, B.sp); t.vy += ay * dt; t.x += t.vx * dt; t.y += t.vy * dt;
-      t.y = Math.max(t.y, Math.max(0, gh(t.x)) + 40); t.dir = p.x >= t.x ? 1 : -1; t.an += dt;
+      if (Math.floor(t.an / Math.PI) !== t.step) { t.step = Math.floor(t.an / Math.PI); dirtBurst(t.x + t.dir * 3, t.y, 1.2); if (Math.abs(t.x - cam.x) < 600 && hear(t.x) > 0.3 && Math.random() < 0.5) sfx('thump', { x: t.x }); }   // 쿵쿵 걷는다
     }
     if (!seen) continue;
     const why = BOSS_WHY[t.bk];
@@ -1190,31 +1181,6 @@ function bossStep(dt) {
       if (t.cd[0] <= 0 && d < 950) { t.cd[0] = 3.4; t.fx = 1.1; t.burst = 1.0; t.bt = 0; }   // 양팔 기관포 연사
       if (t.burst > 0) { t.burst -= dt; t.bt -= dt; while (t.bt <= 0 && t.burst > 0) { t.bt += 1 / 14; t.side = !t.side; const mx = t.x + t.dir * 12, my = t.y + 16 + (t.side ? 0.6 : -0.6), a = bossLead(mx, my, 520) + (Math.random() - 0.5) * 0.06; t.aim = a; bossShot(t, mx, my, a, 520, 1.0, { tr: Math.random() < 0.3 }); FX.push({ k: 'muz', x: mx, y: my, vx: 0, vy: 0, a, s: 2.4, life: 0.06, t: 0 }); if (Math.random() < 0.5) sfx('eshot', { g: 'c20', x: mx, y: my }); } }
       if (t.cd[1] <= 0 && d < 1500) { t.cd[1] = 9; for (let k = 0; k < 4; k++) { const mx = t.x - t.dir * 3, my = t.y + 27; EB.push({ x: mx + k * 0.8, y: my, vx: t.dir * 20 + (k - 1.5) * 18, vy: 110, life: 7, why, dmg: 5, aa: false, sp: 1, hm: 1, turn: 1.25, spd: 175, kind: 'missile' }); } sfx('rocket', { x: t.x }); t.fx = 0.6; }   // 어깨 유도 미사일 4발
-    } else if (t.bk === 'crawler') {
-      const L = B.w / 2; t.aim = Math.atan2(p.y - t.y - 12, p.x - t.x);
-      if (t.cd[0] <= 0 && d < 1100) { t.cd[0] = 3.2; for (const ox of [-0.5, 0, 0.5]) { const gx = t.x + ox * L, gy = t.y + 13, f = 0.5 + Math.random() * 0.4, err = 60 + d * 0.06; FLAK.push({ x0: gx, y0: gy, x: p.x + p.vx * f + (Math.random() - 0.5) * err * 2, y: p.y + p.vy * f + (Math.random() - 0.5) * err, t: f, life: f }); } sfx('eshot', { g: 'hvy', x: t.x, y: t.y }); }   // 등의 대공포 3문
-      if (t.cd[1] <= 0 && d < 1400) { t.cd[1] = 6; for (let k = 0; k < 3; k++) { const mx = t.x - t.dir * L * 0.8, my = t.y + 12, T = 2.6 + k * 0.25, ux = (p.x + p.vx * T - mx) / T, uy = (p.y + p.vy * T - my + 0.5 * 30 * T * T) / T; EB.push({ x: mx, y: my, vx: ux, vy: uy, life: T + 1.5, why, dmg: 6, aa: false, sp: 1, g: 30, fuse: 1, kind: 'mortar' }); } sfx('boom', { k: 'shell', x: t.x }); }   // 박격포: 포물선으로 날아와 근처에서 터진다
-      if (t.cd[2] <= 0 && d < 700) { t.cd[2] = 2.6; t.burst = 0.8; t.bt = 0; }
-      if (t.burst > 0) { t.burst -= dt; t.bt -= dt; while (t.bt <= 0 && t.burst > 0) { t.bt += 1 / 12; const mx = t.x + t.dir * (L + 2), my = t.y + 5, a = bossLead(mx, my, 520) + (Math.random() - 0.5) * 0.08; bossShot(t, mx, my, a, 520, 0.9); FX.push({ k: 'muz', x: mx, y: my, vx: 0, vy: 0, a, s: 1.8, life: 0.06, t: 0 }); } }   // 머리의 턱 기관포
-    } else if (t.bk === 'whale') {
-      if (t.cd[0] <= 0 && d < 700) { t.cd[0] = 0.85; const tur = [[-36, 26], [-8, 28], [22, 26], [-30, 0], [0, -1], [30, 0]], o = tur[Math.floor(Math.random() * tur.length)], mx = t.x + o[0], my = t.y + 26 + o[1]; for (let k = 0; k < 4; k++) { const a = bossLead(mx, my, 500) + (Math.random() - 0.5) * 0.09; EB.push({ x: mx + Math.cos(a) * k * 4, y: my + Math.sin(a) * k * 4, vx: Math.cos(a) * 500, vy: Math.sin(a) * 500, life: 2.2, why, dmg: 0.7, aa: false, tr: k === 0 }); } if (Math.random() < 0.6) sfx('eshot', { g: 'mg7', x: mx, y: my }); }   // 포탑 6개가 번갈아 쏜다
-      if (t.cd[1] <= 0 && ENE.filter(e => !e.dead).length < 4) { t.cd[1] = 22; spawnEnemy('zero', t.x, t.y + 45, 3); const e = ENE[ENE.length - 1]; e.h = t.dir > 0 ? -0.3 : Math.PI + 0.3; e.v = 70; G.msg = { text: LANG === 'ko' ? '보행 전함의 사출기에서 제로센이 발진했다!' : 'A Zero launched from the Walking Battleship!', until: G.t + 2.5 }; }
-    } else if (t.bk === 'golem') {
-      if (!t.zap && t.cd[0] <= 0 && d < 900) { t.cd[0] = 4.6; t.zap = { ph: 'charge', t: 0, x: 0, y: 0 }; sfx('zapc', { x: t.x }); }   // 번개: 1.2초 동안 빛을 모은 뒤 내리친다 (피할 수 있다)
-      if (t.zap) { const Z = t.zap; Z.t += dt;
-        if (Z.ph === 'charge' && Z.t >= 1.2) { Z.ph = 'strike'; Z.t = 0; Z.x = p.x + p.vx * 0.25; Z.y = p.y + p.vy * 0.25; if (Math.hypot(p.x - Z.x, p.y - Z.y) < 30 && p.mode === 'air') hurt(12, why); FX.push({ k: 'flash', x: Z.x, y: Z.y, vx: 0, vy: 0, life: 0.25, t: 0 }); for (let k = 0; k < 14; k++) FX.push({ k: 'spark', x: Z.x, y: Z.y, vx: (Math.random() - 0.5) * 50, vy: (Math.random() - 0.5) * 50, life: 0.5, t: 0 }); sfx('zap', { x: Z.x }); }
-        else if (Z.ph === 'strike' && Z.t > 0.3) t.zap = null; }
-      if (t.cd[1] <= 0 && d < 1200) { t.cd[1] = 6.5; for (let k = 0; k < 2; k++) EB.push({ x: t.x + (k ? 6 : -6), y: t.y + 30, vx: (k ? 30 : -30), vy: 40, life: 8, why, dmg: 5, aa: false, sp: 1, hm: 1, turn: 0.9, spd: 85, kind: 'orb' }); sfx('zapc', { x: t.x }); }   // 전기 구체 2개
-    } else if (t.bk === 'oni') {
-      if (t.cd[0] <= 0 && d < 900) { t.cd[0] = 3.0; t.fx = 1.5; t.burst = 1.4; t.bt = 0; }   // 몸통 아래 회전 기관포 2문
-      if (t.burst > 0) { t.burst -= dt; t.bt -= dt; while (t.bt <= 0 && t.burst > 0) { t.bt += 1 / 18; t.side = !t.side; const mx = t.x + t.dir * 13, my = t.y + 11.5 + (t.side ? 0.8 : -0.8), a = bossLead(mx, my, 540) + (Math.random() - 0.5) * 0.07; t.aim = a; bossShot(t, mx, my, a, 540, 0.9, { tr: Math.random() < 0.3 }); if (Math.random() < 0.45) sfx('eshot', { g: 'c25', x: mx, y: my }); } }
-      if (t.cd[2] <= 0 && d < 1100) { t.cd[2] = 5.5; t.fx = Math.max(t.fx, 0.8); t.rk = 4; t.rkT = 0; }   // 팔의 로켓 발사기: 4발 일제 사격
-      if (t.rk > 0) { t.rkT -= dt; if (t.rkT <= 0) { t.rkT = 0.14; t.rk--; const mx = t.x + t.dir * 11, my = t.y + 18.4 + (t.rk % 2 ? 0.7 : -0.7), a = bossLead(mx, my, 300) + (Math.random() - 0.5) * 0.06; EB.push({ x: mx, y: my, vx: Math.cos(a) * 300, vy: Math.sin(a) * 300, life: 4, why, dmg: 4, aa: false, sp: 1, kind: 'rocket' }); FX.push({ k: 'smoke', x: mx - t.dir * 3, y: my, vx: -t.dir * 8, vy: 2, life: 0.8, t: 0, s: 1.4 }); sfx('rocket', { x: mx }); } }
-      if (t.cd[1] <= 0 && d < 1500) { t.cd[1] = 10; for (let k = 0; k < 2; k++) EB.push({ x: t.x - t.dir * 4, y: t.y + 25, vx: (k ? 25 : -25), vy: 90, life: 8, why, dmg: 7, aa: false, sp: 1, hm: 1, turn: 1.0, spd: 150, kind: 'missile' }); sfx('rocket', { x: t.x }); }   // 대형 유도 미사일 2발
-    } else if (t.bk === 'dragonfly') {
-      if (t.cd[0] <= 0 && d < 750) { t.cd[0] = 2.8; t.burst = 1.2; t.bt = 0; }   // 턱 개틀링 기총소사
-      if (t.burst > 0) { t.burst -= dt; t.bt -= dt; while (t.bt <= 0 && t.burst > 0) { t.bt += 1 / 22; const mx = t.x + t.dir * 20, my = t.y + 10, a = bossLead(mx, my, 540) + (Math.random() - 0.5) * 0.1; t.aim = a; bossShot(t, mx, my, a, 540, 0.7, { tr: Math.random() < 0.25 }); if (Math.random() < 0.4) sfx('eshot', { g: 'mg7', x: mx, y: my }); } }
-      if (t.cd[1] <= 0 && d < 1100) { t.cd[1] = 8; for (let k = 0; k < 6; k++) { const a = bossLead(t.x, t.y + 12, 300) + (k - 2.5) * 0.05; EB.push({ x: t.x + t.dir * 8, y: t.y + 11 - k * 0.6, vx: Math.cos(a) * 300, vy: Math.sin(a) * 300, life: 4, why, dmg: 4, aa: false, sp: 1, kind: 'rocket' }); } sfx('rocket', { x: t.x }); }   // 로켓 일제 사격
     }
   }
 }
@@ -1306,141 +1272,12 @@ function drawStrider(c, t) {
   c.restore();
   leg(0, false);
 }
-function drawCrawler(c, t) {
-  const L = BOSSES.crawler.w / 2, n = 8, an = t.an || 0;
-  for (let i = 0; i < n; i++) {   // 다리: 마디마다 한 쌍, 물결처럼 차례로 움직인다
-    const x = -L + 4 + i * (2 * L - 8) / (n - 1), ph = an * 2 - i * 0.8, s = Math.sin(ph), lift = Math.max(0, Math.cos(ph)) * 1.4;
-    c.strokeStyle = '#1d2228'; c.lineWidth = 1.1; c.lineCap = 'round'; c.beginPath(); c.moveTo(x, 4.5); c.lineTo(x + 2 + s * 1.5, 3 + lift); c.lineTo(x + 1 + s * 2.4, 0.2 + lift * 0.6); c.stroke();
-  }
-  for (let i = n - 1; i >= 0; i--) {   // 몸 마디: 둥근 장갑 등판
-    const x = -L + 4 + i * (2 * L - 8) / (n - 1), bob = Math.sin(an * 2 - i * 0.8) * 0.35;
-    c.fillStyle = i % 2 ? '#4a5446' : '#525d4d'; c.beginPath(); c.ellipse(x, 6.5 + bob, 5.4, 4.6, 0, 0, 7); c.fill(); c.strokeStyle = '#2a3126'; c.lineWidth = 0.3; c.stroke();
-    c.fillStyle = '#6c7a64'; c.beginPath(); c.ellipse(x - 0.8, 8.8 + bob, 3.2, 1.2, 0, 0, 7); c.fill();
-    c.fillStyle = BCOL.haz; c.fillRect(x - 4.8, 3.2 + bob, 9.6, 0.5);
-  }
-  const ta = t.aim || 0;   // 등의 대공포 3문
-  for (const ox of [-0.5, 0, 0.5]) { const x = ox * L, y = 11.4; c.fillStyle = '#353d34'; c.beginPath(); c.arc(x, y, 1.8, 0, Math.PI); c.fill(); c.save(); c.translate(x, y + 0.6); c.rotate(clamp(t.dir < 0 ? Math.PI - ta : ta, 0.2, Math.PI - 0.2)); c.fillStyle = '#1a1e1a'; c.fillRect(0, -0.35, 5.2, 0.7); c.restore(); }
-  c.save(); c.translate(-L * 0.8, 10); c.rotate(t.dir > 0 ? 0.9 : 0.9); c.fillStyle = '#2b3128'; c.fillRect(-0.9, 0, 1.8, 5); c.fillStyle = '#101310'; c.fillRect(-0.6, 4.8, 1.2, 0.4); c.restore();   // 박격포
-  // 머리: 큰 턱과 붉은 눈 여러 개
-  bPoly(c, [[L - 5, 2.2], [L + 1, 2.6], [L + 4.6, 5.4], [L + 3.8, 10.4], [L - 4.8, 11.2]], '#3d4639', '#20261c');
-  c.fillStyle = '#20251d'; bPoly(c, [[L + 1, 2.2], [L + 6.2, 1.2], [L + 5.4, 3.6]], '#20251d'); bPoly(c, [[L + 2, 5.2], [L + 6.6, 6.4], [L + 3.6, 7]], '#20251d');
-  for (const [x, y] of [[L + 1.8, 8.6], [L + 0.4, 9.4], [L + 2.6, 7.6]]) { bGlow(c, x, y, 1.8, 'rgba(255,70,40,A)', 0.6); c.fillStyle = BCOL.red; c.beginPath(); c.arc(x, y, 0.45, 0, 7); c.fill(); }
-  if (t.burst > 0 && Math.random() < 0.6) { c.fillStyle = 'rgba(255,210,90,0.9)'; c.beginPath(); c.moveTo(L + 5.6, 4.6); c.lineTo(L + 9 + Math.random() * 2, 4.4); c.lineTo(L + 5.6, 3.8); c.fill(); }
-}
-function drawWhale(c, t) {
-  const W2 = BOSSES.whale.w / 2, prop = G.t * 30;
-  const an = t.an || 0, leg = (hx, ph, far) => {   // 코끼리처럼 굵은 다리: 장갑 넓적다리 → 무릎 → 정강이 → 넓적한 발 (대각선 두 다리씩 번갈아 든다)
-    const sn = Math.sin(an + ph), lift = Math.max(0, Math.cos(an + ph)) * 2.2, fx = hx + sn * 4.2, kx = hx + 2.6 + sn * 2.2, ky = 9.4 + lift * 0.5, fy = lift;
-    const col = far ? '#262d35' : '#4c5661', dk = far ? '#1b2027' : '#353d47', ln = '#12161a';
-    bPoly(c, [[hx - 4.8, 18], [hx + 4.8, 18], [kx + 3.4, ky + 0.6], [kx - 2.8, ky - 0.8]], col, ln);   // 넓적다리 장갑
-    bPoly(c, [[kx - 2.8, ky], [kx + 3, ky], [fx + 2.8, fy + 2.4], [fx - 2.6, fy + 2.4]], dk, ln);   // 정강이
-    c.strokeStyle = far ? '#3a424b' : '#9aa3ad'; c.lineWidth = 0.55; c.beginPath(); c.moveTo(hx - 3.4, 16.6); c.lineTo(kx - 1.8, ky + 1.2); c.stroke();   // 유압 실린더
-    c.fillStyle = far ? '#14181d' : '#262d35'; c.beginPath(); c.arc(kx, ky, 2.3, 0, 7); c.fill(); c.fillStyle = far ? '#2a3139' : '#6a7581'; c.beginPath(); c.arc(kx, ky, 0.8, 0, 7); c.fill();   // 무릎 관절
-    bPoly(c, [[fx - 4.8, fy], [fx + 5.4, fy], [fx + 4.4, fy + 2.8], [fx - 4, fy + 2.8]], far ? '#1b2026' : '#3b444e', ln);   // 넓적한 발
-    c.fillStyle = far ? '#101316' : '#1c2127'; for (const dx of [2.4, 4, 5.4]) c.fillRect(fx + dx - 0.5, fy, 1, 0.9);   // 발가락 장갑
-    if (!far) { c.fillStyle = BCOL.haz; c.fillRect(hx - 4.2, 16.8, 8.4, 0.5); }
-  };
-  leg(36, Math.PI, true); leg(-26, 0, true);   // 먼 쪽 다리 2개
-  c.save(); c.translate(0, 26 + Math.abs(Math.sin(an)) * 0.6);   // 선체는 다리 위 26m 에 실려 흔들린다
-  // 꼬리 지느러미와 수직 날개
-  bPoly(c, [[-W2 + 6, 2], [-W2 - 8, 13], [-W2 - 4, 2], [-W2 - 9, -8]], '#3c4550', '#1f262d');
-  bPoly(c, [[-W2 + 12, 9], [-W2 + 2, 20], [-W2 + 8, 9]], '#46505b');
-  // 몸통: 길쭉한 고래형 장갑 비행선
-  c.beginPath(); c.moveTo(W2, 0); c.bezierCurveTo(W2, 10, W2 - 18, 15, -W2 * 0.3, 14); c.bezierCurveTo(-W2 + 8, 13, -W2 + 2, 6, -W2 + 4, 0); c.bezierCurveTo(-W2 + 4, -7, -W2 + 20, -11, -W2 * 0.2, -11); c.bezierCurveTo(W2 - 18, -11, W2, -7, W2, 0); c.closePath();
-  const g = c.createLinearGradient(0, 15, 0, -11); g.addColorStop(0, '#6a7682'); g.addColorStop(0.5, '#4c5763'); g.addColorStop(1, '#2c343d'); c.fillStyle = g; c.fill(); c.strokeStyle = '#1b2127'; c.lineWidth = 0.4; c.stroke();
-  for (let k = -4; k <= 4; k++) { c.strokeStyle = 'rgba(20,26,32,0.45)'; c.lineWidth = 0.25; c.beginPath(); c.moveTo(k * 11, 13.4); c.lineTo(k * 11 + 1, -10.4); c.stroke(); }   // 장갑판 이음
-  c.fillStyle = '#c8262c'; c.beginPath(); c.arc(-W2 + 16, 5, 3.2, 0, 7); c.fill(); c.fillStyle = '#f4f4f0'; c.beginPath(); c.arc(-W2 + 16, 5, 4.2, 0, 7); c.fill(); c.fillStyle = '#c8262c'; c.beginPath(); c.arc(-W2 + 16, 5, 3, 0, 7); c.fill();
-  // 앞의 함교 창과 아래 곤돌라·격납고
-  for (let k = 0; k < 6; k++) { c.fillStyle = 'rgba(255,220,140,' + (0.55 + 0.3 * Math.sin(G.t * 2 + k)) + ')'; c.fillRect(W2 - 16 + k * 2.2, 4, 1.4, 1.4); }
-  bPoly(c, [[-14, -10.5], [14, -10.5], [11, -15], [-11, -15]], '#353e48', '#1b2127'); c.fillStyle = '#0d1116'; c.fillRect(-8, -14.6, 16, 2.4);
-  // 포탑 6개
-  for (const [x, y] of [[-36, 14], [-8, 16], [22, 14], [-30, -12], [0, -13.5], [30, -12]]) { c.fillStyle = '#2a3139'; c.beginPath(); c.arc(x, y, 2, 0, 7); c.fill(); c.save(); c.translate(x, y); c.rotate(Math.atan2(p.y - (t.y + 26 + y), (p.x - (t.x + x * t.dir)) * t.dir)); c.fillStyle = '#11151a'; c.fillRect(0, -0.4, 4.6, 0.8); c.restore(); }
-  for (const x of [-W2 + 30, -W2 + 40]) { bPoly(c, [[x - 1.6, 12], [x + 1.6, 12], [x + 1.3, 19], [x - 1.3, 19]], '#2a3139', '#151a20'); if (Math.random() < 0.3) FX.push({ k: 'smoke', x: t.x + (t.dir < 0 ? -x : x), y: t.y + 26 + 19.5, vx: -2, vy: 5, life: 1.4, t: 0, s: 1.6 }); }   // 배기 굴뚝 (연기)
-  bPoly(c, [[-37, -9.2], [-23, -9.2], [-24.5, -11.6], [-35.5, -11.6]], '#2b323a', '#151a20'); bPoly(c, [[23, -9.2], [37, -9.2], [35.5, -11.6], [24.5, -11.6]], '#2b323a', '#151a20');   // 다리가 붙는 엉덩이 관절 덮개
-  c.restore();
-  leg(-31, Math.PI, false); leg(31, 0, false);   // 가까운 쪽 다리 2개
-}
-function drawGolem(c, t) {
-  const an = t.an || 0, s = Math.sin(an), z = t.zap, glow = z && z.ph === 'charge' ? z.t / 1.2 : 0;
-  const leg = (ph, far) => { const sw = Math.sin(an + ph) * 2.4, lift = Math.max(0, Math.cos(an + ph)) * 1.2; bPoly(c, [[-2.2 + sw * 0.4, 13], [2.2 + sw * 0.4, 13], [2.6 + sw, 1 + lift], [-2.6 + sw, 1 + lift]], far ? '#272d38' : '#3c4454', '#151a22'); bPoly(c, [[-3.2 + sw, 1 + lift], [4 + sw, 1 + lift], [4 + sw, -0.2 + lift], [-3.4 + sw, -0.2 + lift]], '#1d222b'); c.fillStyle = far ? '#5a3fb0' : '#7c5cff'; c.fillRect(-0.4 + sw * 0.7, 6 + lift * 0.5, 0.8, 3); };
-  leg(Math.PI, true);
-  c.save(); c.translate(0, Math.abs(s) * 0.4);
-  const arm = (ph, far) => { const sw = Math.sin(an + ph) * 0.35; c.save(); c.translate(-2.2, 26); c.rotate(-0.12 + sw); bPoly(c, [[-1.8, 0], [1.8, 0], [2.6, -12], [-2.6, -12]], far ? '#272d38' : '#424b5c', '#151a22'); bPoly(c, [[-3, -12], [3, -12], [3.6, -15.5], [-3.6, -15.5]], '#2a303c'); c.fillStyle = 'rgba(160,140,255,' + (0.4 + glow * 0.6) + ')'; c.fillRect(-2.4, -15, 4.8, 0.7); c.restore(); };
-  arm(Math.PI, true);
-  bPoly(c, [[-6.2, 13], [6.2, 13], [7.8, 22], [6.6, 27.4], [-6.6, 27.4], [-7.8, 22]], '#3a4252', '#151a22');   // 몸통
-  bPoly(c, [[3.6, 16.5], [7.6, 17.5], [8.2, 23.5], [4.2, 24.5]], '#4a5366', '#151a22'); bGlow(c, 5.8, 20.6, 6 + glow * 4, 'rgba(140,120,255,A)', 0.55 + 0.3 * Math.sin(G.t * 5) + glow * 0.4); c.fillStyle = '#e8e2ff'; c.beginPath(); c.arc(5.8, 20.6, 1.5 + glow, 0, 7); c.fill();   // 가슴 앞쪽의 핵   // 가슴의 핵
-  bPoly(c, [[-3, 27.4], [3.4, 27.4], [3.2, 31.2], [-2.8, 31.2]], '#454e60', '#151a22'); c.fillStyle = '#0c0f14'; c.fillRect(-1.6, 29, 4.6, 1); c.fillStyle = 'rgba(190,170,255,0.95)'; c.fillRect(0.2, 29.2, 2.6, 0.6);   // 머리와 눈
-  for (const sx0 of [-5.4, 5.4]) {   // 어깨의 테슬라 코일
-    c.fillStyle = '#2a303c'; c.fillRect(sx0 - 0.9, 27.4, 1.8, 4); for (let k = 0; k < 3; k++) { c.fillStyle = '#b07a3a'; c.beginPath(); c.ellipse(sx0, 28.6 + k * 1.1, 1.6 - k * 0.25, 0.35, 0, 0, 7); c.fill(); }
-    c.fillStyle = '#d6d0ff'; c.beginPath(); c.arc(sx0, 32, 0.9 + glow * 0.8, 0, 7); c.fill(); bGlow(c, sx0, 32, 3 + glow * 6, 'rgba(160,150,255,A)', 0.4 + glow * 0.6);
-    if (glow > 0.2) { c.strokeStyle = 'rgba(220,215,255,0.9)'; c.lineWidth = 0.25; c.beginPath(); let x = sx0, y = 32; c.moveTo(x, y); for (let k = 0; k < 4; k++) { x += (Math.random() - 0.5) * 3; y += Math.random() * 1.6; c.lineTo(x, y); } c.stroke(); }
-  }
-  c.restore();
-  arm(0, false); leg(0, false);
-}
-function drawDragonfly(c, t) {
-  const W2 = BOSSES.dragonfly.w / 2, r = G.t * 40, an = t.an || 0;
-  const leg = (hx, ph, far) => {   // 곤충 다리: 몸에서 위로 꺾인 무릎, 아래로 뻗은 정강이 (걸을 때 번갈아 든다)
-    const sw = Math.sin(an * 1.6 + ph) * 2.2, lift = Math.max(0, Math.cos(an * 1.6 + ph)) * 1.4, kx = hx + sw * 0.5 + (hx > 0 ? 2.5 : -2.5), fx = hx + sw + (hx > 0 ? 4.5 : -4.5);
-    c.strokeStyle = far ? '#232a3a' : '#3a4560'; c.lineCap = 'round'; c.lineWidth = far ? 1.1 : 1.4; c.beginPath(); c.moveTo(hx, 12.5); c.lineTo(kx, 17.5); c.lineTo(fx, lift); c.stroke();
-    c.fillStyle = far ? '#1b2130' : '#2c3550'; c.beginPath(); c.arc(kx, 17.5, far ? 0.8 : 1, 0, 7); c.fill(); c.fillRect(fx - 1.1, lift - 0.2, 2.2, 0.6);   // 무릎 관절과 발
-  };
-  leg(-5, 0, true); leg(3, Math.PI * 0.66, true); leg(11, Math.PI * 1.33, true);   // 먼 쪽 다리 3개
-  c.save(); c.translate(0, 7 + Math.abs(Math.sin(an * 1.6)) * 0.3);   // 몸은 다리 위로 7m 들려 있다
-  for (const [x, a] of [[2, 0.12], [-4, 0.2]]) { c.fillStyle = 'rgba(200,220,240,0.32)'; c.beginPath(); c.ellipse(x - 8, 12.6, 10, 1.5, a, 0, 7); c.fill(); c.strokeStyle = 'rgba(40,50,70,0.5)'; c.lineWidth = 0.25; c.stroke(); }   // 등 위에 접은 날개
-  // 꼬리: 마디가 이어진 긴 꼬리
-  for (let k = 0; k < 8; k++) { const x = -6 - k * 2.7, y = 8 + Math.sin(G.t * 2 + k * 0.5) * 0.3 - k * 0.15; c.fillStyle = k % 2 ? '#44506a' : '#3a4560'; c.beginPath(); c.ellipse(x, y, 1.7, 1.2 - k * 0.06, 0, 0, 7); c.fill(); }
-  bPoly(c, [[-W2 + 2, 7], [-W2 - 3, 12], [-W2 - 1, 7], [-W2 - 3, 3]], '#2f3a52');
-  // 몸통과 둥근 조종석 유리
-  bPoly(c, [[-8, 5.5], [10, 5], [16, 7], [16, 10.5], [8, 12], [-8, 11]], '#4a5878', '#1c2333');
-  c.fillStyle = 'rgba(150,220,255,0.55)'; c.beginPath(); c.ellipse(17.5, 8.8, 5, 4, 0, 0, 7); c.fill(); c.strokeStyle = '#1c2333'; c.lineWidth = 0.4; c.stroke(); c.fillStyle = 'rgba(255,255,255,0.4)'; c.beginPath(); c.ellipse(18.6, 10.2, 1.8, 0.9, 0.4, 0, 7); c.fill();
-  c.fillStyle = BCOL.haz; c.fillRect(-6, 5.6, 14, 0.5);
-  // 턱 개틀링 (조준 방향)
-  const ra = clamp(t.aim !== undefined ? (t.dir > 0 ? angd(t.aim, 0) : angd(Math.PI, t.aim)) : -0.2, -0.9, 0.4); c.save(); c.translate(17, 4.4); c.rotate(ra); c.fillStyle = '#1b2029'; c.fillRect(0, -0.7, 5, 1.4); c.fillStyle = '#2c3340'; c.beginPath(); c.arc(0, 0, 1.3, 0, 7); c.fill();
-  if (t.burst > 0 && Math.random() < 0.7) { c.fillStyle = 'rgba(255,220,110,0.95)'; c.beginPath(); c.moveTo(5, -0.8); c.lineTo(8 + Math.random() * 2, 0); c.lineTo(5, 0.8); c.fill(); } c.restore();
-  // 로켓 포드
-  c.fillStyle = '#262d3a'; c.fillRect(2, 3.6, 7, 1.8); for (let k = 0; k < 3; k++) { c.fillStyle = '#0d1016'; c.beginPath(); c.arc(9, 3.9 + k * 0.6, 0.25, 0, 7); c.fill(); }
-  c.restore(); leg(-7, Math.PI, false); leg(1, Math.PI * 1.66, false); leg(9, Math.PI * 0.33, false);   // 가까운 쪽 다리 3개
-}
-function drawOni(c, t) {   // 강철 오니: 둥근 장갑 등딱지, 굵은 역관절 다리와 세 발가락, 몸통 아래 회전 기관포 2문, 앞쪽 화염방사기
-  const an = t.an || 0, leg = (ph, far) => {
-    const s = Math.sin(an + ph), lift = Math.max(0, Math.cos(an + ph)) * 1.4, hx = -1 + s * 1.2, kx = 3.4 + s * 2, ky = 7.6 + lift * 0.4, ax = -0.6 + s * 3, ay = 1.8 + lift, col = far ? '#2a3037' : '#56616c', dk = far ? '#1d2227' : '#3b444d';
-    bPoly(c, [[hx - 3, 12.6], [hx + 3, 12.6], [kx + 2.4, ky + 0.6], [kx - 1.2, ky - 1]], col, '#161a1e');   // 굵은 넓적다리 장갑
-    bPoly(c, [[kx - 1.8, ky], [kx + 2, ky], [ax + 1.6, ay + 0.4], [ax - 1.6, ay + 0.4]], dk, '#161a1e');
-    c.fillStyle = far ? '#14181b' : '#23292e'; c.beginPath(); c.arc(kx, ky, 1.5, 0, 7); c.fill(); c.strokeStyle = '#0f1214'; c.lineWidth = 0.45; c.beginPath(); c.moveTo(hx + 1, 12); c.lineTo(kx + 0.4, ky + 1.2); c.stroke();
-    for (const [dx, w] of [[-2.4, 2.2], [0.2, 2.4], [2.8, 2.6]]) bPoly(c, [[ax + dx - w / 2, ay - 1.6 + lift * 0.3], [ax + dx + w / 2, ay - 1.6 + lift * 0.3], [ax + dx + w / 2 + 0.5, ay - 0.2], [ax + dx - w / 2, ay - 0.2]], far ? '#1b2024' : '#3f4850', '#121518');   // 세 발가락
-  };
-  leg(Math.PI, true);
-  c.save(); c.translate(0, Math.abs(Math.sin(an)) * 0.5);
-  for (const x of [-7.6, -6]) { c.fillStyle = '#2b2f33'; c.fillRect(x, 19, 0.9, 5); if (Math.random() < 0.08) FX.push({ k: 'smoke', x: t.x + x * t.dir, y: t.y + 24.5, vx: -1, vy: 4, life: 1.2, t: 0, s: 1 }); }   // 등의 배기관
-  bPoly(c, [[-9.5, 12.4], [10.5, 12.4], [11.6, 15], [-10.2, 15]], '#3b444d', '#161a1e');   // 몸통 아랫단
-  c.beginPath(); c.moveTo(-10.2, 15); c.bezierCurveTo(-10.6, 24, 9, 25.6, 11.8, 16.2); c.lineTo(11.6, 15); c.closePath();   // 둥근 등딱지
-  const g = c.createLinearGradient(0, 25, 0, 15); g.addColorStop(0, '#2a2f35'); g.addColorStop(0.6, '#3a4048'); g.addColorStop(1, '#4c545d'); c.fillStyle = g; c.fill(); c.strokeStyle = '#121518'; c.lineWidth = 0.3; c.stroke();
-  for (let k = 0; k < 7; k++) { const x = -8 + k * 2.8; c.strokeStyle = 'rgba(10,12,14,0.5)'; c.lineWidth = 0.22; c.beginPath(); c.moveTo(x, 15.2); c.quadraticCurveTo(x + 0.6, 20 + Math.sin(k) * 0.6, x + 1.2, 22.5 - Math.abs(k - 3) * 0.7); c.stroke(); }   // 장갑판 무늬
-  bPoly(c, [[-10.2, 15], [11.6, 15], [11.5, 16.1], [-10.3, 16.1]], '#56603f');   // 국방색 띠
-  for (let k = 0; k < 5; k++) bPoly(c, [[2 + k * 1.8, 12.6], [3 + k * 1.8, 12.6], [3.8 + k * 1.8, 14.6], [2.8 + k * 1.8, 14.6]], k % 2 ? '#141414' : BCOL.haz);
-  const eye = 0.5 + 0.3 * Math.sin(G.t * 4); c.fillStyle = '#181c20'; c.beginPath(); c.ellipse(9.2, 17.6, 2.2, 1.6, 0.3, 0, 7); c.fill(); bGlow(c, 9.6, 17.8, 3.2, 'rgba(255,40,30,A)', eye); c.fillStyle = BCOL.red; c.beginPath(); c.arc(9.6 + Math.sin(G.t * 1.3) * 0.5, 17.8, 0.7, 0, 7); c.fill();   // 붉은 감지 눈
-  for (const [x, y] of [[-7, 18], [-3.5, 21], [0.5, 22.4], [4.5, 21.6], [-8.2, 13.6], [7.5, 13.6]]) { c.fillStyle = '#2a3036'; c.beginPath(); c.arc(x, y, 0.3, 0, 7); c.fill(); }
-  // 몸통 아래 회전 기관포 2문 (조준 방향을 따라 움직인다)
-  const ra = clamp(t.aim !== undefined ? (t.dir > 0 ? angd(t.aim, 0) : angd(Math.PI, t.aim)) : 0, -0.6, 0.6), fire = t.burst > 0, spin = G.t * (fire ? 40 : 2);
-  for (const oy of [0.8, -0.8]) { c.save(); c.translate(6, 11.6 + oy); c.rotate(ra); c.fillStyle = '#20252a'; c.fillRect(-1.5, -0.9, 4, 1.8); c.fillStyle = '#121518'; for (let k = 0; k < 3; k++) c.fillRect(2.5, -0.7 + ((k + spin) % 3) * 0.5, 5.6, 0.35);
-    if (fire && Math.random() < 0.6) { c.fillStyle = 'rgba(255,215,100,0.95)'; c.beginPath(); c.moveTo(8, -0.9); c.lineTo(11 + Math.random() * 2, 0); c.lineTo(8, 0.9); c.fill(); } c.restore(); }
-  // 옆구리 팔의 로켓 발사기 (사각 상자에 발사관 6개)
-  c.fillStyle = '#2a3036'; c.fillRect(3.4, 17.2, 2.2, 2.4); bPoly(c, [[4.4, 16.6], [11.4, 16.6], [11.8, 17.2], [11.8, 20.4], [4.4, 20.4]], '#48525c', '#14181b'); for (let k = 0; k < 6; k++) { c.fillStyle = t.rk > 0 && k === (t.rk % 6) ? '#ffb040' : '#0f1214'; c.beginPath(); c.arc(11.4, 17.3 + (k % 3) * 1.05, 0.38, 0, 7); c.fill(); } c.fillStyle = BCOL.haz; c.fillRect(4.6, 20, 7, 0.35);
-  c.restore();
-  leg(0, false);
-}
-const BOSS_DRAW = { oni: drawOni, strider: drawStrider, crawler: drawCrawler, whale: drawWhale, golem: drawGolem, dragonfly: drawDragonfly };
+const BOSS_DRAW = { strider: drawStrider };
 function drawBosses(c) {
   for (const t of TARGETS) {
     if (!t.boss || t.gone) continue; const B = BOSSES[t.bk]; if (Math.abs(t.x - cam.x) > W / cam.z / 2 + B.w) continue;
     world(t.x, t.y, () => { if (t.dir < 0) c.scale(-1, 1); if (t.tilt) { if (B.fly) c.rotate(-t.tilt); else { c.translate(0, -t.tilt * 3); c.rotate(-t.tilt * 0.35); } } if (!t.alive) c.filter = 'brightness(0.45) saturate(0.5)'; BOSS_DRAW[t.bk](c, t); c.filter = 'none';
       if (t.alive && G.t - (t.hitAt || -9) < 0.06) { c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.25; BOSS_DRAW[t.bk](c, t); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; } });   // 맞으면 번쩍
-    if (t.zap && t.zap.ph === 'strike') {   // 번개 줄기
-      const Z = t.zap, x0 = sx(t.x + 5.4 * (t.dir < 0 ? -1 : 1)), y0 = sy(t.y + 32), x1 = sx(Z.x), y1 = sy(Z.y); c.save(); c.strokeStyle = 'rgba(230,225,255,0.95)'; c.shadowColor = '#9f8cff'; c.shadowBlur = 18; c.lineWidth = Math.max(2, 0.8 * cam.z);
-      for (let rep = 0; rep < 2; rep++) { c.beginPath(); c.moveTo(x0, y0); const n = 9; for (let k = 1; k < n; k++) { const f = k / n; c.lineTo(x0 + (x1 - x0) * f + (Math.random() - 0.5) * 30, y0 + (y1 - y0) * f + (Math.random() - 0.5) * 30); } c.lineTo(x1, y1); c.stroke(); c.lineWidth *= 0.5; } c.restore();
-    }
-    if (t.zap && t.zap.ph === 'charge') { const X = sx(p.x), Y = sy(p.y), k = t.zap.t / 1.2; c.save(); c.strokeStyle = 'rgba(180,160,255,' + (0.3 + 0.5 * k) + ')'; c.lineWidth = 2; c.setLineDash([6, 6]); c.beginPath(); c.arc(X, Y, (36 - 18 * k) * Math.max(1, cam.z * 0.4), 0, 7); c.stroke(); c.restore(); }   // 번개가 떨어질 자리 경고
   }
   drawBossShots(c);
 }
@@ -2381,7 +2218,7 @@ function missionStep(dt) {
   m.t += dt;
   while (m.wave < M.waves.length && m.t >= M.waves[m.wave].t) spawnWave(M.waves[m.wave++].l);
   if (G.scene === 'play' && !m.bp) { const L = M.lvl || (G.mi + 1) || 1; m.bp = { t: G.forceBoss ? 8 : M.goal !== 'train' && Math.random() < (L >= 3 ? 0.35 : 0.15) ? 40 + Math.random() * 100 : 1e9 }; }   // 가끔 보스가 나타난다 (레벨 3부터 35%)
-  if (G.scene === 'play' && !m.bossDone && m.t > m.bp.t && p.mode === 'air') { m.bossDone = true; spawnRandomBoss(typeof G.forceBoss === 'string' ? G.forceBoss : null); }
+  if (G.scene === 'play' && !m.bossDone && m.t > m.bp.t && p.mode === 'air') { m.bossDone = true; spawnRandomBoss(typeof G.forceBoss === 'string' && BOSSES[G.forceBoss] ? G.forceBoss : null); }
   if (M.goal === 'duel' && !m.boss && m.t > 5) {   // 에이스 등장: 계급 5, 체력 3배, 끝까지 쫓아온다
     const sd = p.mode === 'air' ? (p.vx >= 0 ? 1 : -1) : (Math.random() < 0.5 ? 1 : -1); spawnEnemy(M.aceType || 'ace', p.x + sd * 2400, 320, 5); const e = ENE[ENE.length - 1];   // 내가 날아가는 앞쪽에서 마주 보고 온다
     e.boss = true; e.name = M.aceName; e.hp = e.hpM = Math.max(18, e.hp * 3); e.h = sd > 0 ? Math.PI : 0; m.boss = e;

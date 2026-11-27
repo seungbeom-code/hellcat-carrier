@@ -29,7 +29,7 @@ const SHIP_V = 11;                 // 갑판 맞바람 30노트
 let DECK_Y = 20, shipBob = 0; const DECK_Y0 = 20, DECK_L = 520, WH = 3.2, CS = DECK_L / 260, ISL_DX = 124;   // 갑판 길이는 예전의 2배 (선체 그림은 가로로 2배로 늘이고, 함교는 그대로 두고 자리만 옮긴다)   // 갑판 높이, 길이, 바퀴 밑까지 거리
 const ZONE_B = 240, ZONE_A = 85, ZONE_L = ZONE_B - ZONE_A;   // 어레스팅 와이어 구역: 와이어 3개 (예전 4개에서 선미 쪽 하나를 줄여 함 중앙 쪽으로 좁혔다)
 const WIRES = [0, 1, 2].map(i => ZONE_A + 10 + i * (ZONE_L - 20) / 2);
-const LIGHT = 2;   // 기체의 가벼움: 조종간에 비행 경로가 2배 빨리 휜다 (속도·실속 속도는 그대로)
+const LIGHT = 2, DIVE_K = 1.5;   // 기체의 가벼움: 조종간에 비행 경로가 2배 빨리 휜다 (속도·실속 속도는 그대로). ▼로 내려갈 때는 거기서 1.5배 더 빨리
 const TURN_T = 1.6;   // 선회에 걸리는 시간(초): 가벼워져서 예전(3.2초)의 절반
 const HOOK_BACK = 7.5, CRUISE_KT = 270, SLOW_KT = 180, APP_KT = 120;   // 후크 끝 위치, 손을 뗐을 때 순항 속도, 항모 근처 접근 속도
 const MIN_KT = 150;   // 날고 있을 때(바퀴를 올린 상태) 속도는 이 아래로 떨어지지 않는다. 방향 전환 중에도 마찬가지
@@ -197,7 +197,8 @@ function airStep(dt) {
   aw += (120 * (aCmd - al) - 19 * aw) * dt; al = clamp(al + aw * dt, -0.6, 0.6); p.aw = aw;
   const f = aero(V, al), h = p.y - surfaceUnder(), ge = 1 + 0.1 * clamp(1 - Math.max(0, h) / 8, 0, 1);   // 땅(갑판)에 가까우면 지면 효과로 양력이 조금 늘어난다
   const th = gam + al, ux = vf / V, uy = vy / V, aL = f.aL * ge;
-  const exL = p.stalled ? 0 : (LIGHT - 1) * (aL - GRAV * Math.cos(gam));   // 가벼운 만큼 남는 힘이 더 크게 경로를 휜다
+  p.lk = (p.lk || LIGHT) + (LIGHT * (p.gear || G.auto || p === WP ? 1 : 1 + (DIVE_K - 1) * clamp(-p.in, 0, 1)) - (p.lk || LIGHT)) * Math.min(1, dt * 8);   // ▼를 누르는 만큼 더 가볍게 (직접 조종할 때만: 바퀴를 내린 착함 접근·자동조종은 그대로)
+  const exL = p.stalled ? 0 : (p.lk - 1) * (aL - GRAV * Math.cos(gam));   // 가벼운 만큼 남는 힘이 더 크게 경로를 휜다
   vf += (f.aT * Math.cos(th) - f.aD * ux - (aL + exL) * uy) * dt;
   vy += (f.aT * Math.sin(th) - f.aD * uy + (aL + exL) * ux - GRAV) * dt;
   if (!p.gear && !p.stalled) {   // 약한 난기류: 몇 초마다 바뀌는 위아래 바람. 낮게·빠르게 날수록 조금 더 흔들린다 (착함 접근 중에는 없다)

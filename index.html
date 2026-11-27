@@ -280,9 +280,39 @@ function lsoSignal() {
   return 'ROGER';
 }
 
+// ───────── 치트키: 무적, 무기 무제한 (일시정지 화면의 버튼, 또는 일시정지 중에 GOD / AMMO 입력) ─────────
+const CHEAT = (() => { const d = { god: false, ammo: false }; try { return Object.assign(d, JSON.parse(localStorage.getItem('hcCheat') || '{}')); } catch (e) { return d; } })();
+const CHEAT_BTN = [{ k: 'god', x: 290, y: 318, w: 180, h: 56 }, { k: 'ammo', x: 490, y: 318, w: 180, h: 56 }];
+const CHEAT_NAME = { god: ['Invincible', '무적'], ammo: ['Unlimited weapons', '무기 무제한'] };
+function cheatSet(k, v) {
+  CHEAT[k] = v; try { localStorage.setItem('hcCheat', JSON.stringify(CHEAT)); } catch (e) {}
+  sfx('clunk'); const ko = LANG === 'ko'; chatPush((ko ? '치트 ' : 'Cheat: ') + CHEAT_NAME[k][ko ? 1 : 0] + (v ? ' ON' : ' OFF'), { col: '#ff9d3c', life: 4 });
+  if (k === 'ammo' && v) cheatAmmo();
+}
+function cheatType(ch) {   // 일시정지 중에 글자를 치면: GOD → 무적, AMMO → 무기 무제한
+  G.cheatBuf = ((G.cheatBuf || '') + ch).slice(-6);
+  if (G.cheatBuf.endsWith('GOD')) { cheatSet('god', !CHEAT.god); G.cheatBuf = ''; }
+  else if (G.cheatBuf.endsWith('AMMO')) { cheatSet('ammo', !CHEAT.ammo); G.cheatBuf = ''; }
+}
+function cheatAmmo() {   // 무기 무제한: 총알·로켓·폭탄이 줄지 않는다 (안 실었으면 12발씩 준다)
+  if (!CHEAT.ammo || G.scene !== 'play' || hangarOpen()) return;
+  p.ammo.gun = Math.max(p.ammo.gun, 2000); p.ammo.rk = Math.max(p.ammo.rk, 12); p.ammo.bm = Math.max(p.ammo.bm, 12); if (p.ammo.tp > 0) p.ammo.tp = Math.max(p.ammo.tp, 4);
+  p.loaded = Object.assign(p.loaded || {}, { rk: true, bm: true });
+}
+function godBounce() {   // 무적: 땅·바다·배에 부딪히면 부서지지 않고 위로 튕겨 오른다 (공중의 보스에 부딪히면 그냥 지나간다)
+  const xr = p.x - ship.x; let y = Math.max(0, gh(p.x)) + 8;
+  if (xr > -12 && xr < DECK_L + 12) y = Math.max(y, DECK_Y + 12);
+  for (const t of TARGETS) if (t.alive && SHIPS[t.type] && Math.abs(p.x - t.x) < BOX[t.type].w * 0.5) y = Math.max(y, t.y + HULL_H[t.type] + 8);
+  if (p.y > y + 25) return;
+  p.y = Math.max(p.y, y); p.prevY = p.y; p.vy = Math.max(p.vy, 14); p.hp = 100;
+  if (p.turn <= 0) p.th = p.s > 0 ? 0.25 : Math.PI - 0.25;
+  if (G.t - (G.godT || -9) > 0.8) { G.godT = G.t; sfx('thump'); for (let i = 0; i < 8; i++) FX.push({ k: 'spark', x: p.x, y: p.y - 2, vx: (Math.random() - 0.5) * 20, vy: 3 + Math.random() * 8, life: 0.4, t: 0 }); }
+}
+
 // ───────── 접지, 충돌, 판정 ─────────
 // 갑판에서 착함 실패: 아주 빠르거나 아주 세게 부딪히면 폭발, 아니면 미끄러지며 부서지고 연기만 난다
 function deckFail(why) {
+  if (CHEAT.god && p !== WP && p.mode === 'air') { godBounce(); return; }
   if (kts() > LAND_KT + 30 || p.vy < -LAND_SINK * 2) return crash(why);
   G.lives--; if (G.m) G.m.crashes++; p.crashWhy = why;
   p.mode = 'dslide'; p.xr = p.x - ship.x; p.vr = p.vx - ship.v; p.y = DECK_Y + WH; p.vy = 0; p.turn = 0; p.slT = 0; p.gear = false; p.hook = false;
@@ -303,6 +333,7 @@ function dslideStep(dt) {   // 동체로 갑판 위를 미끄러진다: 불꽃, 
   }
 }
 function crash(why, ditch) {
+  if (CHEAT.god && p !== WP && p.mode === 'air' && !G.result) { godBounce(); return; }
   const xr = p.x - ship.x, onShip = xr > -12 && xr < DECK_L + 12 && p.y < DECK_Y + 30;
   if (!ditch && p.mode === 'air' && !onShip && p.y > 3) {   // 바로 터지지 않는다: 떨어지거나(공중) 땅에 닿으면 관성으로 미끄러진다
     G.lives--; if (G.m) G.m.crashes++; p.crashWhy = why; p.slT = 0; p.slHit = new Set(); p.gear = false; p.hook = false;
@@ -1476,13 +1507,14 @@ function drawLoot(c) {   // 떨어진 아이템: 등급 색 빛무리, 희귀 �
   for (const f of FLOATS) { const a = clamp(1 - f.t / f.life, 0, 1), X = sx(f.x), Y = sy(f.y); if (X < -60 || X > W + 60) continue; c.save(); c.globalAlpha = a; c.font = '800 ' + Math.round(clamp(4 * cam.z, 12, 18)) + 'px system-ui,sans-serif'; c.textAlign = 'center'; c.textBaseline = 'alphabetic'; c.lineWidth = 3; c.strokeStyle = 'rgba(20,12,0,0.8)'; c.strokeText(f.text, X, Y); c.fillStyle = f.col; c.fillText(f.text, X, Y); c.restore(); }
 }
 // ───────── 채팅창: 아이템 획득·안내·알림·속보를 화면 아래쪽 가운데에 반투명한 줄로 쌓는다 (새 줄은 아래, 오래된 줄은 흐려지며 사라진다) ─────────
+const CT = () => performance.now() / 1000;   // 채팅창 시계: 일시정지 중에도 흐른다
 const CHAT = [], CHAT_MAX = 6, CHAT_W = 470, CHAT_LH = 21;
 const GRADE_COL = { green: '#59d37a', yellow: '#ffd23f', brown: '#c9925a', red: '#ff5a3c' };
 function chatPush(text, o) {   // o: { col: 점 색, tag: 앞에 붙는 꼬리표, tagCol, life: 보이는 시간, gold: 전설 }
   text = tr(String(text || '')).trim(); if (!text) return;
-  const same = CHAT.find(l => l.text === text && G.t - l.t0 < l.life);   // 같은 글이 아직 보이면 새로 올리지 않고 시간만 늘린다
-  if (same) { same.t0 = G.t; return; }
-  CHAT.push(Object.assign({ text, col: '#cfd8e3', life: 6, t0: G.t }, o || {})); while (CHAT.length > CHAT_MAX) CHAT.shift();
+  const same = CHAT.find(l => l.text === text && CT() - l.t0 < l.life);   // 같은 글이 아직 보이면 새로 올리지 않고 시간만 늘린다
+  if (same) { same.t0 = CT(); return; }
+  CHAT.push(Object.assign({ text, col: '#cfd8e3', life: 6, t0: CT() }, o || {})); while (CHAT.length > CHAT_MAX) CHAT.shift();
 }
 function chatCollect() {   // 게임 곳곳에서 정한 알림을 채팅창 줄로 모은다
   const ko = LANG === 'ko';
@@ -1500,16 +1532,32 @@ function chatWrap(c, text, maxW) {   // 긴 글은 낱말 단위로 여러 줄�
   for (const w of text.split(' ')) { const t = cur ? cur + ' ' + w : w; if (cur && c.measureText(t).width > maxW) { out.push(cur); cur = w; } else cur = t; }
   if (cur) out.push(cur); return out;
 }
+function drawCheat(m) {
+  if (G.scene !== 'play') return; const c = ctx0, ko = LANG === 'ko'; c.save(); c.setTransform(m);
+  if (G.paused && !G.askQuit && !G.quiet && !hangarOpen()) {
+    c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = '700 13px system-ui,sans-serif'; c.fillStyle = '#ffc890'; c.fillText(ko ? '치트키 (누르면 켜고 끔 · 키보드로는 GOD / AMMO 입력)' : 'Cheats (tap to toggle · or type GOD / AMMO)', 480, 302);
+    for (const b of CHEAT_BTN) { const on = CHEAT[b.k];
+      c.fillStyle = on ? 'rgba(255,140,40,0.92)' : 'rgba(10,18,32,0.88)'; c.beginPath(); c.roundRect(b.x, b.y, b.w, b.h, 12); c.fill(); c.strokeStyle = on ? '#ffe0b0' : 'rgba(255,170,90,0.7)'; c.lineWidth = 2; c.stroke();
+      c.fillStyle = on ? '#2a1400' : '#fff'; c.font = '900 18px system-ui,sans-serif'; c.fillText((b.k === 'god' ? '🛡 ' : '♾ ') + CHEAT_NAME[b.k][ko ? 1 : 0], b.x + b.w / 2, b.y + 21);
+      c.font = '800 12px system-ui,sans-serif'; c.fillText(on ? (ko ? '켜짐' : 'ON') : (ko ? '꺼짐' : 'OFF'), b.x + b.w / 2, b.y + 41); }
+  }
+  if (CHEAT.god || CHEAT.ammo) {   // 켜져 있으면 위쪽에 작게 표시
+    const t = [CHEAT.god && CHEAT_NAME.god[ko ? 1 : 0], CHEAT.ammo && CHEAT_NAME.ammo[ko ? 1 : 0]].filter(Boolean).join(' · ');
+    c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = '800 12px system-ui,sans-serif'; const w = c.measureText(t).width + 22;
+    c.fillStyle = 'rgba(60,24,0,0.55)'; c.beginPath(); c.roundRect(480 - w / 2, 66, w, 20, 10); c.fill(); c.fillStyle = '#ffb36a'; c.fillText(t, 480, 76.5);
+  }
+  c.restore();
+}
 function drawChat(m) {
   if (G.scene !== 'play') { CHAT.length = 0; return; }
   chatCollect(); const c = ctx0; c.save(); c.setTransform(m);
   if (G.goldT && G.t - G.goldT < 0.7) { c.fillStyle = 'rgba(255,200,60,' + (0.3 * (1 - (G.t - G.goldT) / 0.7)) + ')'; c.fillRect(0, 0, W, H); }   // 전설 아이템: 화면이 잠깐 금빛으로 번쩍
-  for (let i = CHAT.length - 1; i >= 0; i--) if (G.t - CHAT[i].t0 > CHAT[i].life || G.t < CHAT[i].t0) CHAT.splice(i, 1);
+  for (let i = CHAT.length - 1; i >= 0; i--) if (CT() - CHAT[i].t0 > CHAT[i].life || CT() < CHAT[i].t0) CHAT.splice(i, 1);
   if (!CHAT.length || G.result) { c.restore(); return; }
   const font = '700 15px system-ui,sans-serif'; c.font = font; c.textBaseline = 'middle';
   const rows = [];   // 줄마다: 글(여러 줄일 수 있다), 투명도
   for (const l of CHAT) {
-    const el = G.t - l.t0, a = clamp(Math.min(el / 0.25, (l.life - el) / 0.8), 0, 1);
+    const el = CT() - l.t0, a = clamp(Math.min(el / 0.25, (l.life - el) / 0.8), 0, 1);
     c.font = '800 12px system-ui,sans-serif'; const tagW = l.tag ? c.measureText('[' + tr(l.tag) + ']').width + 7 : 0; c.font = font;
     chatWrap(c, l.text, CHAT_W - 34 - tagW).forEach((t, k) => rows.push({ l, t, k, a, tagW }));
   }
@@ -1519,7 +1567,7 @@ function drawChat(m) {
   c.globalAlpha = boxA; c.fillStyle = 'rgba(6,14,26,0.38)'; c.beginPath(); c.roundRect(x0, y0, CHAT_W, h, 10); c.fill();   // 반투명 바탕
   c.strokeStyle = 'rgba(170,205,255,0.18)'; c.lineWidth = 1; c.stroke();
   rows.forEach((r, i) => {
-    const y = y0 + 6 + CHAT_LH * (i + 0.5), slide = (1 - clamp((G.t - r.l.t0) / 0.25, 0, 1)) * 8; c.globalAlpha = r.a * 0.95;
+    const y = y0 + 6 + CHAT_LH * (i + 0.5), slide = (1 - clamp((CT() - r.l.t0) / 0.25, 0, 1)) * 8; c.globalAlpha = r.a * 0.95;
     let x = x0 + 12;
     if (r.k === 0) { c.fillStyle = r.l.col; c.beginPath(); c.arc(x + 3, y + slide, 3.5, 0, 7); c.fill(); }   // 첫 줄 앞 색 점
     x += 14;
@@ -2190,7 +2238,8 @@ function spawnWave(l) { const m = G.m; (m.queue = m.queue || []).push(...l); }
 function hitCarrier(d) { if (G.sink) return; G.carrierHp = Math.max(0, G.carrierHp - d); explode(ship.x + 60 + Math.random() * (DECK_L - 120), DECK_Y + 2, 18, 'none', false); G.toast = { text: 'The carrier is hit!', grade: 'brown', until: G.t + 3 }; }
 function hurt(d, why) {
   if (p === WP) { wingHurt(d * 0.65); return; }   // 내 비행기와 같은 피해(적 공격력 -35%)   // 적의 사격 대상이 동료기일 때
-  if (p.mode !== 'air' || G.result) return; d *= 0.65 * (1 - 0.1 * upLv('arm')) * (G.t < (G.bufArm || 0) ? 0.5 : 1);
+  if (p.mode !== 'air' || G.result) return; if (CHEAT.god) { if (G.t - (G.godHitT || -9) > 0.1) { G.godHitT = G.t; sfx('ehit', { x: p.x }); } return; }   // 무적: 맞아도 피해가 없다
+  d *= 0.65 * (1 - 0.1 * upLv('arm')) * (G.t < (G.bufArm || 0) ? 0.5 : 1);
   G.lastHitT = G.t; if (has('rage')) G.bufRage = G.t + 6;
   if (has('shield') && (G.shield || 0) > 0) { const ab = Math.min(G.shield, d); G.shield -= ab; d -= ab; G.shieldHitT = G.t; if (d <= 0.001) { sfx('ehit', { x: p.x }); return; } }   // 보호막이 먼저 막는다
   p.hp -= d; p.smokeT = G.t + 0.35; sfx('hit');   // 쉬운 난이도: 적의 공격력 -35%, 맞으면 잠시 하얀 연기
@@ -3676,30 +3725,58 @@ function drawTarget(c, t, dead) {
       c.save(); c.translate(0, 9); c.scale(f, 1); rect(-2.8, -1.7, 5.6, 3.4, '#8a939a'); rect(-2.6, -1.5, 5.2, 3.0, '#3c444a'); for (let i = -2; i <= 2; i++) line(i, -1.5, i, 1.5, '#8a939a', 0.14); for (let j = -1; j <= 1; j++) line(-2.6, j, 2.6, j, '#8a939a', 0.14); c.restore();
       break;
     }
-    case 'fuel': {   // 유류저장고: 드럼통 6개를 3줄 × 2층 격자로 쌓았다 (층 사이에 받침 널빤지)
-      const browns = ['#8a5a32', '#7d5230', '#946238', '#855630'], sh = Math.floor(Math.abs(t.x) * 0.1);
-      const hi = 'rgba(255,225,180,0.24)', w = 2.7, h = 3.8, gap = 0.15, plank = 0.32, base = 0.3;
-      const drum = (x, y, col, top) => {   // 서 있는 드럼통: 위·아래 테두리, 굴림 띠 2줄, 빛 반사, 흰 글씨 (맨 위층만 뚜껑과 마개가 보인다)
-        const L = x - w / 2;
-        rect(L, y, w, h, col);
-        c.fillStyle = 'rgba(0,0,0,0.22)'; c.fillRect(L + w * 0.72, y, w * 0.28, h);   // 오른쪽 그늘 (둥근 몸통)
-        c.fillStyle = hi; c.fillRect(L + w * 0.14, y + 0.2, w * 0.14, h - 0.4);   // 왼쪽 빛 반사
-        c.fillStyle = 'rgba(0,0,0,0.28)'; c.fillRect(L, y, w, 0.22); c.fillRect(L, y + h - 0.22, w, 0.22);   // 위·아래 테두리
-        c.fillStyle = 'rgba(0,0,0,0.32)'; c.fillRect(L, y + h * 0.33, w, 0.19); c.fillRect(L, y + h * 0.66, w, 0.19);   // 굴림 띠
-        c.fillStyle = 'rgba(255,225,180,0.2)'; c.fillRect(L, y + h * 0.33 + 0.19, w, 0.08); c.fillRect(L, y + h * 0.66 + 0.19, w, 0.08);
-        c.fillStyle = 'rgba(235,225,200,0.55)'; c.fillRect(L + w * 0.3, y + h * 0.44, w * 0.36, 0.25); c.fillRect(L + w * 0.3, y + h * 0.44 + 0.45, w * 0.24, 0.2);   // 흰 글씨 표시
-        if (top) {
-          c.fillStyle = col; c.beginPath(); c.ellipse(x, y + h, w / 2, 0.45, 0, 0, 7); c.fill();   // 뚜껑
-          c.strokeStyle = 'rgba(0,0,0,0.35)'; c.lineWidth = 0.12; c.beginPath(); c.ellipse(x, y + h, w / 2 - 0.15, 0.34, 0, 0, 7); c.stroke();   // 뚜껑 테
-          c.fillStyle = 'rgba(30,18,8,0.75)'; c.beginPath(); c.ellipse(x + 0.6, y + h + 0.05, 0.21, 0.09, 0, 0, 7); c.fill(); c.beginPath(); c.ellipse(x - 0.7, y + h - 0.03, 0.13, 0.06, 0, 0, 7); c.fill();   // 마개 2개
+    case 'fuel': {   // 유류저장고: 200리터 강철 드럼통을 나무 팔레트 위에 3줄 × 2층으로 쌓았다 (뒤쪽 줄이 틈새로 보인다)
+      const rnd = k => { const v = Math.sin(t.x * 12.9898 + k * 78.233) * 43758.5453; return v - Math.floor(v); };   // 저장고마다 고정된 무늬
+      const PAL = ['#55603a', '#7a3b27', '#4b5357', '#666a44', '#6e4630'];   // 국방색·녹슨 적갈색·철회색·바랜 국방색·짙은 갈색
+      const w = 2.7, h = 3.8, gap = 0.16, pal = 0.46, half = 1.5 * w + gap + 0.35;
+      const shade = (L, y, ww, hh, a) => {   // 둥근 통의 빛: 왼쪽 위에서 비친다
+        const g = c.createLinearGradient(L, 0, L + ww, 0);
+        g.addColorStop(0, 'rgba(0,0,0,' + (0.5 * a) + ')'); g.addColorStop(0.12, 'rgba(0,0,0,' + (0.12 * a) + ')'); g.addColorStop(0.27, 'rgba(255,250,235,' + (0.24 * a) + ')');
+        g.addColorStop(0.4, 'rgba(255,250,235,' + (0.05 * a) + ')'); g.addColorStop(0.72, 'rgba(0,0,0,' + (0.14 * a) + ')'); g.addColorStop(1, 'rgba(0,0,0,' + (0.55 * a) + ')');
+        c.fillStyle = g; c.fillRect(L, y, ww, hh);
+      };
+      const rib = (L, y, ww, col, th) => {   // 튀어나온 테(통 위·아래의 이음 테, 굴림 띠): 윗면은 밝고 아랫면은 그늘
+        rect(L - 0.05, y, ww + 0.1, th, col); shade(L - 0.05, y, ww + 0.1, th, 1.1);
+        c.fillStyle = 'rgba(255,245,225,0.28)'; c.fillRect(L - 0.05, y + th - 0.05, ww + 0.1, 0.05);
+        c.fillStyle = 'rgba(0,0,0,0.42)'; c.fillRect(L - 0.03, y - 0.06, ww + 0.06, 0.06);
+      };
+      const drum = (x, y, k, top) => {
+        const col = PAL[Math.floor(rnd(k) * PAL.length)], L = x - w / 2;
+        rect(L, y, w, h, col); shade(L, y, w, h, 1);
+        if (rnd(k + 20) < 0.45) { rect(L, y + h * 0.45, w, 0.42, rnd(k + 21) < 0.5 ? '#b08f2e' : '#8f9496'); shade(L, y + h * 0.45, w, 0.42, 1); }   // 연료 종류를 알리는 색 띠
+        c.fillStyle = 'rgba(232,226,206,0.42)'; c.fillRect(L + w * 0.34, y + h * 0.74, w * 0.3, 0.17); c.fillRect(L + w * 0.38, y + h * 0.74 + 0.3, w * 0.18, 0.13);   // 흐릿한 스텐실 글씨
+        for (let j = 0; j < 3; j++) { if (rnd(k * 7 + j) > 0.55) continue; const rx = L + 0.3 + rnd(k * 9 + j) * (w - 0.7), ry = y + h * (j === 0 ? 0.93 : j === 1 ? 0.62 : 0.29), rl = 0.5 + rnd(k * 11 + j) * 0.9;   // 테 아래로 흘러내린 녹물
+          const g = c.createLinearGradient(0, ry, 0, ry - rl); g.addColorStop(0, 'rgba(120,52,20,0.55)'); g.addColorStop(1, 'rgba(120,52,20,0)'); c.fillStyle = g; c.fillRect(rx, ry - rl, 0.13 + rnd(k + j) * 0.12, rl); }
+        if (rnd(k + 40) < 0.35) { const dx = L + 0.5 + rnd(k + 41) * (w - 1), dy = y + 0.8 + rnd(k + 42) * (h - 1.6); c.fillStyle = 'rgba(0,0,0,0.22)'; c.beginPath(); c.ellipse(dx, dy, 0.32, 0.22, 0.4, 0, 7); c.fill(); c.fillStyle = 'rgba(255,240,220,0.14)'; c.beginPath(); c.ellipse(dx - 0.1, dy + 0.08, 0.2, 0.1, 0.4, 0, 7); c.fill(); }   // 찌그러진 자국
+        { const g = c.createLinearGradient(0, y, 0, y + 0.8); g.addColorStop(0, 'rgba(58,44,30,0.55)'); g.addColorStop(1, 'rgba(58,44,30,0)'); c.fillStyle = g; c.fillRect(L, y, w, 0.8); }   // 아래쪽 흙먼지
+        rib(L, y + h * 0.33, w, col, 0.17); rib(L, y + h * 0.66, w, col, 0.17);   // 굴림 띠 2줄
+        rib(L, y, w, col, 0.2); rib(L, y + h - 0.2, w, col, 0.2);   // 위·아래 이음 테
+        if (top) {   // 맨 위 뚜껑: 테 안쪽으로 오목하고, 큰 마개와 작은 마개가 있다
+          c.fillStyle = col; c.beginPath(); c.ellipse(x, y + h, w / 2 + 0.05, 0.44, 0, 0, 7); c.fill();
+          c.fillStyle = 'rgba(0,0,0,0.3)'; c.beginPath(); c.ellipse(x, y + h, w / 2 + 0.05, 0.44, 0, 0, 7); c.fill();
+          c.fillStyle = col; c.beginPath(); c.ellipse(x, y + h + 0.02, w / 2 - 0.16, 0.3, 0, 0, 7); c.fill();
+          c.fillStyle = 'rgba(255,248,230,0.16)'; c.beginPath(); c.ellipse(x - 0.25, y + h + 0.06, w / 2 - 0.5, 0.18, 0, 0, 7); c.fill();
+          c.strokeStyle = 'rgba(255,245,225,0.3)'; c.lineWidth = 0.06; c.beginPath(); c.ellipse(x, y + h, w / 2 + 0.02, 0.41, 0, Math.PI, 2 * Math.PI); c.stroke();
+          for (const [bx, br] of [[0.62, 0.2], [-0.72, 0.12]]) { c.fillStyle = '#2a241c'; c.beginPath(); c.ellipse(x + bx, y + h + 0.04, br, br * 0.42, 0, 0, 7); c.fill(); c.fillStyle = 'rgba(200,190,170,0.45)'; c.beginPath(); c.ellipse(x + bx - br * 0.2, y + h + 0.07, br * 0.45, br * 0.16, 0, 0, 7); c.fill(); }
         }
       };
-      const xs = [-(w + gap), 0, w + gap], half = 1.5 * w + gap + 0.5;
-      rect(-half, 0, half * 2, base, '#6a5440'); for (const x of [-half + 0.3, -0.3, half - 0.9]) rect(x, 0, 0.6, base, '#4a3a2a');   // 바닥 받침(팔레트)
-      xs.forEach((x, i) => drum(x, base, browns[(sh + i) % 4], false));   // 1층
-      const y2 = base + h; rect(-half, y2, half * 2, plank, '#7a6248'); c.fillStyle = 'rgba(0,0,0,0.25)'; c.fillRect(-half, y2, half * 2, 0.08);   // 층 사이 널빤지
-      xs.forEach((x, i) => drum(x, y2 + plank, browns[(sh + i + 2) % 4], true));   // 2층
-      c.fillStyle = 'rgba(20,14,8,0.35)'; c.beginPath(); c.ellipse(0, 0.05, half + 2.5, 0.4, 0, 0, 7); c.fill();   // 기름 얼룩
+      const pallet = (y, th, k) => {   // 나무 팔레트: 위판, 받침 블록 3개, 아래판 (나뭇결과 판 사이 틈)
+        const wood = ['#8a6a46', '#7c5e3d', '#94744f'][Math.floor(rnd(k) * 3)];
+        rect(-half, y, half * 2, th, 'rgba(14,10,6,0.82)');   // 판 사이 틈: 안쪽은 어둡다
+        rect(-half, y, half * 2, th * 0.2, '#5e4730');   // 아래판
+        for (const bx of [-half + 0.1, -0.35, half - 0.8]) { rect(bx, y + th * 0.2, 0.7, th * 0.5, '#5a432c'); c.fillStyle = 'rgba(0,0,0,0.3)'; c.fillRect(bx + 0.55, y + th * 0.2, 0.15, th * 0.5); }   // 받침 블록
+        rect(-half, y + th * 0.7, half * 2, th * 0.3, wood);   // 위판
+        c.fillStyle = 'rgba(255,235,200,0.22)'; c.fillRect(-half, y + th - 0.05, half * 2, 0.05);
+        c.fillStyle = 'rgba(40,25,10,0.35)'; for (let i = 0; i < 5; i++) { const gx = -half + 0.3 + i * (half * 2 - 2.4) / 4 + rnd(k + i) * 0.5; c.fillRect(gx, y + th * 0.7 + 0.04, Math.min(0.9 + rnd(k + i + 5) * 0.8, half - 0.1 - gx), 0.03); }   // 나뭇결 (팔레트 밖으로 나가지 않게)
+        c.fillStyle = 'rgba(0,0,0,0.5)'; c.fillRect(-half + 0.02, y + th * 0.2, half * 2 - 0.04, 0.04);
+      };
+      { c.fillStyle = 'rgba(0,0,0,0.28)'; c.beginPath(); c.ellipse(0.4, 0.02, half + 1.6, 0.45, 0, 0, 7); c.fill();   // 바닥 그림자
+        c.fillStyle = 'rgba(28,20,12,0.4)'; c.beginPath(); c.ellipse(-half - 0.4 + rnd(3), 0.03, 1.6, 0.22, 0, 0, 7); c.fill(); c.beginPath(); c.ellipse(half + 0.8, 0.03, 1.1 + rnd(4), 0.17, 0, 0, 7); c.fill();   // 새어 나온 기름 얼룩
+        c.fillStyle = 'rgba(170,190,210,0.18)'; c.fillRect(half + 0.3, 0.1, 0.9, 0.04); }   // 기름 위 하늘빛 반사
+      const xs = [-(w + gap), 0, w + gap];
+      const back = (y0) => { c.save(); c.globalAlpha = 1; for (const x of [-(w + gap) / 2, (w + gap) / 2]) { rect(x - w / 2, y0 + 0.12, w, h, '#2c2a22'); shade(x - w / 2, y0 + 0.12, w, h, 0.6); } c.restore(); };   // 뒤쪽 줄 드럼통 (어둡게, 틈새로만 보인다)
+      pallet(0, pal, 1); back(pal); xs.forEach((x, i) => drum(x, pal, i + 1, false));   // 1층
+      const y2 = pal + h; pallet(y2, pal * 0.8, 2); back(y2 + pal * 0.8); xs.forEach((x, i) => drum(x, y2 + pal * 0.8, i + 4, true));   // 2층
       break;
     }
     case 'runway': {   // 비행장: 평평하게 고른 땅 위의 밝은 콘크리트 활주로, 흰 중앙선·가장자리 등, 양 끝 표지, 대기 중인 제로센
@@ -3967,8 +4044,10 @@ function autoNeedHome() {   // 돌아갈 때: 임무 완료, 연료·체력 부�
   const L = p.loaded || {}, noWpn = (L.rk || L.bm) && p.ammo.rk <= 0 && p.ammo.bm <= 0 && money() >= 300;
   return !!noWpn;   // 산 로켓·폭탄을 다 쓰고 살 돈이 있으면 다시 사러 간다
 }
-function autoGoalX() {   // 이륙해서 갈 쪽: 가장 가까운 목표, 없으면 적기, 없으면 바다 쪽
+function autoGoalX() {   // 이륙해서 갈 쪽: 적기가 있으면 가장 가까운 적기, 없으면 가장 가까운 목표, 없으면 바다 쪽
   let best = null, bd = 1e9; const cx = ship.x + DECK_L / 2;
+  for (const e of ENE) if (!e.dead) { const d = Math.abs(e.x - cx); if (d < bd) { bd = d; best = e.x; } }
+  if (best !== null) return best;
   for (const t of TARGETS) if (t.alive && t.type !== 'runway') { const d = Math.abs(t.x - cx); if (d < bd) { bd = d; best = t.x; } }
   if (best === null) for (const e of ENE) if (!e.dead) { const d = Math.abs(e.x - cx); if (d < bd) { bd = d; best = e.x; } }
   return best === null ? cx + 2000 : best;
@@ -4031,10 +4110,13 @@ function demoBot(dt, auto) {
   let l = 0, r = 0; const wantTurn = (dir > 0 && p.x > B + 250) || (dir < 0 && p.x < A - 500);   // 섬 끝을 지났다: 돌아서야 한다
   if (p.turn <= 0 && kts() > TURN_KT + 5 && p.y - Math.max(0, gh(p.x)) > 100) { if (dir > 0 && p.x > B + 250) l = 1; else if (dir < 0 && p.x < A - 500) r = 1; }   // 섬 끝에서 돌아선다 (돌아서는 동안은 조종이 안 되므로 충분히 높을 때만)
   let tgt = null; for (const t of TARGETS) if (t.alive && (t.x - p.x) * dir > 80 && (t.x - p.x) * dir < 900 && (!tgt || Math.abs(t.x - p.x) < Math.abs(tgt.x - p.x))) tgt = t;
-  let en = null; for (const e of ENE) if (!e.dead && Math.hypot(e.x - p.x, e.y - p.y) < 600) en = e;
+  let en = null; { let ed = auto ? 5000 : 600, fd = 1500, fe = null; for (const e of ENE) { if (e.dead) continue; const d = Math.hypot(e.x - p.x, e.y - p.y); if (d < ed) { ed = d; en = e; } if (auto && (e.x - p.x) * dir > 30 && d < fd) { fd = d; fe = e; } } if (fe) en = fe; }   // 자동 조종은 적기를 맨 먼저 노린다: 앞쪽 1.5km 안의 적기, 없으면 5km 안의 가장 가까운 적기
   if (!en && auto && G.bossT && G.bossT.alive && BOSSES[G.bossT.bk].fly) { const t = G.bossT, cy = t.y + BOSSES[t.bk].h / 2; if (Math.hypot(t.x - p.x, cy - p.y) < 700) en = { x: t.x, y: cy, h: Math.atan2(t.vy || 0, t.vx || 0.01), v: Math.hypot(t.vx || 0, t.vy || 0) }; }   // 공중 보스는 적기처럼 기관총으로
   for (const e of ENE) if (!e.dead && (e.type === 'd4y' || e.type === 'b6n') && !e.rel && Math.hypot(e.x - p.x, e.y - p.y) < 2500) { en = e; if (p.turn <= 0 && kts() > TURN_KT + 5 && (e.x - p.x) * (p.s > 0 ? 1 : -1) < -150) D.turnB = true; break; }   // 폭격기를 먼저 잡는다
   if (D.turnB) { D.turnB = false; if (dir > 0) l = 1; else r = 1; }   // 폭격기가 뒤에 있으면 돌아선다
+  if (auto && en && ENE.includes(en)) {   // 적기를 쫓는 중: 섬 끝에서 돌아서지 않고, 앞쪽에 적기가 없고 가장 가까운 적기가 뒤에 있으면 돌아선다 (4초에 한 번까지)
+    l = 0; r = 0; if (p.turn <= 0 && kts() > TURN_KT + 5 && p.y - Math.max(0, gh(p.x)) > 70 && (en.x - p.x) * dir < -60 && G.t > (D.enTurnT || 0)) { D.enTurnT = G.t + 4; if (dir > 0) l = 1; else r = 1; }
+  }
   let ground = 0; for (let k = 0; k <= 8; k++) ground = Math.max(ground, gh(p.x + dir * k * 45));   // 앞쪽 언덕까지 본다
   const torpRun = !en && !!tgt && !!SHIPS[tgt.type] && ground <= 0;   // 배를 노릴 때는 바다 위를 낮게 (어뢰)
   let alt = en ? en.y : tgt ? (SHIPS[tgt.type] ? 28 : tgt.y + 70) : 150; if (!torpRun) alt = Math.max(alt, ground + 55);
@@ -4556,6 +4638,7 @@ function update(dt) {
   if (G.scene !== 'play' && G.scene !== 'title') return;
   if (G.scene === 'title') demoBot(dt);   // 첫 화면: 자동 조종 데모
   else if (G.scene === 'play' && G.auto) demoBot(dt, true);   // 자동 조종
+  if (G.scene === 'play' && CHEAT.ammo) cheatAmmo();   // 치트: 무기 무제한
   G.t += dt; shipBob = 3.5 * Math.sin(G.t * 0.7) * (1 - clamp(sinkProg() * 2, 0, 1)); DECK_Y = DECK_Y0 + shipBob;   // 항모가 파도에 따라 느리게 위아래로 출렁인다 (최고점과 최저점 차이 7 m)
   if (ship.x < G.holdX) ship.x += ship.v * dt;   // 섬에 너무 가까워지면 항모는 그 자리에 머문다
   if (!G.manual) autoFly(dt); p.flaps = p.gear;
@@ -4589,6 +4672,7 @@ addEventListener('keydown', e => {
   if (G.scene !== 'play') { sceneKey(e); if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault(); return; }
   if (e.code === 'Escape') { if (G.paused && G.askQuit) goMenu(); else { G.paused = true; G.askQuit = true; for (const k in keys) keys[k] = false; } return; }   // Esc 두 번이면 작전에서 나간다
   if (e.code === 'KeyP') { G.paused = !G.paused; G.askQuit = false; return; }
+  if (G.paused && /^Key[A-Z]$/.test(e.code)) { cheatType(e.code.slice(3)); return; }   // 멈춘 동안 글자는 치트 입력 (다른 키는 다시 시작)
   if (G.paused) { G.paused = false; G.askQuit = false; return; }
   if (e.code === 'KeyA') { autoToggle(!G.auto); return; }   // 자동 조종 켜기·끄기
   if (G.auto && e.code.startsWith('Arrow')) autoToggle(false);   // 방향키를 누르면 바로 내가 조종한다
@@ -4634,6 +4718,7 @@ const inR = (m, r) => m.x >= r.x - 6 && m.x <= r.x + r.w + 6 && m.y >= r.y - 6 &
 cv.addEventListener('pointerdown', e => {
   const m = pos(e); e.preventDefault(); initAudio();
   if (G.scene !== 'play') { sceneTap(m); return; }
+  if (G.paused && !G.askQuit && !G.quiet) { const cb = CHEAT_BTN.find(b => inR(m, b)); if (cb) { cheatSet(cb.k, !CHEAT[cb.k]); return; } }   // 일시정지 화면의 치트 버튼 (게임은 계속 멈춰 있다)
   if (G.paused) { const quit = G.askQuit && inR(m, BTN[0]); G.paused = false; G.askQuit = false; if (quit) goMenu(); return; }   // 멈춘 동안에는 어디를 눌러도 다시 시작 (나가기를 물은 뒤 Ops 를 또 누르면 나간다)
   if (landBtnOn() && inR(m, LANDBTN)) { startLanding(); return; }
   if (hangarOpen()) { shopTap(m); return; }
@@ -5237,6 +5322,7 @@ function drawHudFaded() {   // HUD를 따로 그린 뒤 3분의 1 불투명도�
   if (G.scene === 'play' && TARGETS.some(t => t.boss && t.alive && !t.gone)) { ctx0.save(); ctx0.setTransform(m); try { drawMiniBoss(ctx0); drawBossHp(ctx0); } finally { ctx0.restore(); } }   // 보스 표시와 머리 위 체력바는 흐리지 않게
   try { drawFwdView(m); } catch (e) { ctx = ctx0; }
   try { drawChat(m); } catch (e) {}
+  try { drawCheat(m); } catch (e) {}
   try { drawBossUI(m); } catch (e) {}
   if (hangarOpen() && !(G.camWing && WG)) { ctx0.save(); ctx0.setTransform(m); ctx0.fillStyle = 'rgba(4,10,20,0.45)'; ctx0.fillRect(0, 0, W, H); try { drawPick(ctx0); } finally { ctx0.restore(); } }   // 보급 화면: 또렷하게
 }
@@ -5355,8 +5441,8 @@ function drawHUD() {
   // 격납고 보급 화면은 drawHudFaded 에서 불투명하게 그린다
   if (G.paused && G.scene === 'play' && !G.quiet) {   // 일시정지 화면 (G.quiet: 시험용으로 화면 표시 없이 멈춤)
     c.fillStyle = 'rgba(6,14,26,0.55)'; c.fillRect(-10, -40, W + 20, H + 60);
-    c.textAlign = 'center'; c.fillStyle = '#fff'; c.font = '900 40px system-ui,sans-serif'; c.fillText(G.askQuit ? 'Leave this operation?' : 'Paused', 480, 250);
-    c.font = '700 17px system-ui,sans-serif'; c.fillText(G.askQuit ? 'Tap Ops again (or press Esc) to leave · tap anywhere else to keep flying' : 'Tap the screen or press any key to continue', 480, 290);
+    c.textAlign = 'center'; c.fillStyle = '#fff'; c.font = '900 40px system-ui,sans-serif'; c.fillText(G.askQuit ? 'Leave this operation?' : 'Paused', 480, G.askQuit ? 250 : 220);
+    c.font = '700 17px system-ui,sans-serif'; c.fillText(G.askQuit ? 'Tap Ops again (or press Esc) to leave · tap anywhere else to keep flying' : 'Tap the screen or press any key to continue', 480, G.askQuit ? 290 : 258);
     if (G.askQuit) { const b = BTN[0]; c.strokeStyle = '#ffd23f'; c.lineWidth = 3; c.beginPath(); c.roundRect(b.x - 3, b.y - 3, b.w + 6, b.h + 6, 11); c.stroke(); }
     c.textAlign = 'left';
   }

@@ -1173,6 +1173,36 @@ function bossDeath(t, dt) {   // 격파: 연쇄 폭발 → (공중 보스는 추
   else { t.tilt = Math.min(1, el / 2.4); if (el > 2.6 && !t.blown) { t.blown = true; explode(t.x, t.y + 4, 36, 'none', false); t.burn = G.t + 40; } if (Math.random() < dt * 8) FX.push({ k: Math.random() < 0.4 ? 'fire' : 'smoke', x: t.x + (Math.random() - 0.5) * B.w * 0.6, y: t.y + 3 + Math.random() * 6, vx: -3, vy: 6 + Math.random() * 6, life: 1.6, t: 0, s: 2.5 }); if (el > 60) t.gone = true; }
 }
 // EB(적 탄)의 특수 탄: 유도 미사일·전기 구체·박격포·로켓
+// ───────── 모든 탄환은 모든 유닛과 부딪힌다: 적의 총알도 다른 적기·건물·병사·보스·우리 항모에 맞는다 (쏜 유닛 자신은 빼고) ─────────
+function bossHit(x, y, pad) {   // 보스 몸통 (하늘 보스는 몸 중심이 t.y 에 있다)
+  for (const t of TARGETS) { if (!t.boss || !t.alive || t.gone) continue; const B = BOSSES[t.bk], y0 = B.fly ? t.y - B.h * 0.5 : t.y, y1 = B.fly ? t.y + B.h * 0.5 : t.y + B.h;
+    if (Math.abs(x - t.x) <= B.w / 2 + pad && y >= y0 - pad && y <= y1 + pad) return t; }
+  return null;
+}
+function unitHit(x, y, pad) { return bossHit(x, y, pad) || (y < 70 ? hitTest(x, y, pad) : null); }   // 건물·함정·보스 (건물과 배는 낮은 곳에만 있다)
+function inCarrier(x, y) { return x >= ship.x && x <= ship.x + DECK_L && y >= 0 && y <= DECK_Y; }   // 우리 항모의 선체와 갑판
+function carrierChip(d, x, y) {   // 총알·파편이 우리 항모에 맞는다: 조금씩 깎이고 불꽃이 튄다 (큰 폭발·알림 없이)
+  if (G.sink || G.scene !== 'play') return; G.carrierHp = Math.max(0, G.carrierHp - d);
+  FX.push({ k: 'spark', x, y, vx: (Math.random() - 0.5) * 16, vy: 3 + Math.random() * 6, life: 0.3, t: 0 });
+  if (G.carrierHp <= 0 && (!G.toast || G.toast.until < G.t)) G.toast = { text: 'The carrier is hit!', grade: 'brown', until: G.t + 3 };
+}
+function ebOwner(b) {   // 처음 나온 자리로 쏜 유닛을 찾는다 (그 유닛은 자기 총알에 맞지 않는다)
+  return ENE.find(e => !e.dead && Math.abs(b.x - e.x) < 14 && Math.abs(b.y - e.y) < 8) || unitHit(b.x, b.y, 6) || SOLD.find(o => o.alive && Math.abs(b.x - o.x) < 6 && b.y >= o.y - 2 && b.y <= o.y + 12) || null;
+}
+function ebVsUnits(b) {   // 적의 탄이 다른 유닛에 맞았는가 (맞았으면 true: 탄은 사라진다)
+  if (Math.hypot(b.x - b.x0, b.y - b.y0) < 8) return false;   // 총구를 막 떠난 탄은 옆의 같은 편을 맞히지 않는다
+  const k = (b.dmg || 3) / 3, boom = b.sp && b.kind !== 'orb';
+  const done = () => { if (boom) explode(b.x, Math.max(0, b.y), 8, 'none', false); return true; };
+  const e = ENE.find(e => !e.dead && e !== b.own && Math.abs(b.x - e.x) < 6 && Math.abs(b.y - e.y) < 3);
+  if (e) { e.hp -= 0.5 * k * (boom ? 2 : 1); for (let j = 0; j < 2; j++) FX.push({ k: 'spark', x: b.x, y: b.y, vx: (Math.random() - 0.5) * 18, vy: 3 + Math.random() * 8, life: 0.3, t: 0 }); if (e.hp <= 0) killEnemy(e); return done(); }
+  if (wingAir() && Math.abs(b.x - WG.x) < 6 && Math.abs(b.y - WG.y) < 2.6) { wingHurt((b.dmg || 3) * 0.65); return done(); }
+  const t = unitHit(b.x, b.y, 0.5);
+  if (t && t !== b.own) { gunHitTarget(t, { x: b.x, y: b.y, dm: k * (boom ? 4 : 1) / gunK() }); return done(); }
+  const o = SOLD.find(o => o.alive && o !== b.own && o.st !== 'enter' && Math.abs(b.x - o.x) < 4.5 && b.y >= o.y - 0.5 && b.y <= o.y + 8);
+  if (o) { killSoldier(o); return done(); }
+  if (inCarrier(b.x, b.y)) { carrierChip(0.02 * (b.dmg || 3) * (boom ? 5 : 1), b.x, b.y); return done(); }
+  return false;
+}
 function stepSpecialEB(b, dt) {
   if (b.hm) { const h0 = Math.atan2(b.vy, b.vx), want = Math.atan2(p.y - b.y, p.x - b.x), sp0 = Math.max(Math.hypot(b.vx, b.vy), 20); const nsp = sp0 + ((b.spd || sp0) - sp0) * Math.min(1, dt * 1.5), h = h0 + clamp(angd(want, h0), -b.turn * dt, b.turn * dt); b.vx = Math.cos(h) * nsp; b.vy = Math.sin(h) * nsp; }
   if (b.g) b.vy -= b.g * dt;
@@ -1340,7 +1370,7 @@ function drawBosses(c) {
   }
   drawBossShots(c);
 }
-function drawBossUI(m) {   // 등장 경고, 보스 체력 막대, 화면 밖 방향, 격파 알림 (또렷하게)
+function drawBossUI(m) {   // 등장 경고, 화면 밖 방향, 격파 알림 (또렷하게). 체력은 보스 머리 위 막대로만 보인다
   if (G.scene !== 'play') return; const c = ctx0, ko = LANG === 'ko', t = G.bossT; c.save(); c.setTransform(m);
   if (t && G.t - (G.bossWarn || -9) < 3.2) {
     const el = G.t - G.bossWarn, on = Math.sin(el * 12) > -0.2, B = BOSSES[t.bk];
@@ -1349,12 +1379,7 @@ function drawBossUI(m) {   // 등장 경고, 보스 체력 막대, 화면 밖 �
     c.textAlign = 'center'; c.fillStyle = on ? '#ff4a3a' : '#ffd0c8'; c.font = '900 34px system-ui,sans-serif'; c.fillText('⚠ WARNING ⚠', 480, 172); c.fillStyle = '#fff'; c.font = '900 20px system-ui,sans-serif'; c.fillText((ko ? '거대 병기 출현: ' : 'Giant war machine: ') + (ko ? B.k : B.n), 480, 236);
   }
   if (t && t.alive) {
-    const B = BOSSES[t.bk], w = 380, x0 = 480 - w / 2, y0 = 104;
-    c.fillStyle = 'rgba(10,6,8,0.82)'; c.beginPath(); c.roundRect(x0 - 10, y0 - 22, w + 20, 40, 8); c.fill(); c.strokeStyle = 'rgba(255,80,60,0.7)'; c.lineWidth = 1.5; c.stroke();
-    c.textAlign = 'left'; c.fillStyle = '#ff8a73'; c.font = '900 13px system-ui,sans-serif'; c.fillText('☠ ' + (ko ? B.k : B.n), x0, y0 - 6);
-    c.textAlign = 'right'; c.fillStyle = '#ffd0c8'; c.fillText(Math.ceil(t.hp) + ' / ' + t.hp0, x0 + w, y0 - 6);
-    c.fillStyle = '#2a1012'; c.fillRect(x0, y0, w, 9); const fr = clamp(t.hp / t.hp0, 0, 1), gr = c.createLinearGradient(x0, 0, x0 + w, 0); gr.addColorStop(0, '#ff3a2a'); gr.addColorStop(1, '#ff9a3c'); c.fillStyle = gr; c.fillRect(x0, y0, w * fr, 9);
-    for (let k = 1; k < 10; k++) { c.fillStyle = 'rgba(0,0,0,0.35)'; c.fillRect(x0 + w * k / 10, y0, 1, 9); }
+    const B = BOSSES[t.bk];
     const X = sx(t.x), Y = sy(t.y + B.h / 2); if (X < 20 || X > W - 20) {   // 화면 밖이면 가장자리에 방향과 거리
       const d = X < 20 ? -1 : 1, ex = d < 0 ? 30 : W - 30, ey = clamp(Y, 140, H - 140), dist = Math.abs(t.x - p.x);
       c.fillStyle = '#ff3a2a'; c.beginPath(); c.moveTo(ex + d * 14, ey); c.lineTo(ex - d * 6, ey - 12); c.lineTo(ex - d * 6, ey + 12); c.closePath(); c.fill(); c.textAlign = 'center'; c.font = '900 12px system-ui,sans-serif'; c.fillStyle = '#ffd0c8'; c.fillText((dist / 1000).toFixed(1) + 'km', ex - d * 4, ey + 26); c.fillText('BOSS', ex - d * 4, ey - 18);
@@ -1435,7 +1460,6 @@ function lootStep(dt) {
   }
   for (let i = FLOATS.length - 1; i >= 0; i--) { const f = FLOATS[i]; f.t += dt; f.y += dt * 9; if (f.t > f.life) FLOATS.splice(i, 1); }
   if (G.ban && (G.t - G.ban.t0 > (ITEMS[G.ban.it].r >= 4 ? 3.2 : 2.2) || G.t < G.ban.t0)) G.ban = null;
-  if (!G.ban && G.banQ && G.banQ.length) G.ban = { it: G.banQ.shift(), t0: G.t };
 }
 function drawLoot(c) {   // 떨어진 아이템: 등급 색 빛무리, 희귀 이상은 빛기둥, 영웅·전설은 회전하는 빛살
   for (const L of LOOT) {
@@ -1451,7 +1475,61 @@ function drawLoot(c) {   // 떨어진 아이템: 등급 색 빛무리, 희귀 �
   }
   for (const f of FLOATS) { const a = clamp(1 - f.t / f.life, 0, 1), X = sx(f.x), Y = sy(f.y); if (X < -60 || X > W + 60) continue; c.save(); c.globalAlpha = a; c.font = '800 ' + Math.round(clamp(4 * cam.z, 12, 18)) + 'px system-ui,sans-serif'; c.textAlign = 'center'; c.textBaseline = 'alphabetic'; c.lineWidth = 3; c.strokeStyle = 'rgba(20,12,0,0.8)'; c.strokeText(f.text, X, Y); c.fillStyle = f.col; c.fillText(f.text, X, Y); c.restore(); }
 }
-function drawLootBanner(m) {   // 아이템을 얻으면 화면 가운데에 등급 색으로 크게 알린다 (전설은 화면이 금빛으로 번쩍)
+// ───────── 채팅창: 아이템 획득·안내·알림·속보를 화면 아래쪽 가운데에 반투명한 줄로 쌓는다 (새 줄은 아래, 오래된 줄은 흐려지며 사라진다) ─────────
+const CHAT = [], CHAT_MAX = 6, CHAT_W = 470, CHAT_LH = 21;
+const GRADE_COL = { green: '#59d37a', yellow: '#ffd23f', brown: '#c9925a', red: '#ff5a3c' };
+function chatPush(text, o) {   // o: { col: 점 색, tag: 앞에 붙는 꼬리표, tagCol, life: 보이는 시간, gold: 전설 }
+  text = tr(String(text || '')).trim(); if (!text) return;
+  const same = CHAT.find(l => l.text === text && G.t - l.t0 < l.life);   // 같은 글이 아직 보이면 새로 올리지 않고 시간만 늘린다
+  if (same) { same.t0 = G.t; return; }
+  CHAT.push(Object.assign({ text, col: '#cfd8e3', life: 6, t0: G.t }, o || {})); while (CHAT.length > CHAT_MAX) CHAT.shift();
+}
+function chatCollect() {   // 게임 곳곳에서 정한 알림을 채팅창 줄로 모은다
+  const ko = LANG === 'ko';
+  if (G.toast && G.toast !== G.chatToast) { G.chatToast = G.toast; chatPush(G.toast.text, { col: GRADE_COL[G.toast.grade] || '#fff', life: clamp(G.toast.until - G.t + 2, 5, 10) }); }
+  if (G.tick) for (const T of G.tick) if (!T.chat) { T.chat = 1; chatPush(T.text, { tag: ko ? '속보' : 'NEWS', tagCol: '#ff6a5a', col: '#ff6a5a', life: 8 }); }
+  while (G.banQ && G.banQ.length) {   // 아이템: [등급] 이름 — 효과
+    const it = ITEMS[G.banQ.shift()], R = RAR[it.r];
+    chatPush(it.ic + ' ' + (ko ? it.k + ' 획득 — ' + it.dk : it.n + ' — ' + it.d), { tag: ko ? R.k : R.n, tagCol: R.c, col: R.c, life: 6 + it.r, gold: it.r >= 4 });
+    if (it.r >= 4) G.goldT = G.t;
+  }
+  const hm = G.hm || ''; if (hm !== G.chatHm) { G.chatHm = hm; if (hm) chatPush(hm, { col: '#8fc6ff', life: 6 }); }
+}
+function chatWrap(c, text, maxW) {   // 긴 글은 낱말 단위로 여러 줄로 나눈다
+  const out = []; let cur = '';
+  for (const w of text.split(' ')) { const t = cur ? cur + ' ' + w : w; if (cur && c.measureText(t).width > maxW) { out.push(cur); cur = w; } else cur = t; }
+  if (cur) out.push(cur); return out;
+}
+function drawChat(m) {
+  if (G.scene !== 'play') { CHAT.length = 0; return; }
+  chatCollect(); const c = ctx0; c.save(); c.setTransform(m);
+  if (G.goldT && G.t - G.goldT < 0.7) { c.fillStyle = 'rgba(255,200,60,' + (0.3 * (1 - (G.t - G.goldT) / 0.7)) + ')'; c.fillRect(0, 0, W, H); }   // 전설 아이템: 화면이 잠깐 금빛으로 번쩍
+  for (let i = CHAT.length - 1; i >= 0; i--) if (G.t - CHAT[i].t0 > CHAT[i].life || G.t < CHAT[i].t0) CHAT.splice(i, 1);
+  if (!CHAT.length || G.result) { c.restore(); return; }
+  const font = '700 15px system-ui,sans-serif'; c.font = font; c.textBaseline = 'middle';
+  const rows = [];   // 줄마다: 글(여러 줄일 수 있다), 투명도
+  for (const l of CHAT) {
+    const el = G.t - l.t0, a = clamp(Math.min(el / 0.25, (l.life - el) / 0.8), 0, 1);
+    c.font = '800 12px system-ui,sans-serif'; const tagW = l.tag ? c.measureText('[' + tr(l.tag) + ']').width + 7 : 0; c.font = font;
+    chatWrap(c, l.text, CHAT_W - 34 - tagW).forEach((t, k) => rows.push({ l, t, k, a, tagW }));
+  }
+  while (rows.length > 7) rows.shift();   // 너무 길면 오래된 줄부터 자른다
+  const bottom = overElev() && p.mode === 'taxi' ? ELEV_BTN.y - 8 : landBtnOn() ? LANDBTN.y - 8 : 528, h = rows.length * CHAT_LH + 12, x0 = 527 - CHAT_W / 2, y0 = bottom - h;   // 십자 버튼(오른쪽 끝 266)과 발사 버튼(왼쪽 끝 788) 사이 가운데
+  const boxA = Math.max(...rows.map(r => r.a));
+  c.globalAlpha = boxA; c.fillStyle = 'rgba(6,14,26,0.38)'; c.beginPath(); c.roundRect(x0, y0, CHAT_W, h, 10); c.fill();   // 반투명 바탕
+  c.strokeStyle = 'rgba(170,205,255,0.18)'; c.lineWidth = 1; c.stroke();
+  rows.forEach((r, i) => {
+    const y = y0 + 6 + CHAT_LH * (i + 0.5), slide = (1 - clamp((G.t - r.l.t0) / 0.25, 0, 1)) * 8; c.globalAlpha = r.a * 0.95;
+    let x = x0 + 12;
+    if (r.k === 0) { c.fillStyle = r.l.col; c.beginPath(); c.arc(x + 3, y + slide, 3.5, 0, 7); c.fill(); }   // 첫 줄 앞 색 점
+    x += 14;
+    if (r.l.tag) { if (r.k === 0) { c.font = '800 12px system-ui,sans-serif'; c.fillStyle = r.l.tagCol; c.textAlign = 'left'; c.fillText('[' + r.l.tag + ']', x, y + slide); } x += r.tagW; }
+    c.font = font; c.textAlign = 'left'; c.lineJoin = 'round'; c.lineWidth = 3; c.strokeStyle = 'rgba(0,0,0,0.55)'; c.strokeText(r.t, x, y + slide);
+    c.fillStyle = r.l.gold ? '#ffd84a' : '#f2f5f9'; c.fillText(r.t, x, y + slide);
+  });
+  c.restore();
+}
+function drawLootBanner_old(m) {   // 아이템을 얻으면 화면 가운데에 등급 색으로 크게 알린다 (전설은 화면이 금빛으로 번쩍)
   const B = G.ban; if (!B || G.scene !== 'play') return; const it = ITEMS[B.it], R = RAR[it.r], el = G.t - B.t0, dur = it.r >= 4 ? 3.2 : 2.2, c = ctx0;
   const ko = LANG === 'ko', pop = el < 0.18 ? 0.6 + 0.4 * (el / 0.18) + Math.sin(el / 0.18 * Math.PI) * 0.15 : 1, a = clamp(Math.min(el / 0.12, (dur - el) / 0.35), 0, 1);
   c.save(); c.setTransform(m);
@@ -2467,10 +2545,11 @@ function enemyStep(dt) {
 }
 function ebStep(dt) {
   for (let i = EB.length - 1; i >= 0; i--) {
-    const b = EB[i]; b.life -= dt; b.x += b.vx * dt; b.y += b.vy * dt;
+    const b = EB[i]; if (b.own === undefined) { b.own = ebOwner(b); b.x0 = b.x; b.y0 = b.y; } b.life -= dt; b.x += b.vx * dt; b.y += b.vy * dt;
     if (b.sp) { stepSpecialEB(b, dt); if (b.life <= 0 && b.fuse) { EB.splice(i, 1); continue; } }
     if (!b.sn && p.mode === 'air' && Math.abs(b.x - p.x) < 16 && Math.abs(b.y - p.y) < 12) { b.sn = 1; if (G.t - (G.snapT || 0) > 0.06) { G.snapT = G.t; sfx('snap', { x: p.x }); } }   // 스쳐 가는 총알 소리
     if (p.mode === 'air' && Math.abs(b.x - p.x) < 6 && Math.abs(b.y - p.y) < 2.6) { hurt((b.dmg || 3) * (b.aa ? altDmgK() : 1), b.why || 'Shot down by enemy fighters.'); EB.splice(i, 1); continue; }
+    if (b.life > 0 && ebVsUnits(b)) { EB.splice(i, 1); continue; }
     if (b.life <= 0 || b.y <= gh(b.x)) { if (b.sp && b.kind !== 'orb' && b.y <= Math.max(0, gh(b.x)) + 1) explode(b.x, Math.max(0, b.y), 8, 'none', gh(b.x) <= 0); EB.splice(i, 1); }
   }
 }
@@ -2557,10 +2636,16 @@ function myAAStep(dt) {   // 우리 항모의 대공포: 다가오는 폭격기�
   for (let i = AAT.length - 1; i >= 0; i--) {
     const q = AAT[i]; q.t -= dt; if (q.t > 0) continue;
     FX.push({ k: 'flak', x: q.x, y: q.y, vx: 0, vy: 1, life: 1.1, t: 0 }); if (Math.random() < 0.4) sfx('boom', { k: 'flak', x: q.x });
-    for (const e of ENE) { if (e.dead || (e.type !== 'd4y' && e.type !== 'b6n')) continue; const fd = Math.hypot(e.x - q.x, e.y - q.y);
+    { const fd = Math.hypot(p.x - q.x, p.y - q.y); if (p.mode === 'air' && fd < 32 && Math.random() < MYAA_HIT) hurt((0.4 + 1.2 * (1 - fd / 32)) * 3, 'Hit by our own carrier\'s flak.'); }   // 우리 대공포 파편도 내 비행기를 가리지 않는다
+    for (const e of ENE) { if (e.dead) continue; const fd = Math.hypot(e.x - q.x, e.y - q.y);
       if (fd < 32 && Math.random() < MYAA_HIT) { e.hp -= 0.4 + 1.2 * (1 - fd / 32); if (e.hp <= 0) killEnemy(e); } }   // 맞아도 대부분은 작은 파편 피해
     AAT.splice(i, 1);
   }
+}
+function flakSplash(x, y, R, mx, skip) {   // 공중에서 터진 포탄의 파편: 가까운 비행기(적기·동료기)와 우리 항모를 다치게 한다 (skip: 이미 계산한 쪽)
+  for (const e of ENE) { if (e.dead || skip === 'ene') continue; const fd = Math.hypot(e.x - x, e.y - y); if (fd < R) { e.hp -= mx * Math.pow(1 - fd / R, 1.4) / 6; if (e.hp <= 0) killEnemy(e); } }
+  if (wingAir() && skip !== 'wing') { const fd = Math.hypot(WG.x - x, WG.y - y); if (fd < R) wingHurt(mx * Math.pow(1 - fd / R, 1.4) * 0.65); }
+  if (inCarrier(x, Math.max(0, y - R * 0.6))) carrierChip(0.3, x, Math.min(y, DECK_Y));
 }
 function flakStep(dt) {
   for (const t of TARGETS) {
@@ -2576,7 +2661,8 @@ function flakStep(dt) {
   for (let i = FLAK.length - 1; i >= 0; i--) {
     const q = FLAK[i]; q.t -= dt; if (q.t > 0) continue;
     FX.push({ k: 'flak', x: q.x, y: q.y, vx: 0, vy: 1, life: 1.1, t: 0 }); if (Math.random() < 0.6) sfx('boom', { k: 'flak', x: q.x });
-    { const fd = Math.hypot(p.x - q.x, p.y - q.y); if (p.mode === 'air' && fd < FLAK_R) hurt(Math.max(0.4, FLAK_MAX * Math.pow(1 - fd / FLAK_R, 1.4)) * altDmgK(), 'Shot down by flak.'); }   // 터진 곳에서 가까울수록 크게, 멀어도 조금은 피해
+    { const fd = Math.hypot(p.x - q.x, p.y - q.y); if (p.mode === 'air' && fd < FLAK_R) hurt(Math.max(0.4, FLAK_MAX * Math.pow(1 - fd / FLAK_R, 1.4)) * altDmgK(), 'Shot down by flak.'); }
+    flakSplash(q.x, q.y, FLAK_R, FLAK_MAX, null);   // 파편은 편을 가리지 않는다   // 터진 곳에서 가까울수록 크게, 멀어도 조금은 피해
     FLAK.splice(i, 1);
   }
 }
@@ -2842,6 +2928,11 @@ function stepProj(dt) {
       FX.push({ k: 'flash', x: q.x, y: q.y, vx: 0, vy: 0, life: 0.12, t: 0 }); sfx('clunk', { x: q.x }); PROJ.splice(i, 1); continue;
     }
     if (q.k === 'b' && bulletVsParked(q)) { PROJ.splice(i, 1); continue; }
+    if ((q.k === 'b' || q.k === 'r' || q.k === 'm') && q.life > 0 && p.mode === 'air' && inCarrier(q.x, q.y)) {   // 내 총알·로켓·폭탄이 우리 항모에 맞았다
+      if (q.k === 'b') carrierChip(0.12, q.x, q.y); else { const big = q.k === 'm' ? bombT(q).dm : 1; explode(q.x, DECK_Y, q.k === 'm' ? bombT(q).R * 0.6 : 10, 'none', false); carrierChip((q.k === 'm' ? 6 : 3) * big, q.x, DECK_Y); }
+      PROJ.splice(i, 1); continue;
+    }
+    if ((q.k === 'b' || q.k === 'r') && !q.wg && wingAir() && Math.abs(q.x - WG.x) < 6 && Math.abs(q.y - WG.y) < 2.6) { wingHurt(q.k === 'b' ? 3 : 25); if (q.k === 'r') rocketBoom(q, q.x, q.y, false); PROJ.splice(i, 1); continue; }   // 동료기도 내 탄에 맞는다
     const en = (q.k === 'b' || q.k === 'r') ? ENE.find(e => !e.dead && Math.abs(q.x - e.x) < 12 && Math.abs(q.y - e.y) < 6) : null;
     if (en) {
       if (q.k === 'b') { en.hp -= 0.5 * gunK() * dmgBuf() * (q.dm || 1); if (q.w === 'inc') en.burnT = G.t + 4; if (G.t - (G.ehitT || 0) > 0.07) { G.ehitT = G.t; sfx('ehit', { x: q.x }); } for (let j = 0; j < 2; j++) FX.push({ k: 'spark', x: q.x, y: q.y, vx: (Math.random() - 0.5) * 18, vy: 3 + Math.random() * 8, life: 0.3, t: 0 }); if (en.hp <= 0) killEnemy(en); }
@@ -3745,6 +3836,7 @@ function drawHpBars(c) {   // 적 구조물·함정이 맞으면 잠깐 체력�
   for (const t of TARGETS) {
     const armed = ARMED[t.type] || SHIPS[t.type] && t.type !== 'boat' && t.type !== 'tr', age = armed ? 0 : G.t - (t.hitAt === undefined ? -99 : t.hitAt); if (!t.alive || age > SHOW || t.type === 'runway') continue;   // 공격하는 시설과 군함은 체력바가 항상 보인다
     if (Math.abs(t.x - cam.x) > W / cam.z / 2 + 60) continue;
+    if (t.boss) continue;   // 보스는 drawBossHp 에서 항상 그린다
     const fr = clamp(t.hp / t.hp0, 0, 1), bw = Math.max(8, BOX[t.type].w * cam.z * 0.78), bh = Math.max(2.5, bw * 0.1) * HP_K, X = sx(t.x), Y = sy(t.y + BOX[t.type].h + (SHIPS[t.type] ? 14 : 3)) - 3 * cam.z;
     const a = age > SHOW - 0.6 ? (SHOW - age) / 0.6 : 1;
     c.save(); c.globalAlpha = a;
@@ -3754,6 +3846,22 @@ function drawHpBars(c) {   // 적 구조물·함정이 맞으면 잠깐 체력�
     }
     if (USHIP[t.type]) { c.fillStyle = '#ffd23f'; c.font = '700 12px system-ui,sans-serif'; c.textAlign = 'center'; c.lineWidth = 3; c.strokeStyle = 'rgba(8,12,20,0.8)'; c.strokeText(SHIP_NAME[t.type], X, Y - 20); c.fillText(SHIP_NAME[t.type], X, Y - 20); }   // 내가 만든 배의 이름
     if (t.guns && SHIP_GUNS[t.type]) { const n =t.guns.filter(g => g.alive).length; c.fillStyle = '#fff'; c.font = '700 11px system-ui,sans-serif'; c.textAlign = 'center'; c.lineWidth = 3; c.strokeStyle = 'rgba(8,12,20,0.8)'; const tx = 'AA guns ' + n + '/' + t.guns.length; c.strokeText(tx, X, Y - 5); c.fillText(tx, X, Y - 5); }
+    c.restore();
+  }
+}
+const BOSS_TOP = { whale: 1.0, dragonfly: 0.6 };   // 하늘 보스는 몸 중심에 떠 있어서 꼭대기 높이가 다르다
+function bossTop(t) { const B = BOSSES[t.bk]; return t.y + B.h * (BOSS_TOP[t.bk] || 1) + 4; }   // 보스 머리 꼭대기
+function drawBossHp(c) {   // 보스 머리 위에 항상 보이는 체력바: 몸집에 맞춰 넓고 두껍게, 10칸 눈금
+  for (const t of TARGETS) {
+    if (!t.boss || !t.alive || t.gone) continue; const B = BOSSES[t.bk];
+    if (Math.abs(t.x - cam.x) > W / cam.z / 2 + B.w) continue;
+    const fr = clamp(t.hp / t.hp0, 0, 1), bw = clamp(B.w * 0.8, 26, 60) * cam.z, bh = Math.max(4, bw * 0.07) * HP_K, X = sx(t.x), Y = sy(bossTop(t)) - bh - 4;
+    c.save();
+    c.fillStyle = 'rgba(10,6,8,0.85)'; c.beginPath(); c.roundRect(X - bw / 2 - 2, Y - 2, bw + 4, bh + 4, bh / 2 + 2); c.fill();
+    c.strokeStyle = 'rgba(255,90,70,0.85)'; c.lineWidth = 1.2; c.stroke();
+    if (fr > 0) { const gr = c.createLinearGradient(X - bw / 2, 0, X + bw / 2, 0); gr.addColorStop(0, '#ff3a2a'); gr.addColorStop(1, '#ff9a3c'); c.fillStyle = gr; c.beginPath(); c.roundRect(X - bw / 2, Y, Math.max(bh, bw * fr), bh, bh / 2); c.fill(); }
+    if (G.t - (t.hitAt || -9) < 0.12) { c.fillStyle = 'rgba(255,255,255,0.45)'; c.beginPath(); c.roundRect(X - bw / 2, Y, Math.max(bh, bw * fr), bh, bh / 2); c.fill(); }   // 맞으면 막대가 번쩍
+    c.fillStyle = 'rgba(0,0,0,0.4)'; for (let k = 1; k < 10; k++) c.fillRect(X - bw / 2 + bw * k / 10 - 0.5, Y, 1, bh);
     c.restore();
   }
 }
@@ -4352,7 +4460,7 @@ function wingStep(dt) {
           if (k !== 'ts') {   // 기관총
             if (w.ammo.gun > 0 && (cand.some(q => q.cdx < 650 && q.ce < 0.07 && (DMG.gun[q.c.type] >= 0.1 || !q.c.type)) || dxa < 650 && aimErr < 0.07 && (k === 'e' || k === 'g' && (SHIPS[o.type] || (DMG.gun[o.type] || 0) >= 0.1 || !o.type)))) {
               w.gT -= dt; w.gF = G.t + 0.15;
-              while (w.gT <= 0 && w.ammo.gun > 0) { w.gT += 1 / 16; w.ammo.gun -= 5; const a = w.h + (Math.random() - 0.5) * 0.03, cx = Math.cos(a), cy = Math.sin(a); PROJ.push({ k: 'b', x: w.x + cx * 9, y: w.y + cy * 9 - 0.4, vx: dxv + cx * 640, vy: dyv + cy * 640, life: 0.95, tr: Math.random() < 0.2 }); if (Math.random() < 0.35) sfx('gun', { x: w.x }); }
+              while (w.gT <= 0 && w.ammo.gun > 0) { w.gT += 1 / 16; w.ammo.gun -= 5; const a = w.h + (Math.random() - 0.5) * 0.03, cx = Math.cos(a), cy = Math.sin(a); PROJ.push({ k: 'b', x: w.x + cx * 9, y: w.y + cy * 9 - 0.4, vx: dxv + cx * 640, vy: dyv + cy * 640, life: 0.95, tr: Math.random() < 0.2, wg: 1 }); if (Math.random() < 0.35) sfx('gun', { x: w.x }); }
             } else w.gT = 0;
             const rt = k === 'g' && w.ammo.rk > 0 && G.t > w.rT ? (cand.length ? cand : [{ c: o, cdx: dxa, ce: aimErr }]).find(q => q.c.type && (DMG.rocket[q.c.type] || 0) > 0 && q.cdx < (hi ? 560 : 950) && q.cdx > (hi ? 260 : 300) && q.ce < 0.05 && (w.fpm.get(q.c) || 0) < Math.max(1, Math.ceil((q.c.hp || 1) / DMG.rocket[q.c.type]))) : null;
             if (rt) {   // 로켓: 겨냥선에 든 목표마다, 부수는 데 필요한 만큼만 연달아 쏜다
@@ -5126,9 +5234,9 @@ function drawHudFaded() {   // HUD를 따로 그린 뒤 3분의 1 불투명도�
   const m = ctx0.getTransform(); hudCx.setTransform(1, 0, 0, 1, 0, 0); hudCx.clearRect(0, 0, hudCv.width, hudCv.height); hudCx.setTransform(m);
   ctx = hudCx; try { drawHUD(); } finally { ctx = ctx0; }
   ctx0.save(); ctx0.setTransform(1, 0, 0, 1, 0, 0); ctx0.globalAlpha = HUD_ALPHA; ctx0.drawImage(hudCv, 0, 0); ctx0.restore();
-  if (G.scene === 'play' && TARGETS.some(t => t.boss && t.alive && !t.gone)) { ctx0.save(); ctx0.setTransform(m); try { drawMiniBoss(ctx0); } finally { ctx0.restore(); } }   // 보스 표시는 흐리지 않게
+  if (G.scene === 'play' && TARGETS.some(t => t.boss && t.alive && !t.gone)) { ctx0.save(); ctx0.setTransform(m); try { drawMiniBoss(ctx0); drawBossHp(ctx0); } finally { ctx0.restore(); } }   // 보스 표시와 머리 위 체력바는 흐리지 않게
   try { drawFwdView(m); } catch (e) { ctx = ctx0; }
-  try { drawLootBanner(m); } catch (e) {}
+  try { drawChat(m); } catch (e) {}
   try { drawBossUI(m); } catch (e) {}
   if (hangarOpen() && !(G.camWing && WG)) { ctx0.save(); ctx0.setTransform(m); ctx0.fillStyle = 'rgba(4,10,20,0.45)'; ctx0.fillRect(0, 0, W, H); try { drawPick(ctx0); } finally { ctx0.restore(); } }   // 보급 화면: 또렷하게
 }
@@ -5139,7 +5247,7 @@ function pipMarks(c) {   // 작은 확대창 안의 적 유닛(적기·시설·�
     c.beginPath(); c.moveTo(X, Y); c.lineTo(X - sz * 0.5, Y - sz * 0.55); c.lineTo(X - sz * 0.17, Y - sz * 0.55); c.lineTo(X - sz * 0.17, Y - sz * 1.2); c.lineTo(X + sz * 0.17, Y - sz * 1.2); c.lineTo(X + sz * 0.17, Y - sz * 0.55); c.lineTo(X + sz * 0.5, Y - sz * 0.55); c.closePath(); c.stroke(); c.fill();
   };
   c.save(); c.fillStyle = '#ff2d20'; c.strokeStyle = 'rgba(0,0,0,0.8)'; c.lineWidth = 5; c.lineJoin = 'round';
-  for (const t of TARGETS) { if (!t.alive || t.type === 'runway') continue; const b = BOX[t.type]; mk(t.x, t.y + (b ? b.h : 8) + (SHIPS[t.type] ? 14 : 3), 54, true); }
+  for (const t of TARGETS) { if (!t.alive || t.type === 'runway') continue; const b = BOX[t.type]; mk(t.x, t.boss ? bossTop(t) : t.y + (b ? b.h : 8) + (SHIPS[t.type] ? 14 : 3), 54, true); }
   for (const e of ENE) if (!e.dead) mk(e.x, e.y + 8, 54, true);
   for (const o of SOLD) if (o.alive && o.st !== 'enter') mk(o.x, o.y + 9, 36);
   c.restore();
@@ -5176,7 +5284,7 @@ function drawFwdView(m) {   // 정면 화면: 비행기가 향한 쪽 멀리(기
       cam.z = pipS.z; cam.x = pipS.x; cam.y = pipS.y;
     }   // 기수가 향한 쪽 380m 앞을 본다: 조준선에 들어온 벙커가 실제로 보이는 것처럼 보인다
     ctx = pipCx; pipCx.setTransform(pipCv.width / W, 0, 0, pipCv.height / H, 0, 0);
-    try { drawWorld(); HP_K = 2.2; try { if (G.scene === 'play') { drawHpBars(pipCx); drawEnemyHp(pipCx, true); } } finally { HP_K = 1; } pipMarks(pipCx); } finally { ctx = sc; cam.x = sv.x; cam.y = sv.y; cam.z = sv.z; }   // 확대창에도 체력바를 그린다 (두껍게, 이름표 없이)
+    try { drawWorld(); HP_K = 2.2; try { if (G.scene === 'play') { drawHpBars(pipCx); drawEnemyHp(pipCx, true); drawBossHp(pipCx); } } finally { HP_K = 1; } pipMarks(pipCx); } finally { ctx = sc; cam.x = sv.x; cam.y = sv.y; cam.z = sv.z; }   // 확대창에도 체력바를 그린다 (두껍게, 이름표 없이)
   }
   const c = ctx0; c.save(); c.setTransform(m); c.beginPath(); c.roundRect(X, Y, PW, PH, 8); c.clip(); c.drawImage(pipCv, X, Y, PW, PH);
   c.restore(); c.save(); c.setTransform(m); c.strokeStyle = 'rgba(170,205,255,0.8)'; c.lineWidth = 2; c.beginPath(); c.roundRect(X, Y, PW, PH, 8); c.stroke(); c.fillStyle = 'rgba(6,16,30,0.7)'; c.beginPath(); c.roundRect(X + 8, Y + 6, 46, 16, 5); c.fill(); c.fillStyle = '#ffc83d'; c.font = '800 10px system-ui,sans-serif'; c.textAlign = 'left'; c.fillText('ZOOM', X + 15, Y + 18);   // 창 이름표
@@ -5243,37 +5351,7 @@ function drawHUD() {
     const b = ELEV_BTN; c.fillStyle = 'rgba(26,90,150,0.92)'; c.beginPath(); c.roundRect(b.x, b.y, b.w, b.h, 12); c.fill(); c.strokeStyle = '#9fd0ff'; c.lineWidth = 2; c.stroke();
     c.fillStyle = '#fff'; c.font = '800 17px system-ui,sans-serif'; c.textAlign = 'center'; c.fillText('Elevator down (Space)', b.x + b.w / 2, b.y + 34);
   }
-  G.toastH = 0; const pipOn = !wv && p.mode === 'air' && !G.paused, TY = pipOn ? 270 : 138; G.toastY = TY;   // 날고 있으면 작은 확대창(위쪽 92~218) 아래에 띄운다 (안내 한 줄 228, 그 아래 메시지)
-  if (G.toast && G.t < G.toast.until) {   // 착함 결과
-    const col = { green: '#59d37a', yellow: '#ffd23f', brown: '#a9793f' }[G.toast.grade] || '#fff';
-    // 긴 글은 두 줄로 나눈다
-    let L = [tr(G.toast.text)]; c.font = '800 16px system-ui,sans-serif';
-    if (c.measureText(G.toast.text).width > MSG_W - 70) { const t = tr(G.toast.text), mid = t.length / 2; let k = -1; for (let i = 0; i < t.length; i++) if (t[i] === ' ' && (k < 0 || Math.abs(i - mid) < Math.abs(k - mid))) k = i; if (k > 0) L = [t.slice(0, k), t.slice(k + 1)]; }
-    const tw = Math.max(...L.map(l => fitFont(c, l, 16, '800', MSG_W - 70))), lh = 21, ph = 12 + L.length * lh;
-    panel(MSG_CX - tw / 2 - 34, TY, tw + 68, ph, 0.8); c.fillStyle = col; c.beginPath(); c.arc(MSG_CX - tw / 2 - 14, TY + ph / 2, 8, 0, 7); c.fill();
-    c.fillStyle = '#fff'; c.textAlign = 'center'; L.forEach((l, i) => c.fillText(l, MSG_CX + 8, TY + 21 + i * lh)); G.toastH = ph;
-  }
-  if (!wv && landBtnOn()) { const b = LANDBTN; c.fillStyle = 'rgba(40,120,70,0.94)'; c.beginPath(); c.roundRect(b.x, b.y, b.w, b.h, 12); c.fill(); c.strokeStyle = '#9ef0b8'; c.lineWidth = 2; c.stroke(); c.fillStyle = '#fff'; c.font = '800 17px system-ui,sans-serif'; c.textAlign = 'center'; c.fillText('Start landing (V)', b.x + b.w / 2, b.y + 32); }
-  if (!wv && (p.mode === 'air' || onDeckArm())) fireBtns().forEach(b => {   // 발사 버튼 (갑판 위에서도 보인다: 기관총·로켓은 기수가 수평 이상일 때만, 폭탄·어뢰는 날 때만)
-    const n = b.k === 'gun' ? p.ammo.gun : b.k === 'rocket' ? p.ammo.rk : b.k === 'torp' ? (p.ammo.tp || 0) : p.ammo.bm, can = p.mode === 'air' || ((b.k === 'gun' || b.k === 'rocket') && deckArmOk()), live = can && n > 0;
-    const held = can && (b.k === 'gun' ? (keys.Space || keys.KeyZ || touch.on.gun > 0) : b.k === 'rocket' ? touch.on.rocket > 0 : b.k === 'bomb' ? touch.on.bomb > 0 : false);
-    const acc = { gun: '#ffc83d', rocket: '#ff7a45', bomb: '#a9c4e4', torp: '#7fd8ff' }[b.k] || '#fff';
-    hudBox(c, b.x, b.y, b.w, b.h, 12, live ? 0.78 : 0.5, live ? acc : 'rgba(150,160,175,0.4)');
-    if (held) { c.globalAlpha = 0.85; c.fillStyle = acc; c.beginPath(); c.roundRect(b.x, b.y, b.w, b.h, 12); c.fill(); c.globalAlpha = 1; }
-    c.fillStyle = live ? acc : 'rgba(150,160,175,0.6)'; c.beginPath(); c.roundRect(b.x + 6, b.y + 12, 5, b.h - 24, 2.5); c.fill();   // 무기 색 줄
-    const tc = held ? '#1c1405' : live ? HUD_C.text : 'rgba(200,208,218,0.6)';
-    c.textAlign = 'left'; c.fillStyle = tc; fitFont(c, b.label, 17, '800', b.w - 34); c.fillText(b.label, b.x + 20, b.y + 30);
-    c.font = '600 11px system-ui,sans-serif'; c.fillStyle = held ? '#3a2a08' : HUD_C.sub; c.fillText(b.key, b.x + 20, b.y + b.h - 14);
-    c.textAlign = 'right'; c.font = '800 24px system-ui,sans-serif'; c.fillStyle = tc; c.fillText(String(n), b.x + b.w - 14, b.y + b.h - 14);
-  });
-  if (G.tick && G.tick.length) {   // 뉴스 자막처럼: 왼쪽에 빨간 '속보' 꼬리표, 흰 글씨, 부드럽게 나타났다 사라진다
-    const T = G.tick[0], el = T.t0 === undefined ? 0 : G.t - T.t0, al = clamp(Math.min(el / 0.4, (6 - el) / 0.5), 0, 1), by = (G.toastH ? G.toastY + 8 + G.toastH : G.toastY + 22) + (1 - clamp(el / 0.4, 0, 1)) * 30;
-    c.globalAlpha = al; const tw = fitFont(c, T.text, 19, '700', MSG_W - 140), fs19 = c.font, bw = tw + 140, bx = MSG_CX - bw / 2;
-    c.fillStyle = 'rgba(12,22,38,0.9)'; c.fillRect(bx, by, bw, 40); c.fillStyle = '#c62828'; c.fillRect(bx, by, 76, 40);
-    c.fillStyle = '#fff'; c.font = '800 17px system-ui,sans-serif'; c.textAlign = 'center'; c.fillText('NEWS', bx + 38, by + 26);
-    c.textAlign = 'left'; c.font = fs19; c.fillText(T.text, bx + 96, by + 27);
-    c.fillStyle = 'rgba(255,255,255,0.25)'; c.fillRect(bx, by + 38, bw, 2); c.globalAlpha = 1;
-  }
+  // 알림·속보·아이템·안내는 drawChat 이 아래쪽 채팅창에 그린다
   // 격납고 보급 화면은 drawHudFaded 에서 불투명하게 그린다
   if (G.paused && G.scene === 'play' && !G.quiet) {   // 일시정지 화면 (G.quiet: 시험용으로 화면 표시 없이 멈춤)
     c.fillStyle = 'rgba(6,14,26,0.55)'; c.fillRect(-10, -40, W + 20, H + 60);
@@ -5282,8 +5360,7 @@ function drawHUD() {
     if (G.askQuit) { const b = BTN[0]; c.strokeStyle = '#ffd23f'; c.lineWidth = 3; c.beginPath(); c.roundRect(b.x - 3, b.y - 3, b.w + 6, b.h + 6, 11); c.stroke(); }
     c.textAlign = 'left';
   }
-  const hm = G.paused || wv ? '' : hint();
-  if (hm) { const tw = fitFont(c, hm, 16, '700', MSG_W - 30); const hy = pipOn ? 228 : 96; panel(MSG_CX - tw / 2 - 14, hy, tw + 28, 34, 0.7); c.fillStyle = '#fff'; c.textAlign = 'center'; c.fillText(hm, MSG_CX, hy + 23); }
+  G.hm = G.paused || wv ? '' : hint();   // 안내 한 줄: 바뀔 때마다 채팅창에 한 줄 올린다
   // 결과
   if (G.result && ((G.result.kind !== 'crash' && G.result.kind !== 'wreck') || G.t - G.result.at > 2.6)) {
     const r = G.result; panel(250, 150, 460, 250, 0.86); c.textAlign = 'center';

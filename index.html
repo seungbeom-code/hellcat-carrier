@@ -897,7 +897,7 @@ function shopBuy(k, n) {   // 격납고에서 로켓(rk)·폭탄(bm)을 사거�
 function shopGo() {   // 보급을 마치고 올라간다 (급유·수리는 무료)
   const e = p.el; if (!e || e.st !== 'pick') return; saveProg(); G.shopM0 = undefined; G.shopMsg = '';
   p.loaded = { rk: p.ammo.rk > 0, bm: p.ammo.bm > 0 }; if (G.buy && (G.buy.rk || G.buy.bm)) G.lastPref = G.buy.bm > G.buy.rk ? 'bm' : 'rk'; G.buy = { rk: 0, bm: 0 };
-  p.fuelMax = LOADS[0].fuel; p.fuel = p.fuelMax; p.hp = 100;
+  p.fuelMax = LOADS[0].fuel; p.fuel = p.fuelMax; p.hp = 100; p.heat = 0; p.ovh = false;
   e.st = 'up'; e.t = 0; sfx('lift'); G.toast = G.brief ? { text: G.brief, grade: 'green', until: G.t + 7 } : { text: 'Refueled, repaired, rearmed', grade: 'green', until: G.t + 2.5 }; G.brief = null;
 }
 function autoShop() {   // 자동 조종의 보급: 지난번에 산 무기(없으면 로켓)를 돈이 되는 만큼 채운다
@@ -2813,24 +2813,33 @@ function deckArmOk() {   // 갑판 위에서는 기수가 수평이거나 위를
 }
 const fireVel = () => p.mode === 'air' ? [p.vx, p.vy] : [ship.v + (p.vr || 0), 0];   // 갑판 위에서는 배와 같이 움직이는 속도
 const GUN_LIFE = 0.95 * 1.5;   // 기관총탄이 날아가는 시간(초): 사거리 약 900m (예전 600m의 1.5배)
+const GUN_HEAT_T = 4.5, GUN_COOL = 0.32, GUN_RESUME = 0.3;   // 기관총: 탄약은 무한, 대신 약 4.5초 쉬지 않고 쏘면 과열 → 열이 30%로 식을 때까지(약 2초) 못 쏜다
+const gunTrig = () => (keys.Space && !(p.mode !== 'air' && overElev())) || keys.KeyZ || touch.on.gun > 0 || G.demoFire;
+function gunCool(dt, firing) {   // 쏘지 않는 동안 총열이 식는다 (과열이 풀리면 알린다)
+  p.heat = p.heat || 0; if (!firing) p.heat = Math.max(0, p.heat - GUN_COOL * dt);
+  if (p.ovh && p.heat <= GUN_RESUME) { p.ovh = false; sfx('clunk'); chatPush(LANG === 'ko' ? '기관총이 식었습니다 — 다시 쏠 수 있습니다' : 'Machine gun cooled — ready to fire', { col: '#59d37a', life: 3 }); }
+  if (p.ovh && p.mode === 'air' && Math.random() < dt * 14) { const a = p.th; FX.push({ k: 'smoke', x: p.x + Math.cos(a) * 6, y: p.y + Math.sin(a) * 6, vx: p.vx * 0.6, vy: p.vy * 0.6 + 3, life: 0.7, t: 0, s: 0.7 }); }   // 과열된 총구에서 연기
+}
 function fireStep(dt) {
   const ok = (p.mode === 'air' && p.turn <= 0 && !p.off) || deckArmOk();
+  gunCool(dt, ok && gunTrig() && !p.ovh);
   if (!ok) { p.gunT = 0; return; }
   const rkSlot = !!((p.loaded && p.loaded.rk) || p.ammo.rk > 0);   // 첫 번째 무기(C): 로켓이 있으면 로켓, 없으면 폭탄. 두 번째 무기(X): 로켓과 함께 실은 폭탄
   if ((touch.on.rocket > 0 || (keys.KeyC && rkSlot)) && p.ammo.rk > 0) fireRocket();
   if ((touch.on.bomb > 0 || (keys.KeyX && rkSlot) || (keys.KeyC && !rkSlot)) && p.ammo.bm > 0) dropBomb();   // 폭탄 버튼(또는 C·X 키)을 누르고 있으면 연속 투하   // 로켓 버튼(또는 C 키)을 누르고 있으면 쿨다운마다 연속 발사
-  if (((keys.Space && !(p.mode !== 'air' && overElev())) || keys.KeyZ || touch.on.gun > 0 || G.demoFire) && p.ammo.gun > 0) {   // 기관총: 연속 약 30초 (엘리베이터 위에서는 Space 가 엘리베이터 키)
+  if (gunTrig() && !p.ovh) {   // 기관총: 탄약 무한, 오래 쏘면 과열 (엘리베이터 위에서는 Space 가 엘리베이터 키)
     p.gunT -= dt;
-    while (p.gunT <= 0 && p.ammo.gun > 0) {
-      const GW = GN(); p.gunT += 1 / GW.rate; p.ammo.gun = Math.max(0, p.ammo.gun - 5); G.gunFireT = G.t;
+    while (p.gunT <= 0 && !p.ovh) {
+      const GW = GN(); p.gunT += 1 / GW.rate; p.gsn = (p.gsn || 0) + 1; G.gunFireT = G.t;
+      if (!CHEAT.ammo) { p.heat = (p.heat || 0) + 1 / (GW.rate * GUN_HEAT_T); if (p.heat >= 1) { p.heat = 1; p.ovh = true; p.gunT = 0; sfx('clunk'); chatPush(LANG === 'ko' ? '기관총 과열! 식을 때까지 쏠 수 없습니다' : 'Machine gun overheated! Wait for it to cool', { col: '#ff5a3c', life: 3 }); } }   // 무기 무제한 치트면 과열도 없다
       const a = p.th + (Math.random() - 0.5) * GW.spread, dx = Math.cos(a), dy = Math.sin(a);
       if (!(p.trN > 0)) p.trN = 0; const trc = --p.trN < 0; if (trc) p.trN = 4 + ((Math.random() * 4) | 0);   // 예광탄: 5~8발에 한 발
       const [fvx, fvy] = fireVel(); PROJ.push({ k: 'b', x: p.x + dx * 9, y: p.y + dy * 9 - 0.4, vx: fvx + dx * 640, vy: fvy + dy * 640, life: GUN_LIFE * (1 + 0.1 * upLv('gun')) * (GW.life || 1), tr: trc || GW.rate < 12, w: (G.save && G.save.gun) || 'm2', dm: GW.dm, tc: GW.tc });
-      if (GW.snd === 'gun20' || ((p.ammo.gun / 5) | 0) % (GW.rate > 20 ? 3 : 2) === 0) { sfx(GW.snd || 'gun'); FX.push({ k: 'muz', x: p.x + dx * 6.5, y: p.y + dy * 6.5 - 0.4, vx: fvx, vy: fvy, a, s: 1.4 + Math.random() * 0.9, life: 0.05, t: 0 }); }
+      if (GW.snd === 'gun20' || p.gsn % (GW.rate > 20 ? 3 : 2) === 0) { sfx(GW.snd || 'gun'); FX.push({ k: 'muz', x: p.x + dx * 6.5, y: p.y + dy * 6.5 - 0.4, vx: fvx, vy: fvy, a, s: 1.4 + Math.random() * 0.9, life: 0.05, t: 0 }); }
     }
   } else p.gunT = 0;
 }
-const gunOn = () => p === WP ? !!(WG && WG.gF > G.t) : (keys.Space || keys.KeyZ || touch.on.gun > 0 || G.demoFire) && p.ammo.gun > 0;   // 기관총을 쏘는 동안에는 로켓·폭탄을 쓸 수 없다
+const gunOn = () => p === WP ? !!(WG && WG.gF > G.t) : (keys.Space || keys.KeyZ || touch.on.gun > 0 || G.demoFire) && !p.ovh;   // 기관총을 쏘는 동안에는 로켓·폭탄을 쓸 수 없다
 const WPN = [['rk', 'rocket', 'rockets'], ['bm', 'bomb', 'bombs'], ['tp', 'torpedo', 'torpedoes']];
 function noAmmo(i) {   // 없는 무기를 눌렀다
   if (G.scene !== 'play') return;
@@ -4040,7 +4049,7 @@ function autoToggle(on) {
 function autoNeedHome() {   // 돌아갈 때: 임무 완료, 연료·체력 부족, 무기를 다 썼을 때
   const m = G.m; if (!m) return false;
   const far = Math.abs(p.x - (ship.x + DECK_L / 2));
-  if (m.obj || p.fuel < p.fuelMax * (0.2 + far / 55000) || p.hp < 35 || p.ammo.gun < 200) return true;   // 연료: 항모에서 멀수록 일찍 돌아간다
+  if (m.obj || p.fuel < p.fuelMax * (0.2 + far / 55000) || p.hp < 35) return true;   // 연료: 항모에서 멀수록 일찍 돌아간다
   const L = p.loaded || {}, noWpn = (L.rk || L.bm) && p.ammo.rk <= 0 && p.ammo.bm <= 0 && money() >= 300;
   return !!noWpn;   // 산 로켓·폭탄을 다 쓰고 살 돈이 있으면 다시 사러 간다
 }
@@ -5269,7 +5278,7 @@ function hint() {
   if (p.turn > 0) return '';   // 선회 중 안내는 띄우지 않는다
   if (G.lso) return '';
   if (G.t - p.liftT < 5) return 'Climbing gently — ▲ to climb more';
-  if (G.m) { const low = p.fuel / p.fuelMax < 0.3, empty = p.ammo.gun <= 0 && p.ammo.rk <= 0 && p.ammo.bm <= 0 && !(p.ammo.tp > 0); if (low || empty) return (low ? 'Fuel is low' : 'Out of ammo') + '. Return to the carrier and resupply on the elevator'; if (Math.abs(xr - DECK_L / 2) > APP_R + 400) return ''; }
+  if (G.m) { const low = p.fuel / p.fuelMax < 0.3, empty = false; if (low || empty) return (low ? 'Fuel is low' : 'Out of ammo') + '. Return to the carrier and resupply on the elevator'; if (Math.abs(xr - DECK_L / 2) > APP_R + 400) return ''; }
   if (Math.abs(xr - DECK_L / 2) > APP_R + 400) return 'Press the opposite arrow to turn back to the carrier';
   return '';
 }
@@ -5438,6 +5447,25 @@ function drawHUD() {
     c.fillStyle = '#fff'; c.font = '800 17px system-ui,sans-serif'; c.textAlign = 'center'; c.fillText('Elevator down (Space)', b.x + b.w / 2, b.y + 34);
   }
   // 알림·속보·아이템·안내는 drawChat 이 아래쪽 채팅창에 그린다
+  if (!wv && landBtnOn()) { const b = LANDBTN; c.fillStyle = 'rgba(40,120,70,0.94)'; c.beginPath(); c.roundRect(b.x, b.y, b.w, b.h, 12); c.fill(); c.strokeStyle = '#9ef0b8'; c.lineWidth = 2; c.stroke(); c.fillStyle = '#fff'; c.font = '800 17px system-ui,sans-serif'; c.textAlign = 'center'; c.fillText('Start landing (V)', b.x + b.w / 2, b.y + 32); }
+  if (!wv && (p.mode === 'air' || onDeckArm())) fireBtns().forEach(b => {   // 발사 버튼 (갑판 위에서도 보인다: 기관총·로켓은 기수가 수평 이상일 때만, 폭탄·어뢰는 날 때만)
+    const n = b.k === 'gun' ? '∞' : b.k === 'rocket' ? p.ammo.rk : b.k === 'torp' ? (p.ammo.tp || 0) : p.ammo.bm, can = p.mode === 'air' || ((b.k === 'gun' || b.k === 'rocket') && deckArmOk()); let live = can && (b.k === 'gun' ? !p.ovh : n > 0);
+    const held = can && (b.k === 'gun' ? (keys.Space || keys.KeyZ || touch.on.gun > 0) && !p.ovh : b.k === 'rocket' ? touch.on.rocket > 0 : b.k === 'bomb' ? touch.on.bomb > 0 : false);
+    const acc = { gun: '#ffc83d', rocket: '#ff7a45', bomb: '#a9c4e4', torp: '#7fd8ff' }[b.k] || '#fff';
+    hudBox(c, b.x, b.y, b.w, b.h, 12, live ? 0.78 : 0.5, live ? acc : 'rgba(150,160,175,0.4)');
+    if (held) { c.globalAlpha = 0.85; c.fillStyle = acc; c.beginPath(); c.roundRect(b.x, b.y, b.w, b.h, 12); c.fill(); c.globalAlpha = 1; }
+    c.fillStyle = live ? acc : 'rgba(150,160,175,0.6)'; c.beginPath(); c.roundRect(b.x + 6, b.y + 12, 5, b.h - 24, 2.5); c.fill();   // 무기 색 줄
+    const tc = held ? '#1c1405' : live ? HUD_C.text : 'rgba(200,208,218,0.6)';
+    c.textAlign = 'left'; c.fillStyle = tc; fitFont(c, b.label, 17, '800', b.w - 34); c.fillText(b.label, b.x + 20, b.y + 30);
+    c.font = '600 11px system-ui,sans-serif'; c.fillStyle = held ? '#3a2a08' : HUD_C.sub; c.fillText(b.key, b.x + 20, b.y + b.h - 14);
+    c.textAlign = 'right'; c.font = '800 24px system-ui,sans-serif'; c.fillStyle = tc; c.fillText(String(n), b.x + b.w - 14, b.y + b.h - 14);
+    if (b.k === 'gun') {   // 총열 온도 막대: 초록 → 노랑 → 빨강, 과열이면 깜빡이며 '과열'
+      const ht = clamp(p.heat || 0, 0, 1), bx = b.x + 20, by = b.y + 38, bw = b.w - 40;
+      c.fillStyle = 'rgba(0,0,0,0.45)'; c.beginPath(); c.roundRect(bx, by, bw, 7, 3.5); c.fill();
+      c.fillStyle = p.ovh ? (Math.sin(G.t * 14) > 0 ? '#ff3a2a' : '#ff9a3c') : ht > 0.75 ? '#ff5a3c' : ht > 0.45 ? '#ffd23f' : '#59d37a'; c.beginPath(); c.roundRect(bx, by, Math.max(7, bw * ht), 7, 3.5); c.fill();
+      if (p.ovh) { c.textAlign = 'right'; c.font = '900 13px system-ui,sans-serif'; c.fillStyle = '#ff6a4a'; c.fillText(LANG === 'ko' ? '과열' : 'HOT', b.x + b.w - 12, b.y + 22); }
+    }
+  });
   // 격납고 보급 화면은 drawHudFaded 에서 불투명하게 그린다
   if (G.paused && G.scene === 'play' && !G.quiet) {   // 일시정지 화면 (G.quiet: 시험용으로 화면 표시 없이 멈춤)
     c.fillStyle = 'rgba(6,14,26,0.55)'; c.fillRect(-10, -40, W + 20, H + 60);

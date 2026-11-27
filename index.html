@@ -282,8 +282,8 @@ function lsoSignal() {
 
 // ───────── 치트키: 무적, 무기 무제한 (일시정지 화면의 버튼, 또는 일시정지 중에 GOD / AMMO 입력) ─────────
 const CHEAT = (() => { const d = { god: false, ammo: false }; try { return Object.assign(d, JSON.parse(localStorage.getItem('hcCheat') || '{}')); } catch (e) { return d; } })();
-const CHEAT_BTN = [{ k: 'god', x: 290, y: 318, w: 180, h: 56 }, { k: 'ammo', x: 490, y: 318, w: 180, h: 56 }];
-const CHEAT_NAME = { god: ['Invincible', '무적'], ammo: ['Unlimited weapons', '무기 무제한'] };
+const CHEAT_BTN = [{ k: 'god', x: 190, y: 318, w: 180, h: 56 }, { k: 'ammo', x: 390, y: 318, w: 180, h: 56 }, { k: 'boss', x: 590, y: 318, w: 180, h: 56, act: 1 }];
+const CHEAT_NAME = { god: ['Invincible', '무적'], ammo: ['Unlimited weapons', '무기 무제한'], boss: ['Summon all bosses', '보스 전원 출현'] };
 function cheatSet(k, v) {
   CHEAT[k] = v; try { localStorage.setItem('hcCheat', JSON.stringify(CHEAT)); } catch (e) {}
   sfx('clunk'); const ko = LANG === 'ko'; chatPush((ko ? '치트 ' : 'Cheat: ') + CHEAT_NAME[k][ko ? 1 : 0] + (v ? ' ON' : ' OFF'), { col: '#ff9d3c', life: 4 });
@@ -293,6 +293,28 @@ function cheatType(ch) {   // 일시정지 중에 글자를 치면: GOD → 무�
   G.cheatBuf = ((G.cheatBuf || '') + ch).slice(-6);
   if (G.cheatBuf.endsWith('GOD')) { cheatSet('god', !CHEAT.god); G.cheatBuf = ''; }
   else if (G.cheatBuf.endsWith('AMMO')) { cheatSet('ammo', !CHEAT.ammo); G.cheatBuf = ''; }
+  else if (G.cheatBuf.endsWith('BOSS')) { cheatBosses(); G.cheatBuf = ''; }
+}
+function cheatBosses() {   // 보스 6종을 한꺼번에 섬 위에 세운다: 가까운 섬부터, 섬마다 겹치지 않게 구역을 나눠 그 안에서만 걷는다
+  const ko = LANG === 'ko', say = (t, col) => { sfx('clunk'); chatPush(t, { col: col || '#ff9d3c', life: 6 }); };
+  if (G.scene !== 'play' || hangarOpen()) return say(ko ? '보스는 출격한 뒤에만 부를 수 있습니다' : 'Bosses can only be summoned in flight');
+  const busy = TARGETS.filter(t => t.boss && t.alive && !t.gone).map(t => t.bk);
+  const kinds = Object.keys(BOSSES).filter(k => !busy.includes(k)).sort((a, b) => BOSSES[b].w - BOSSES[a].w);   // 큰 보스부터 자리를 잡는다
+  if (!kinds.length) return say(ko ? '보스 6종이 이미 모두 나와 있습니다' : 'All six bosses are already out');
+  const room = ISLANDS.map((q, i) => ({ i, a: q.a + 40, b: q.b - 40, d: Math.abs((q.a + q.b) / 2 - p.x) })).sort((u, v) => u.d - v.d);   // 섬마다 남은 빈자리 (가까운 섬부터)
+  for (const t of TARGETS) if (t.boss && t.alive && !t.gone && t.isl >= 0) { const r = room.find(r => r.i === t.isl); if (r) r.a = Math.max(r.a, (t.hi !== undefined ? t.hi : t.x) + BOSSES[t.bk].w / 2 + 20); }   // 이미 있는 보스 자리는 비운다
+  const made = [], miss = [];
+  for (const k of kinds) {
+    const B = BOSSES[k], need = B.w + 60, r = room.find(r => r.b - r.a >= need);
+    if (!r) { miss.push(k); continue; }
+    const span = Math.min(r.b - r.a, need + 160), t = spawnBoss(k, r.a + span / 2, made.length > 0);
+    t.lo = r.a + B.w / 2; t.hi = r.a + span - B.w / 2; t.isl = r.i; r.a += span + 20;   // 이 구역 안에서만 오간다
+    made.push(t);
+  }
+  if (!made.length) return say(ko ? '보스가 설 만한 섬이 없습니다' : 'No island is big enough for a boss');
+  G.bossT = made.reduce((a, t) => Math.abs(t.x - p.x) < Math.abs(a.x - p.x) ? t : a);   // 경고·화면 밖 화살표는 가장 가까운 보스
+  say((ko ? '치트 보스 전원 출현: ' : 'Cheat: bosses summoned: ') + made.map(t => ko ? BOSSES[t.bk].k : BOSSES[t.bk].n).join(', '), '#ff6a4a');
+  if (miss.length) say(ko ? '섬이 좁아 ' + miss.length + '종은 나오지 못했습니다' : miss.length + ' could not fit on the islands');
 }
 function cheatAmmo() {   // 무기 무제한: 총알·로켓·폭탄이 줄지 않는다 (안 실었으면 12발씩 준다)
   if (!CHEAT.ammo || G.scene !== 'play' || hangarOpen()) return;
@@ -1123,12 +1145,12 @@ const BOSSES = {
   oni: { n: "Heavy Walker 'Onigawara'", k: "강철 오니 '오니가와라'", w: 24, h: 25, hp: 420, fly: false, sp: 3.5, bounty: 4500 }   // 육중한 2족 보행 병기: 회전 기관포·로켓 발사기·유도 미사일 (직접 디자인)
 };
 const BOSS_WHY = { strider: 'Shot down by the Iron Strider.', crawler: 'Shot down by the Land Fortress.', whale: 'Shot down by the Walking Battleship.', golem: 'Struck down by the Thunder Golem.', dragonfly: 'Shot down by the Iron Dragonfly.', oni: 'Shot down by the Heavy Walker.' };
-function spawnBoss(kind, x) {
+function spawnBoss(kind, x, quiet) {
   const B = BOSSES[kind], type = 'B_' + kind, L = (G.cur && G.cur.lvl) || 1, hp = Math.round(B.hp * (0.8 + 0.03 * L));
   BOX[type] = { w: B.w, h: B.h }; HP[type] = hp; DMG.gun[type] = 0.3; DMG.rocket[type] = 4; DMG.bomb[type] = 10; HARD[type] = 1; DROP[type] = [1, [0, 0, 45, 38, 17], B.bounty, 3];
   const isl = B.fly ? -1 : ISLANDS.findIndex(q => x > q.a && x < q.b);
   const t = { type, bk: kind, boss: true, x, y: B.fly ? B.alt : gh(x), hp, hp0: hp, alive: true, burn: 0, fire: 0, deadT: 0, isl, dir: p.x >= x ? 1 : -1, an: 0, cd: [2.5, 6, 9], fx: 0, aim: 0, vx: 0, vy: 0 };
-  TARGETS.push(t); G.bossT = t; G.bossWarn = G.t; sfx('siren');
+  TARGETS.push(t); G.bossT = t; G.bossWarn = G.t; if (!quiet) sfx('siren');
   return t;
 }
 function spawnRandomBoss(kind) {
@@ -1149,7 +1171,7 @@ function bossStep(dt) {
     t.fx = Math.max(0, t.fx - dt);
     if (p.mode === 'air' && Math.abs(p.x - t.x) < B.w / 2 && p.y > t.y && p.y < t.y + B.h) { crash('Flew into the ' + (LANG === 'ko' ? B.k : B.n) + '.'); if (p.mode === 'fall' || p.mode === 'slide') endCrash(false); }   // 들이받으면 내 비행기만 그 자리에서 터진다 (보스는 피해 없음)
     if (!B.fly) {   // 지상 보스: 섬 위를 오가며 걷는다 (쏠 때는 멈춘다)
-      const lo = isl ? isl.a + B.w / 2 + 40 : t.x, hi = isl ? isl.b - B.w / 2 - 40 : t.x;
+      const lo = t.lo !== undefined ? t.lo : isl ? isl.a + B.w / 2 + 40 : t.x, hi = t.hi !== undefined ? t.hi : isl ? isl.b - B.w / 2 - 40 : t.x;
       if (t.fx <= 0) { t.x += t.dir * B.sp * dt; t.an += dt * B.sp * 0.32; if (t.x < lo) { t.x = lo; t.dir = 1; } if (t.x > hi) { t.x = hi; t.dir = -1; } }
       if (seen && d < 1800 && Math.random() < dt * 0.4) t.dir = p.x >= t.x ? 1 : -1;   // 내 쪽을 돌아본다
       t.y = gh(t.x);
@@ -1195,7 +1217,7 @@ function bossStep(dt) {
 }
 function bossDeath(t, dt) {   // 격파: 연쇄 폭발 → (공중 보스는 추락) → 큰 폭발과 불타는 잔해
   const B = BOSSES[t.bk]; if (t.gone) return;
-  if (!t.dd) { t.dd = G.t; G.bossKillT = G.t; G.bossKillK = t.bk; t.vy = 0; sfx('boom', { k: 'big', x: t.x }); }
+  if (!t.dd) { t.dd = G.t; G.bossKillT = G.t; G.bossKillK = t.bk; t.vy = 0; sfx('boom', { k: 'big', x: t.x }); if (G.bossT === t) { const nx = TARGETS.filter(o => o.boss && o.alive && !o.gone).sort((u, v) => Math.abs(u.x - p.x) - Math.abs(v.x - p.x))[0]; if (nx) G.bossT = nx; } }
   const el = G.t - t.dd;
   if (el < 2.6 && Math.random() < dt * 9) { const x = t.x + (Math.random() - 0.5) * B.w, y = t.y + Math.random() * B.h; explode(x, y, 10 + Math.random() * 8, 'none', false); }
   if (B.fly) { t.vy -= 30 * dt; t.y += t.vy * dt; t.tilt = (t.tilt || 0) + dt * 0.25 * t.dir; const g = Math.max(0, gh(t.x)); if (t.y <= g) { explode(t.x, g + 2, 40, 'none', g <= 0); if (g <= 0) splashX(1, 1); for (let k = 0; k < 20; k++) FX.push({ k: 'fire', x: t.x + (Math.random() - 0.5) * B.w, y: g + Math.random() * 6, vx: (Math.random() - 0.5) * 40, vy: 8 + Math.random() * 20, life: 1.5 + Math.random(), t: 0, s: 3 + Math.random() * 3 }); t.gone = true; } }
@@ -1553,11 +1575,11 @@ function chatWrap(c, text, maxW) {   // 긴 글은 낱말 단위로 여러 줄�
 function drawCheat(m) {
   if (G.scene !== 'play') return; const c = ctx0, ko = LANG === 'ko'; c.save(); c.setTransform(m);
   if (G.paused && !G.askQuit && !G.quiet && !hangarOpen()) {
-    c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = '700 13px system-ui,sans-serif'; c.fillStyle = '#ffc890'; c.fillText(ko ? '치트키 (누르면 켜고 끔 · 키보드로는 GOD / AMMO 입력)' : 'Cheats (tap to toggle · or type GOD / AMMO)', 480, 302);
-    for (const b of CHEAT_BTN) { const on = CHEAT[b.k];
+    c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = '700 13px system-ui,sans-serif'; c.fillStyle = '#ffc890'; c.fillText(ko ? '치트키 (누르면 켜고 끔 · 키보드로는 GOD / AMMO / BOSS 입력)' : 'Cheats (tap to toggle · or type GOD / AMMO / BOSS)', 480, 302);
+    for (const b of CHEAT_BTN) { const on = !b.act && CHEAT[b.k];
       c.fillStyle = on ? 'rgba(255,140,40,0.92)' : 'rgba(10,18,32,0.88)'; c.beginPath(); c.roundRect(b.x, b.y, b.w, b.h, 12); c.fill(); c.strokeStyle = on ? '#ffe0b0' : 'rgba(255,170,90,0.7)'; c.lineWidth = 2; c.stroke();
-      c.fillStyle = on ? '#2a1400' : '#fff'; c.font = '900 18px system-ui,sans-serif'; c.fillText((b.k === 'god' ? '🛡 ' : '♾ ') + CHEAT_NAME[b.k][ko ? 1 : 0], b.x + b.w / 2, b.y + 21);
-      c.font = '800 12px system-ui,sans-serif'; c.fillText(on ? (ko ? '켜짐' : 'ON') : (ko ? '꺼짐' : 'OFF'), b.x + b.w / 2, b.y + 41); }
+      c.fillStyle = on ? '#2a1400' : '#fff'; c.font = '900 18px system-ui,sans-serif'; c.fillText((b.k === 'god' ? '🛡 ' : b.k === 'boss' ? '☠ ' : '♾ ') + CHEAT_NAME[b.k][ko ? 1 : 0], b.x + b.w / 2, b.y + 21);
+      c.font = '800 12px system-ui,sans-serif'; c.fillText(b.act ? (ko ? '누르면 출현' : 'Tap to summon') : on ? (ko ? '켜짐' : 'ON') : (ko ? '꺼짐' : 'OFF'), b.x + b.w / 2, b.y + 41); }
   }
   if (CHEAT.god || CHEAT.ammo) {   // 켜져 있으면 위쪽에 작게 표시
     const t = [CHEAT.god && CHEAT_NAME.god[ko ? 1 : 0], CHEAT.ammo && CHEAT_NAME.ammo[ko ? 1 : 0]].filter(Boolean).join(' · ');
@@ -4745,7 +4767,7 @@ const inR = (m, r) => m.x >= r.x - 6 && m.x <= r.x + r.w + 6 && m.y >= r.y - 6 &
 cv.addEventListener('pointerdown', e => {
   const m = pos(e); e.preventDefault(); initAudio();
   if (G.scene !== 'play') { sceneTap(m); return; }
-  if (G.paused && !G.askQuit && !G.quiet) { const cb = CHEAT_BTN.find(b => inR(m, b)); if (cb) { cheatSet(cb.k, !CHEAT[cb.k]); return; } }   // 일시정지 화면의 치트 버튼 (게임은 계속 멈춰 있다)
+  if (G.paused && !G.askQuit && !G.quiet) { const cb = CHEAT_BTN.find(b => inR(m, b)); if (cb) { if (cb.act) cheatBosses(); else cheatSet(cb.k, !CHEAT[cb.k]); return; } }   // 일시정지 화면의 치트 버튼 (게임은 계속 멈춰 있다)
   if (G.paused) { const quit = G.askQuit && inR(m, BTN[0]); G.paused = false; G.askQuit = false; if (quit) goMenu(); return; }   // 멈춘 동안에는 어디를 눌러도 다시 시작 (나가기를 물은 뒤 Ops 를 또 누르면 나간다)
   if (landBtnOn() && inR(m, LANDBTN)) { startLanding(); return; }
   if (hangarOpen()) { shopTap(m); return; }

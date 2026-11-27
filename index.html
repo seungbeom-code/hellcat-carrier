@@ -5382,7 +5382,7 @@ function drawFwdView(m) {   // 정면 화면: 비행기가 향한 쪽 멀리(기
     try { drawWorld(); HP_K = 2.2; try { if (G.scene === 'play') { drawHpBars(pipCx); drawEnemyHp(pipCx, true); drawBossHp(pipCx); } } finally { HP_K = 1; } pipMarks(pipCx); } finally { ctx = sc; cam.x = sv.x; cam.y = sv.y; cam.z = sv.z; }   // 확대창에도 체력바를 그린다 (두껍게, 이름표 없이)
   }
   const c = ctx0; c.save(); c.setTransform(m); c.beginPath(); c.roundRect(X, Y, PW, PH, 8); c.clip(); c.drawImage(pipCv, X, Y, PW, PH);
-  c.restore(); c.save(); c.setTransform(m); c.strokeStyle = 'rgba(170,205,255,0.8)'; c.lineWidth = 2; c.beginPath(); c.roundRect(X, Y, PW, PH, 8); c.stroke(); c.fillStyle = 'rgba(6,16,30,0.7)'; c.beginPath(); c.roundRect(X + 8, Y + 6, 46, 16, 5); c.fill(); c.fillStyle = '#ffc83d'; c.font = '800 10px system-ui,sans-serif'; c.textAlign = 'left'; c.fillText('ZOOM', X + 15, Y + 18);   // 창 이름표
+  c.restore(); c.save(); c.setTransform(m); c.strokeStyle = 'rgba(170,205,255,0.8)'; c.lineWidth = 2; c.beginPath(); c.roundRect(X, Y, PW, PH, 8); c.stroke();   // 창 이름표(확대)는 표시하지 않는다
   c.strokeStyle = 'rgba(255,60,60,0.9)'; c.lineWidth = 1.5; const cx = X + PW / 2, cy = Y + PH / 2; c.beginPath(); c.arc(cx, cy, 6, 0, 7); c.moveTo(cx - 12, cy); c.lineTo(cx - 3, cy); c.moveTo(cx + 3, cy); c.lineTo(cx + 12, cy); c.moveTo(cx, cy - 12); c.lineTo(cx, cy - 3); c.moveTo(cx, cy + 3); c.lineTo(cx, cy + 12); c.stroke(); c.restore();   // 조준선
   if (!wv && pullUpWarn()) {   // 급강하 중 상승할 때: 붉게 깜빡이는 안내를 작은 창 안에 크게 띄운다
     const tx = 'Pull up now! Press ▲', on = Math.sin(G.t * 14) > -0.3; c.save(); c.setTransform(m);

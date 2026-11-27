@@ -29,8 +29,8 @@ const SHIP_V = 11;                 // 갑판 맞바람 30노트
 let DECK_Y = 20, shipBob = 0; const DECK_Y0 = 20, DECK_L = 520, WH = 3.2, CS = DECK_L / 260, ISL_DX = 124;   // 갑판 길이는 예전의 2배 (선체 그림은 가로로 2배로 늘이고, 함교는 그대로 두고 자리만 옮긴다)   // 갑판 높이, 길이, 바퀴 밑까지 거리
 const ZONE_B = 240, ZONE_A = 85, ZONE_L = ZONE_B - ZONE_A;   // 어레스팅 와이어 구역: 와이어 3개 (예전 4개에서 선미 쪽 하나를 줄여 함 중앙 쪽으로 좁혔다)
 const WIRES = [0, 1, 2].map(i => ZONE_A + 10 + i * (ZONE_L - 20) / 2);
-const LIGHT = 3;   // 기체의 가벼움: 조종간에 비행 경로가 3배 빨리 휜다 (속도·실속 속도는 그대로)
-const TURN_T = 1.1;   // 선회에 걸리는 시간(초): 가벼워져서 예전(3.2초)의 1/3
+const LIGHT = 2;   // 기체의 가벼움: 조종간에 비행 경로가 2배 빨리 휜다 (속도·실속 속도는 그대로)
+const TURN_T = 1.6;   // 선회에 걸리는 시간(초): 가벼워져서 예전(3.2초)의 절반
 const HOOK_BACK = 7.5, CRUISE_KT = 270, SLOW_KT = 180, APP_KT = 120;   // 후크 끝 위치, 손을 뗐을 때 순항 속도, 항모 근처 접근 속도
 const MIN_KT = 150;   // 날고 있을 때(바퀴를 올린 상태) 속도는 이 아래로 떨어지지 않는다. 방향 전환 중에도 마찬가지
 const TAKEOFF_KT = 138, ROTATE_KT = 132, TURN_KT = 100;   // 이륙과 선회에 필요한 최소 속도

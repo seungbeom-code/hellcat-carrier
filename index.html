@@ -2148,6 +2148,12 @@ function hurt(d, why) {
 function killEnemy(e) {
   if (e.dead) return; e.dead = true; if (e.boss && G.m) G.m.bossDown = true;
   if (e.type !== 'd4y' && e.type !== 'b6n') onKill(e.boss ? 'boss' : e.type === 'ace' || e.type === 'n1k' ? 'ace' : (e.rk || 1) >= 3 ? 'zero2' : 'zero1', e.x, e.y); e.vx = Math.cos(e.h) * e.v; e.vy = Math.sin(e.h) * e.v * 0.5;
+  if (e.rv) {   // 돌아서던 중 격추: 화면 안쪽/바깥쪽으로 돌던 중이라 옆으로는 거의 움직이지 않았다. 그 속도에서 이어서, 돌던 힘(관성)으로 계속 돌며 기수를 숙이고 나선으로 떨어진다
+    const R = e.rv, gm = Math.atan2(Math.sin(e.h), Math.abs(Math.cos(e.h))), ph = (R.f0 > 0 ? 0 : Math.PI) + R.a, cg = Math.cos(gm) * e.v;
+    e.vx = Math.cos(ph) * cg; e.vy = Math.min(Math.sin(e.h) * e.v * 0.5, 0);
+    e.spin = { ph, w: Math.max(R.w, 0.7) * (1.1 + Math.random() * 0.3), sp: cg * 0.45, dr: Math.cos(ph) * cg * 0.55, pit: gm, bank: Math.sin(R.a) * 0.9, wob: Math.random() * 6 };
+    e.rv = null; delete e.fl;
+  }
   if (G.m && e.type !== 'd4y' && e.type !== 'b6n') { G.m.zeros++; if (e.type === 'ace') G.m.ace = true; }
   for (let i = 0; i < 8; i++) FX.push({ k: 'fire', x: e.x, y: e.y, vx: (Math.random() - 0.5) * 12, vy: (Math.random() - 0.5) * 8, life: 0.6 + Math.random() * 0.6, t: 0, s: 1.5 + Math.random() * 2 });
   sfx('boom', { k: 'plane', x: e.x });
@@ -2385,10 +2391,22 @@ function enemyStep(dt) {
         if (Math.abs(e.vx) < 3 || e.slT > 6) { if (!landWreck(e, false)) explode(e.x, g1, 10, 'none', false); ENE.splice(i, 1); }   // 멈추면 잔해가 남는다 (가파르게 처박혔으면 폭발)
         continue;
       }
-      e.vy -= 24 * dt; e.x += e.vx * dt; e.y += e.vy * dt;
+      if (e.spin) {   // 돌아서던 중 격추: 계속 돌며 좌우로 흔들리고, 기수는 점점 땅을 향한다
+        const C = e.spin; C.ph += C.w * dt; C.w = Math.min(C.w * (1 + 0.3 * dt), 3.2);
+        C.sp *= 1 - 0.35 * dt; C.dr *= 1 - 0.5 * dt;
+        e.vx += (C.dr + C.sp * Math.cos(C.ph) - e.vx) * Math.min(1, 3 * dt);
+        e.vy -= 24 * dt; e.vy = Math.max(e.vy, -45);
+        C.pit += (-0.95 - C.pit) * Math.min(1, 0.9 * dt); C.bank += (1.15 + 0.3 * Math.sin(e.tm * 5 + C.wob) - C.bank) * Math.min(1, 1.5 * dt);
+        e.h = Math.cos(C.ph) >= 0 ? C.pit : Math.PI - C.pit;
+        if (Math.random() < dt * 14) FX.push({ k: 'smoke', x: e.x, y: e.y, vx: -e.vx * 0.2, vy: 1, life: 1.5, t: 0, s: 2.3 });   // 나선을 따라 검은 연기
+      } else {   // 곧게 날다 격추: 무게 때문에 기수가 떨어지는 쪽으로 서서히 숙여진다
+        e.vy -= 24 * dt; e.vx *= 1 - 0.12 * dt; e.vy = Math.max(e.vy, -50);
+        const tg = Math.atan2(e.vy, e.vx); e.h += clamp(angd(tg, e.h), -1.6 * dt, 1.6 * dt);
+      }
+      e.x += e.vx * dt; e.y += e.vy * dt;
       if (!e.hit) e.hit = new Set(); crashBuildings(e, e.hit);
       if (Math.random() < dt * 20) FX.push({ k: Math.random() < 0.4 ? 'fire' : 'smoke', x: e.x, y: e.y, vx: 0, vy: 2, life: 0.9, t: 0, s: 1.6 });
-      const g = gh(e.x); if (g > 0 && e.y <= g + 1) { e.slide = true; e.slT = 0; e.hit = new Set(); e.impV = Math.max(0, -e.vy); e.y = g + 1; e.vx *= 0.7; dirtBurst(e.x, g, 2); }
+      const g = gh(e.x); if (g > 0 && e.y <= g + 1) { e.spin = null; e.slide = true; e.slT = 0; e.hit = new Set(); e.impV = Math.max(0, -e.vy); e.y = g + 1; e.vx *= 0.7; dirtBurst(e.x, g, 2); }
       else if (e.y <= g || e.y <= 0) { explode(e.x, Math.max(e.y, g), 10, 'none', g <= 0); ENE.splice(i, 1); }
       continue;
     }
@@ -3897,6 +3915,7 @@ function drawEnemies(c) {
       if (Math.abs(angd(ra, inv ? Math.PI : 0)) > 0.04) { c.scale(s3, s3); drawPlane3D(0, ra, false, pal); return; }
       if (inv) c.scale(1, -1); c.scale(1, 1 - 0.3 * Math.abs(e.bank || 0)); drawZero(c, e.type);
     }); continue; }
+    if (e.spin) { const C = e.spin, s3 = 0.85 * ({ zero: 1, ace: 1, n1k: 1.1, d4y: 1.2, b6n: 1.3 }[e.type] || 1); world(e.x, e.y, () => { c.rotate(C.pit * Math.cos(C.ph)); c.scale(s3, s3); drawPlane3D(C.ph, C.bank, false, zeroPal(e.type)); }); continue; }   // 돌아서던 중 격추: 빙글빙글 돌며 떨어진다
     world(e.x, e.y, () => { c.rotate(e.h); if (e.fl !== undefined ? e.fl : Math.cos(e.h) < 0) c.scale(1, -1); let rs = 1; if (e.mv === 'brl') { rs = Math.cos(e.mvT * 13); if (Math.abs(rs) < 0.12) rs = rs < 0 ? -0.12 : 0.12; } if (e.rv) c.scale(Math.max(0.3, Math.abs(Math.cos(e.rv.a))), 1 + 0.3 * Math.sin(e.rv.a)); c.scale(1, (1 - 0.3 * Math.abs(e.bank || 0)) * rs); drawZero(c, e.type); });   // 선회할 때 날개를 기울인다
   }
 }

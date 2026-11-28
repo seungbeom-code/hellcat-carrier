@@ -5216,9 +5216,11 @@ function drawHudFaded() {   // HUD를 따로 그린 뒤 3분의 1 불투명도�
   if (hangarOpen() && !(G.camWing && WG)) { ctx0.save(); ctx0.setTransform(m); ctx0.fillStyle = 'rgba(4,10,20,0.45)'; ctx0.fillRect(0, 0, W, H); try { drawPick(ctx0); } finally { ctx0.restore(); } }   // 보급 화면: 또렷하게
 }
 let pipCv = null, pipCx = null, pipT = -9, pipS = null, pipSeen = -9;
-function pipGround() {   // 확대창이 보는 곳에 지상 유닛(시설·군함·보스·병사)이 들어와 있는가
+function pipGround() {   // 확대창이 보는 곳에 섬의 땅이나 지상 유닛(시설·군함·보스·병사)이 들어와 있는가
   if (!pipS) return false; const hw = W / (2 * pipS.z) + 12, hh = H / (2 * pipS.z) + 12;
   const inV = (x, y) => Math.abs(x - pipS.x) < hw && Math.abs(y - pipS.y) < hh + 10;
+  for (const s of ISLANDS) if (s.b > pipS.x - hw && s.a < pipS.x + hw)   // 섬 땅: 창 아래쪽 끝보다 높이 솟은 곳이 있으면 보인다
+    for (let i = 0; i <= 16; i++) { const x = pipS.x - hw + (2 * hw * i) / 16; if (x > s.a && x < s.b && gh(x) > pipS.y - hh) return true; }
   for (const t of TARGETS) if (t.alive && t.type !== 'runway' && inV(t.x, t.y)) return true;
   for (const o of SOLD) if (o.alive && o.st !== 'enter' && inV(o.x, o.y)) return true;
   return false;

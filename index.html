@@ -5215,7 +5215,14 @@ function drawHudFaded() {   // HUD를 따로 그린 뒤 3분의 1 불투명도�
   try { drawBossUI(m); } catch (e) {}
   if (hangarOpen() && !(G.camWing && WG)) { ctx0.save(); ctx0.setTransform(m); ctx0.fillStyle = 'rgba(4,10,20,0.45)'; ctx0.fillRect(0, 0, W, H); try { drawPick(ctx0); } finally { ctx0.restore(); } }   // 보급 화면: 또렷하게
 }
-let pipCv = null, pipCx = null, pipT = -9, pipS = null;
+let pipCv = null, pipCx = null, pipT = -9, pipS = null, pipSeen = -9;
+function pipGround() {   // 확대창이 보는 곳에 지상 유닛(시설·군함·보스·병사)이 들어와 있는가
+  if (!pipS) return false; const hw = W / (2 * pipS.z) + 12, hh = H / (2 * pipS.z) + 12;
+  const inV = (x, y) => Math.abs(x - pipS.x) < hw && Math.abs(y - pipS.y) < hh + 10;
+  for (const t of TARGETS) if (t.alive && t.type !== 'runway' && inV(t.x, t.y)) return true;
+  for (const o of SOLD) if (o.alive && o.st !== 'enter' && inV(o.x, o.y)) return true;
+  return false;
+}
 function pipMarks(c) {   // 작은 확대창 안의 적 유닛(적기·시설·군함·병사) 머리 위에 빨간 화살표를 붙여 조준하기 쉽게 한다 (창이 작아서 크게 그린다)
   const mk = (x, top, sz, bar) => {
     const X = sx(x), Y = sy(top) - 8 - (bar ? 3 * cam.z + 26 : 0) + Math.sin(G.t * 6 + x * 0.3) * 3;   // 체력바가 있으면 그 위로 올린다 if (X < -30 || X > W + 30 || Y < -10 || Y > H + 60) return;
@@ -5257,13 +5264,17 @@ function drawFwdView(m) {   // 정면 화면: 비행기가 향한 쪽 멀리(기
       const tx = best ? best.x : x + ca * 380, ty = best ? best.y : y + sa * 380, tz = 2 * (best ? clamp(960 / Math.max(150, best.al * 0.42), 2.2, 6.5) : 2.2);   // 확대 비율 2배
       if (!pipS) pipS = { x: tx, y: ty, z: tz }; else { pipS.x = lerp(pipS.x, tx, 0.35); pipS.y = lerp(pipS.y, ty, 0.35); pipS.z = lerp(pipS.z, tz, 0.25); }
       cam.z = pipS.z; cam.x = pipS.x; cam.y = pipS.y;
+      if (pipGround()) pipSeen = G.t; else if (G.t < pipSeen) pipSeen = -9;
     }   // 기수가 향한 쪽 380m 앞을 본다: 조준선에 들어온 벙커가 실제로 보이는 것처럼 보인다
     ctx = pipCx; pipCx.setTransform(pipCv.width / W, 0, 0, pipCv.height / H, 0, 0);
-    try { drawWorld(); HP_K = 2.2; try { if (G.scene === 'play') { drawHpBars(pipCx); drawEnemyHp(pipCx, true); drawBossHp(pipCx); } } finally { HP_K = 1; } pipMarks(pipCx); } finally { ctx = sc; cam.x = sv.x; cam.y = sv.y; cam.z = sv.z; }   // 확대창에도 체력바를 그린다 (두껍게, 이름표 없이)
+    if (G.t - pipSeen > 0.6) { ctx = sc; cam.x = sv.x; cam.y = sv.y; cam.z = sv.z; } else try { drawWorld(); HP_K = 2.2; try { if (G.scene === 'play') { drawHpBars(pipCx); drawEnemyHp(pipCx, true); drawBossHp(pipCx); } } finally { HP_K = 1; } pipMarks(pipCx); } finally { ctx = sc; cam.x = sv.x; cam.y = sv.y; cam.z = sv.z; }   // 확대창에도 체력바를 그린다 (두껍게, 이름표 없이)
   }
-  const c = ctx0; c.save(); c.setTransform(m); c.beginPath(); c.roundRect(X, Y, PW, PH, 8); c.clip(); c.drawImage(pipCv, X, Y, PW, PH);
+  const c = ctx0, show = G.t - pipSeen <= 0.6;   // 지상 유닛이 창에 들어왔을 때만 창을 보여준다 (잠깐 빠져도 0.6초는 남겨 깜빡이지 않게)
+  if (show) {
+  c.save(); c.setTransform(m); c.beginPath(); c.roundRect(X, Y, PW, PH, 8); c.clip(); c.drawImage(pipCv, X, Y, PW, PH);
   c.restore(); c.save(); c.setTransform(m); c.strokeStyle = 'rgba(170,205,255,0.8)'; c.lineWidth = 2; c.beginPath(); c.roundRect(X, Y, PW, PH, 8); c.stroke();   // 창 이름표(확대)는 표시하지 않는다
   c.strokeStyle = 'rgba(255,60,60,0.9)'; c.lineWidth = 1.5; const cx = X + PW / 2, cy = Y + PH / 2; c.beginPath(); c.arc(cx, cy, 6, 0, 7); c.moveTo(cx - 12, cy); c.lineTo(cx - 3, cy); c.moveTo(cx + 3, cy); c.lineTo(cx + 12, cy); c.moveTo(cx, cy - 12); c.lineTo(cx, cy - 3); c.moveTo(cx, cy + 3); c.lineTo(cx, cy + 12); c.stroke(); c.restore();   // 조준선
+  }   // 창이 없어도 상승 경고는 같은 자리에 띄운다
   if (!wv && pullUpWarn()) {   // 급강하 중 상승할 때: 붉게 깜빡이는 안내를 작은 창 안에 크게 띄운다
     const tx = 'Pull up now! Press ▲', on = Math.sin(G.t * 14) > -0.3; c.save(); c.setTransform(m);
     c.fillStyle = on ? 'rgba(210,30,30,0.88)' : 'rgba(120,16,16,0.88)'; c.beginPath(); c.roundRect(X + 6, Y + PH - 34, PW - 12, 28, 6); c.fill();
